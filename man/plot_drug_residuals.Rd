@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot.R
 \name{plot_drug_residuals}
 \alias{plot_drug_residuals}
-\title{Plot guide-level residuals for all gene pairs.}
+\title{Plot guide-level residuals for all hits}
 \usage{
 plot_drug_residuals(
   scores,
@@ -36,6 +36,6 @@ passed to \code{call_drug_hits} (default "Positive").}
 \item{plot_type}{Type of plot to output, one of "png" or "pdf" (default "png").}
 }
 \description{
-Plots replicate comparisons for all replicates in a list of screens and outputs
-plots to a given folder. Works for data returned from \code{call_drug_hits}.
+Plots guide-level residuals for each called hit and outputs plots to a given folder. 
+Works for data returned from \code{call_drug_hits}.
 }

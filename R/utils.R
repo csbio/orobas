@@ -2,6 +2,54 @@
 # UTILITY FUNCTIONS
 ######
 
+#' Adds a list of screens from a sample table file.
+#' 
+#' For a sample table formatted as a .tsv file with columns for screen, replicates,
+#' and the name of a screen to compute log fold-changes against, adds each screen
+#' to a list and returns that list.
+#' 
+#' @param table_file A tab-separated sample table with three columns, described above: 
+#'   Screen, Replicates, and NormalizeTo. Screen is the name of the screen, replicates 
+#'   are each technical replicate separated by semi-colons, and NormalizeTo is either 
+#'   the screen to normalize against or NA if unnecessary (e.g. for T0 screens).
+#' @return A named list corresponding to provided screen names, where each sub-list 
+#'   contains a list of the replicate columns (in "replicates") and the screen to 
+#'   normalize against (in "normalize_name").
+#' @export
+add_screens_from_table <- function(table_file) {
+  table <- utils::read.csv(table_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+  
+  # Checks columns of table
+  cols <- c("Screen", "Replicates", "NormalizeTo")
+  for (col in cols) {
+    if (!(col %in% colnames(table))) {
+      stop(paste("column", col, "not in sample table"))
+    } else {
+      if (col != "NormalizeTo") {
+        if (any(is.na(table[[col]])))
+        stop(paste("column", col, "contains NA values"))
+      }
+    }
+  }
+  
+  # Adds all screens in table to list and returns
+  screens <- NULL
+  for (i in 1:nrow(table)) {
+    name <- table[["Screen"]][i]
+    replicates <- unlist(strsplit(table[["Replicates"]][i], ";"))
+    normalize_name <- table[["NormalizeTo"]][i]
+    if (is.na(normalize_name)) {
+      normalize_name <- NULL
+    }
+    if (i == 1) {
+      screens <- add_screen(name = name, replicates = replicates, normalize_name = normalize_name)
+    } else {
+      screens <- add_screen(screens, name, replicates, normalize_name)
+    }
+  }
+  return(screens)
+}
+
 #' Adds a new screen to a list of screens
 #' 
 #' Makes a list containing info for a given screen and optionally appends it to a given list. 

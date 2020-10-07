@@ -8,10 +8,12 @@ plot_reads_qc(
   df,
   screens,
   output_folder,
+  plot_type = "png",
   log_scale = TRUE,
   pseudocount = 1,
   display_numbers = TRUE,
-  plot_type = "png"
+  show_rownames = TRUE,
+  show_colnames = TRUE
 )
 }
 \arguments{
@@ -21,13 +23,17 @@ plot_reads_qc(
 
 \item{output_folder}{Folder to output plots to.}
 
+\item{plot_type}{Type of plot to output, one of "png" or "pdf" (default "png").}
+
 \item{log_scale}{If true, log-normalizes data.}
 
 \item{pseudocount}{Pseudocounts to add to log-normalized data if specified (default 1).}
 
 \item{display_numbers}{Whether or not to include PCC values in heatmap (default TRUE).}
 
-\item{plot_type}{Type of plot to output, one of "png" or "pdf" (default "png").}
+\item{show_rownames}{Whether or not to show row names on the plot (default TRUE).}
+
+\item{show_colnames}{Whether or not to show column names on the plot (default TRUE).}
 }
 \description{
 Plots a histogram of read counts for each replicate of all screens. Also

@@ -12,9 +12,12 @@
 #' @param output_folder Folder to output plots to. 
 #' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
 #' @param display_numbers Whether or not to include PCC values in heatmap (default TRUE).
+#' @param show_rownames Whether or not to show row names on the plot (default TRUE).
+#' @param show_colnames Whether or not to show column names on the plot (default TRUE).
 #' @export 
 plot_lfc_qc <- function(df, screens, output_folder, plot_type = "png",
-                        display_numbers = TRUE) {
+                        display_numbers = TRUE, show_rownames = TRUE,
+                        show_colnames = TRUE) {
   
   # Checks for input errors
   check_screen_params(df, screens)
@@ -77,7 +80,8 @@ plot_lfc_qc <- function(df, screens, output_folder, plot_type = "png",
   # Plots heatmap of log-scaled read counts
   df <- df[,all_cols]
   heatmap_file <- file.path(output_folder, paste0("lfc_heatmap.", plot_type))
-  plot_heatmap(df, col_groups, heatmap_file, display_numbers)
+  plot_heatmap(df, col_groups, heatmap_file, display_numbers,
+               show_rownames, show_colnames)
 }
 
 #' Plot read counts for a screen.
@@ -91,12 +95,14 @@ plot_lfc_qc <- function(df, screens, output_folder, plot_type = "png",
 #' @param log_scale If true, log-normalizes data.
 #' @param pseudocount Pseudocounts to add to log-normalized data if specified (default 1).
 #' @param display_numbers Whether or not to include PCC values in heatmap (default TRUE).
+#' @param show_rownames Whether or not to show row names on the plot (default TRUE).
+#' @param show_colnames Whether or not to show column names on the plot (default TRUE).
 #' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
 #' @export
-plot_reads_qc <- function(df, screens, output_folder,
+plot_reads_qc <- function(df, screens, output_folder, plot_type = "png",
                           log_scale = TRUE, pseudocount = 1,
-                          display_numbers = TRUE, 
-                          plot_type = "png") {
+                          display_numbers = TRUE, show_rownames = TRUE,
+                          show_colnames = TRUE) {
   
   # Checks for input errors
   check_screen_params(df, screens)
@@ -163,7 +169,8 @@ plot_reads_qc <- function(df, screens, output_folder,
   
   # Plots heatmap of log-scaled read counts
   heatmap_file <- file.path(output_folder, paste0("reads_heatmap.", plot_type))
-  plot_heatmap(df, col_groups, heatmap_file, display_numbers)
+  plot_heatmap(df, col_groups, heatmap_file, display_numbers,
+               show_rownames, show_colnames)
 }
 
 #' Plot read counts.
@@ -250,8 +257,11 @@ plot_samples <- function(df, xcol, ycol, xlab, ylab,
 #' @param col_groups List of grouping labels for each column in df. 
 #' @param filename Output filename for plot. 
 #' @param display_numbers Whether or not to include PCC values in heatmap (default TRUE).
+#' @param show_rownames Whether or not to show row names on the plot (default TRUE).
+#' @param show_colnames Whether or not to show column names on the plot (default TRUE).
 #' @return Writes plot to file with no return value.
-plot_heatmap <- function(df, col_groups, filename, display_numbers) {
+plot_heatmap <- function(df, col_groups, filename, display_numbers = TRUE, 
+                         show_rownames = TRUE, show_colnames = TRUE) {
   
   # Gets colors for different screens
   screen_colors <- NA
@@ -282,6 +292,8 @@ plot_heatmap <- function(df, col_groups, filename, display_numbers) {
                      border_color = NA,
                      annotation_col = col_groups,
                      annotation_colors = screen_colors,
+                     show_rownames = show_rownames,
+                     show_colnames = show_colnames,
                      display_numbers = display_numbers,
                      color = pal, 
                      breaks = breaks,
@@ -364,10 +376,10 @@ plot_drug_response <- function(scores, control_name, condition_name,
   return(p)
 }
 
-#' Plot guide-level residuals for all gene pairs.
+#' Plot guide-level residuals for all hits
 #' 
-#' Plots replicate comparisons for all replicates in a list of screens and outputs
-#' plots to a given folder. Works for data returned from \code{call_drug_hits}.
+#' Plots guide-level residuals for each called hit and outputs plots to a given folder. 
+#' Works for data returned from \code{call_drug_hits}.
 #' 
 #' @param scores Dataframe of scores returned from \code{call_drug_hits}.
 #' @param residuals Residuals returned with the return_residuals argument set to true
@@ -406,53 +418,104 @@ plot_drug_residuals <- function(scores, residuals, control_name,
   residuals <- residuals[residuals$n %in% as.numeric(rownames(scores)),]
   residuals$lfc <- residuals[[condition_col]] - residuals[[control_col]]
   
-  # Gets ranking of top hits
-  neg_order <- order(scores[[diff_col]])
-  scores$neg_rank <- NA
-  scores$pos_rank <- NA
-  scores$neg_rank[neg_order] <- 1:nrow(scores)
-  scores$pos_rank[neg_order] <- nrow(scores):1
-  
-  # Makes LFC plots for all top hits
-  for (i in unique(residuals$n)) {
+  # Returns if scores have no hits
+  if (nrow(scores) == 0) {
+    cat(paste("No significant hits for", control_name, "vs", condition_name, "guide-level plotting\n"))
+  } else {
     
-    # Gets data and gene names
-    df <- residuals[residuals$n == i,]
-    ind <- which(as.numeric(rownames(scores)) == i)
-    gene <- scores$gene[ind]
-    x_label <- paste0("Guides")
-    y_label <- paste0("Average differential LFC across replicates")
+    # Gets ranking of top hits
+    neg_order <- order(scores[[diff_col]])
+    scores$neg_rank <- NA
+    scores$pos_rank <- NA
+    scores$neg_rank[neg_order] <- 1:nrow(scores)
+    scores$pos_rank[neg_order] <- nrow(scores):1
     
-    # Adds ID column for plotting
-    df$ID <- paste("Guide", 1:nrow(df))
-    
-    # Plots data
-    p <- ggplot2::ggplot(df) +
-      ggplot2::xlab(x_label) +
-      ggplot2::ylab(y_label) +
-      ggplot2::geom_bar(ggplot2::aes_string(x = "ID", y = "lfc"), stat = "identity", color = "Black", 
-                        fill = ggplot2::alpha(c("gray30"), 1)) +
-      ggplot2::geom_hline(yintercept = 1, linetype = 2, size = 1, alpha = 0.75, color = "Yellow") +
-      ggplot2::geom_hline(yintercept = 0, linetype = 2, size = 1, alpha = 0.75, color = "Gray") +
-      ggplot2::geom_hline(yintercept = -1, linetype = 2, size = 1, alpha = 0.75, color = "Blue") +
-      ggplot2::coord_flip() +
-      ggthemes::theme_tufte(base_size = 20)
-    
-    # Gets type and rank of effect
-    effect <- ""
-    rank <- 0
-    effect_type <- scores[[response_col]][ind]
-    if (effect_type == neg_type) {
-      effect <- "neg"
-      rank <- scores$neg_rank[ind]
-    } else {
-      effect <- "pos"
-      rank <- scores$pos_rank[ind]
+    # Makes LFC plots for all top hits
+    for (i in unique(residuals$n)) {
+      
+      # Gets data and gene names
+      df <- residuals[residuals$n == i,]
+      ind <- which(as.numeric(rownames(scores)) == i)
+      gene <- scores$gene[ind]
+      x_label <- paste0("Guides")
+      y_label <- paste0("Average differential LFC across replicates")
+      
+      # Adds ID column for plotting
+      df$ID <- paste("Guide", 1:nrow(df))
+      
+      # Plots data
+      p <- ggplot2::ggplot(df) +
+        ggplot2::xlab(x_label) +
+        ggplot2::ylab(y_label) +
+        ggplot2::geom_bar(ggplot2::aes_string(x = "ID", y = "lfc"), stat = "identity", color = "Black", 
+                          fill = ggplot2::alpha(c("gray30"), 1)) +
+        ggplot2::geom_hline(yintercept = 1, linetype = 2, size = 1, alpha = 0.75, color = "Yellow") +
+        ggplot2::geom_hline(yintercept = 0, linetype = 2, size = 1, alpha = 0.75, color = "Gray") +
+        ggplot2::geom_hline(yintercept = -1, linetype = 2, size = 1, alpha = 0.75, color = "Blue") +
+        ggplot2::coord_flip() +
+        ggthemes::theme_tufte(base_size = 20)
+      
+      # Gets type and rank of effect
+      effect <- ""
+      rank <- 0
+      effect_type <- scores[[response_col]][ind]
+      if (effect_type == neg_type) {
+        effect <- "neg"
+        rank <- scores$neg_rank[ind]
+      } else {
+        effect <- "pos"
+        rank <- scores$pos_rank[ind]
+      }
+      
+      # Saves to file
+      file_name <- paste0(effect, "_", rank, "_", gene, ".", plot_type)
+      ggplot2::ggsave(file.path(output_folder, file_name), width = 10, height = 7, dpi = 300)
     }
-    
-    # Saves to file
-    file_name <- paste0(effect, "_", rank, "_", gene, ".", plot_type)
-    ggplot2::ggsave(file.path(output_folder, file_name), width = 10, height = 7, dpi = 300)
   }
 }
+
+#' Plot guide-level residuals for a given gene.
+#' 
+#' Plots guide-level residuals for a given gene and returns the plot. Works for data 
+#' returned from \code{call_drug_hits}.
+#' 
+#' @param scores Dataframe of scores returned from \code{call_drug_hits}.
+#' @param residuals Residuals returned with the return_residuals argument set to true
+#'   from \code{call_drug_hits}.
+#' @param gene Gene name for guides to plot.
+#' @param control_name Name of control passed to \code{call_drug_hits}.
+#' @param condition_name Name of condition passed to \code{call_drug_hits}.
+#' @return A ggplot object.
+#' @export 
+plot_gene_residuals <- function(scores, residuals, gene, control_name, 
+                                condition_name) {
+  
+  # Gets guide-level residuals for the given gene
+  ind <- which(scores$gene == gene)
+  df <- residuals[residuals$n == ind,]
+  x_label <- paste0("Guides")
+  y_label <- paste0("Average differential LFC across replicates")
+  
+  # Computes residuals
+  control_col <- paste0("mean_", control_name)
+  condition_col <- paste0("mean_", condition_name)
+  df$lfc <- df[[condition_col]] - df[[control_col]]
+  
+  # Adds ID column for plotting
+  df$ID <- paste("Guide", 1:nrow(df))
+  
+  # Plots data and returns plot
+  p <- ggplot2::ggplot(df) +
+    ggplot2::xlab(x_label) +
+    ggplot2::ylab(y_label) +
+    ggplot2::geom_bar(ggplot2::aes_string(x = "ID", y = "lfc"), stat = "identity", color = "Black", 
+                      fill = ggplot2::alpha(c("gray30"), 1)) +
+    ggplot2::geom_hline(yintercept = 1, linetype = 2, size = 1, alpha = 0.75, color = "Yellow") +
+    ggplot2::geom_hline(yintercept = 0, linetype = 2, size = 1, alpha = 0.75, color = "Gray") +
+    ggplot2::geom_hline(yintercept = -1, linetype = 2, size = 1, alpha = 0.75, color = "Blue") +
+    ggplot2::coord_flip() +
+    ggthemes::theme_tufte(base_size = 20)
+  return(p)
+}
+
 

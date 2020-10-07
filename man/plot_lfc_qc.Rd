@@ -9,7 +9,9 @@ plot_lfc_qc(
   screens,
   output_folder,
   plot_type = "png",
-  display_numbers = TRUE
+  display_numbers = TRUE,
+  show_rownames = TRUE,
+  show_colnames = TRUE
 )
 }
 \arguments{
@@ -22,6 +24,10 @@ plot_lfc_qc(
 \item{plot_type}{Type of plot to output, one of "png" or "pdf" (default "png").}
 
 \item{display_numbers}{Whether or not to include PCC values in heatmap (default TRUE).}
+
+\item{show_rownames}{Whether or not to show row names on the plot (default TRUE).}
+
+\item{show_colnames}{Whether or not to show column names on the plot (default TRUE).}
 }
 \description{
 Plots replicate comparisons for all replicates in a list of screens and outputs

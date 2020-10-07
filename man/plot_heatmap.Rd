@@ -4,7 +4,14 @@
 \alias{plot_heatmap}
 \title{Plots Pearson correlation heatmap.}
 \usage{
-plot_heatmap(df, col_groups, filename, display_numbers)
+plot_heatmap(
+  df,
+  col_groups,
+  filename,
+  display_numbers = TRUE,
+  show_rownames = TRUE,
+  show_colnames = TRUE
+)
 }
 \arguments{
 \item{df}{Reads or lfc dataframe}
@@ -14,6 +21,10 @@ plot_heatmap(df, col_groups, filename, display_numbers)
 \item{filename}{Output filename for plot.}
 
 \item{display_numbers}{Whether or not to include PCC values in heatmap (default TRUE).}
+
+\item{show_rownames}{Whether or not to show row names on the plot (default TRUE).}
+
+\item{show_colnames}{Whether or not to show column names on the plot (default TRUE).}
 }
 \value{
 Writes plot to file with no return value.

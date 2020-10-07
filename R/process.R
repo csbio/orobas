@@ -130,6 +130,11 @@ filter_reads <- function(df, cols, min_reads = 30, max_reads = 10000) {
 #' @export
 essential_lfc_qc <- function(df, screens, gene_col, output_folder) {
   
+  # Checks that the given gene_col is in the data
+  if (!(gene_col %in% colnames(df))) {
+    stop(paste("gene name column", gene_col, "not in df"))
+  }
+  
   # Loads essential gene standard from internal data
   essentials <- traver_core_essentials
   
