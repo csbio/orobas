@@ -22,47 +22,20 @@ plot_lfc_qc <- function(df, screens, output_folder, plot_type = "png",
   # Checks for input errors
   check_screen_params(df, screens)
   
+  # Gets essential gene QC metrics
+  auc <- essential_lfc_qc(df, screens)
+  auc_file <- file.path(output_folder, "essential_PR_QC.tsv")
+  if (!is.null(auc)) {
+    utils::write.table(auc, auc_file, quote = FALSE, sep = "\t",
+                       row.names = FALSE, col.names = TRUE) 
+  }
+  
   # Checks plot type and converts to lowercase
   plot_type <- tolower(plot_type)
   if (plot_type != "png" & plot_type != "pdf") {
     stop("plot_type must be either png or pdf")
   }
   
-  # Builds dataframe of replicate PCCs
-  cor_df <- NULL
-  
-  # Compares replicates across all screens
-  for (screen in screens) {
-    rep_cols <- screen[["replicates"]]
-    if (length(rep_cols) > 1) {
-      pairs <- utils::combn(rep_cols, 2)
-      for (i in 1:ncol(pairs)) {
-        col1 <- pairs[1,i]
-        col2 <- pairs[2,i]
-        x_label <- paste0(col1, " log fold change")
-        y_label <- paste0(col2, " log fold change")
-        temp <- plot_samples(df, col1, col2, x_label, y_label, print_cor = TRUE)
-        p <- temp[[1]]
-        pcc <- temp[[2]]
-        scc <- temp[[3]]
-        file_name <- paste0(col1, "_vs_", col2, "_replicate_comparison.", plot_type)
-        ggplot2::ggsave(file.path(output_folder, file_name), width = 10, height = 7, dpi = 300)
-        
-        # Stores PCC in dataframe
-        if (is.null(cor_df)) {
-          cor_df <- data.frame(rep1 = col1, rep2 = col2, pcc = pcc, scc = scc,
-                               stringsAsFactors = FALSE)
-        } else {
-          cor_df <- rbind(cor_df, c(col1, col2, pcc, scc))
-        }
-      }   
-    }
-  }
-  
-  # Writes PCCs to file
-  cor_file <- file.path(output_folder, "replicate_cor.tsv")
-  utils::write.table(cor_df, cor_file, quote = FALSE, sep = "\t",
-                     row.names = FALSE, col.names = TRUE)
   
   # Gets sample groups
   all_cols <- c()
@@ -82,6 +55,43 @@ plot_lfc_qc <- function(df, screens, output_folder, plot_type = "png",
   heatmap_file <- file.path(output_folder, paste0("lfc_heatmap.", plot_type))
   plot_heatmap(df, col_groups, heatmap_file, display_numbers,
                show_rownames, show_colnames)
+  
+  # Builds dataframe of replicate PCCs
+  cor_df <- NULL
+  
+  # Compares replicates across all screens
+  for (screen_name in names(screens)) {
+    screen <- screens[[screen_name]]
+    rep_cols <- screen[["replicates"]]
+    if (length(rep_cols) > 1) {
+      pairs <- utils::combn(rep_cols, 2)
+      for (i in 1:ncol(pairs)) {
+        col1 <- pairs[1,i]
+        col2 <- pairs[2,i]
+        x_label <- paste0(col1, " log fold change")
+        y_label <- paste0(col2, " log fold change")
+        temp <- plot_samples(df, col1, col2, x_label, y_label, print_cor = TRUE)
+        p <- temp[[1]]
+        pcc <- temp[[2]]
+        scc <- temp[[3]]
+        file_name <- paste0(col1, "_vs_", col2, "_replicate_comparison.", plot_type)
+        suppressWarnings(ggplot2::ggsave(file.path(output_folder, file_name), width = 10, height = 7, dpi = 300))
+        
+        # Stores PCC in dataframe
+        if (is.null(cor_df)) {
+          cor_df <- data.frame(screen = screen_name, rep1 = col1, rep2 = col2, pcc = pcc, scc = scc,
+                               stringsAsFactors = FALSE)
+        } else {
+          cor_df <- rbind(cor_df, c(screen_name, col1, col2, pcc, scc))
+        }
+      }   
+    }
+  }
+  
+  # Writes PCCs to file
+  cor_file <- file.path(output_folder, "replicate_cor.tsv")
+  utils::write.table(cor_df, cor_file, quote = FALSE, sep = "\t",
+                     row.names = FALSE, col.names = TRUE)
 }
 
 #' Plot read counts for a screen.
@@ -133,7 +143,7 @@ plot_reads_qc <- function(df, screens, output_folder, plot_type = "png",
       all_cols <- c(all_cols, col)
       p <- plot_reads(df, col, log_scale, pseudocount)
       file_name <- paste0(col, "_raw_reads_histogram.", plot_type)
-      ggplot2::ggsave(file.path(output_folder, file_name), width = 10, height = 7, dpi = 300)  
+      suppressWarnings(ggplot2::ggsave(file.path(output_folder, file_name), width = 10, height = 7, dpi = 300))
       col_groups[i] <- screen_name
       i <- i + 1
     }
@@ -155,9 +165,9 @@ plot_reads_qc <- function(df, screens, output_folder, plot_type = "png",
     ggplot2::ylab("Total reads") +
     ggplot2::scale_y_continuous(labels = function(x) format(x, scientific = FALSE)) +
     ggthemes::theme_tufte(base_size = 20) +
-    ggplot2::theme(axis.text.x = ggplot2:: element_text(angle = 45, hjust = 1))
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
   file_name <- paste0("total_reads.", plot_type)
-  ggplot2::ggsave(file.path(output_folder, file_name), plot = p, width = 10, height = 7, dpi = 300)
+  suppressWarnings(ggplot2::ggsave(file.path(output_folder, file_name), plot = p, width = 10, height = 7, dpi = 300))
   
   # Log-scales read counts if specified
   df <- df[,all_cols]
@@ -218,10 +228,16 @@ plot_samples <- function(df, xcol, ycol, xlab, ylab,
                          print_cor = FALSE) {
   
   # Computes correlations and optionally prints Pearson correlation
-  pcc <- stats::cor(df[[xcol]], df[[ycol]], use = "complete.obs")
-  scc <- stats::cor(df[[xcol]], df[[ycol]], method = "spearman", use = "complete.obs")
-  if (print_cor) {
-    cat(paste("Pearson correlation between", xcol, "and", ycol, ":", pcc, "\n"))
+  pcc <- NA
+  scc <- NA
+  if (sum(complete.cases(df[,colnames(df) %in% c(xcol, ycol)])) > 10) {
+    pcc <- stats::cor(df[[xcol]], df[[ycol]], use = "complete.obs")
+    scc <- stats::cor(df[[xcol]], df[[ycol]], method = "spearman", use = "complete.obs")
+    if (print_cor) {
+      cat(paste("Pearson correlation between", xcol, "and", ycol, ":", pcc, "\n"))
+    }
+  } else {
+    warning(paste("too few complete element pairs to take correlations for", xcol, "and", ycol))
   }
   
   # Makes plot
@@ -262,6 +278,12 @@ plot_samples <- function(df, xcol, ycol, xlab, ylab,
 #' @return Writes plot to file with no return value.
 plot_heatmap <- function(df, col_groups, filename, display_numbers = TRUE, 
                          show_rownames = TRUE, show_colnames = TRUE) {
+  
+  # Returns warning if not enough complete observations
+  if (sum(complete.cases(df) <= 10)) {
+    warning(paste("too few complete observations to construct heatmap"))
+    return()
+  }
   
   # Gets colors for different screens
   screen_colors <- NA
@@ -310,17 +332,19 @@ plot_heatmap <- function(df, col_groups, filename, display_numbers = TRUE,
 #' @param scores Dataframe of scores returned from \code{call_drug_hits}.
 #' @param control_name Name of control passed to \code{call_drug_hits}.
 #' @param condition_name Name of condition passed to \code{call_drug_hits}.
+#' @param output_folder Folder to output plots to. 
 #' @param loess If true and data was loess-normalized, plots loess null model instead
 #'   (default TRUE).
 #' @param neg_type Label for significant effects with a negative differential effect
 #'   passed to \code{call_drug_hits} (default "Negative").
 #' @param pos_type Label for significant effects with a positive differential effect
 #'   passed to \code{call_drug_hits} (default "Positive").
-#' @return A ggplot object.
+#' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
 #' @export
-plot_drug_response <- function(scores, control_name, condition_name,
+plot_drug_response <- function(scores, control_name, 
+                               condition_name, output_folder,
                                loess = TRUE, neg_type = "Negative", 
-                               pos_type = "Positive") {
+                               pos_type = "Positive", plot_type = "png") {
   
   # Manually sets colors for plot
   scores <- scores[order(scores[[paste0("differential_", condition_name, "_vs_", control_name)]]),]
@@ -373,7 +397,10 @@ plot_drug_response <- function(scores, control_name, condition_name,
     ggplot2::theme(axis.text.x = ggplot2:: element_text(color = "Black", size = 16),
                    axis.text.y = ggplot2:: element_text(color = "Black", size = 16),
                    legend.text = ggplot2:: element_text(size = 16))
-  return(p)
+  
+  # Saves to file
+  file_name <- paste0(condition_name, "_vs_", control_name, "_scatter.", plot_type)
+  suppressWarnings(ggplot2::ggsave(file.path(output_folder, file_name), width = 10, height = 7, dpi = 300))
 }
 
 #' Plot guide-level residuals for all hits
@@ -469,7 +496,7 @@ plot_drug_residuals <- function(scores, residuals, control_name,
       
       # Saves to file
       file_name <- paste0(effect, "_", rank, "_", gene, ".", plot_type)
-      ggplot2::ggsave(file.path(output_folder, file_name), width = 10, height = 7, dpi = 300)
+      suppressWarnings(ggplot2::ggsave(file.path(output_folder, file_name), width = 10, height = 7, dpi = 300))
     }
   }
 }

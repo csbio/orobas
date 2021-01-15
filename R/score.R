@@ -16,7 +16,6 @@ scale_values <- function(x) {
 #' 
 #' @param df LFC dataframe.
 #' @param screens List of screens generated with \code{add_screens}.
-#' @param gene_col A column containing gene names for all guides.
 #' @param control_screen_name Name of a control screen to test condition screens against.
 #' @param condition_screen_names A list of condition screen names to score against the 
 #'   control screen.
@@ -36,7 +35,7 @@ scale_values <- function(x) {
 #'   names. The second entry, named "residuals" in the list, is a dataframe containing control,
 #'   condition and loess-normalized residuals for all guides.
 #' @export
-score_drugs_vs_control <- function(df, screens, gene_col, control_screen_name, condition_screen_names, 
+score_drugs_vs_control <- function(df, screens, control_screen_name, condition_screen_names, 
                                    control_genes = c("None", ""), min_guides = 3, test = "moderated-t", 
                                    loess = TRUE, fdr_method = "BY",
                                    return_residuals = TRUE, verbose = FALSE) {
@@ -52,10 +51,10 @@ score_drugs_vs_control <- function(df, screens, gene_col, control_screen_name, c
   }
   
   # Removes control genes
-  df <- df[!(df[[gene_col]] %in% control_genes),]
+  df <- df[!(df$gene %in% control_genes),]
   
   # Makes output dataframe
-  unique_genes <- unique(df[[gene_col]])
+  unique_genes <- unique(df$gene)
   n_genes <- length(unique_genes)
   scores <- data.frame(gene = rep(NA, n_genes))
   
@@ -65,7 +64,7 @@ score_drugs_vs_control <- function(df, screens, gene_col, control_screen_name, c
   if (test == "moderated-t") {
     
     # Gets max number of guides first
-    max_guides <- max(table(df[[gene_col]]))
+    max_guides <- max(table(df$gene))
     
     # Makes residual dataframes with columns equal to the max number of guides
     for (name in condition_names) {
@@ -109,7 +108,7 @@ score_drugs_vs_control <- function(df, screens, gene_col, control_screen_name, c
     # Gets gene names and control guide values across replicates and removes 
     # NaNs introduced by missing guides
     gene <- unique_genes[i]
-    guide_vals <- df[df[[gene_col]] == gene,]
+    guide_vals <- df[df$gene == gene,]
     scores$gene[i] <- gene
     rep_mean_control <- rowMeans(data.frame(guide_vals[control_cols]), na.rm = TRUE)
     keep_ind <- !is.nan(rep_mean_control)
@@ -241,15 +240,13 @@ score_drugs_vs_control <- function(df, screens, gene_col, control_screen_name, c
 #'   (default "Positive").
 #' @param fdr_method Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default
 #'   "BY")
-#' @param expected_guides Number of guides expected per gene-pair, to more accurately
-#'   assign a hit quality metric (default 15).
 #' @return Dataframe of scored data with differential effects called as significant
 #'   for the specified conditions. 
 #' @export
 call_drug_hits <- function(scores, control_screen_name, condition_screen_names,
                            fdr_threshold = 0.1, differential_threshold = 0,
                            neg_type = "Negative", pos_type = "Positive",
-                           fdr_method = "BH", expected_guides = 6) {
+                           fdr_method = "BH") {
   
   # Gets condition names and columns for any number of conditions
   control_name <- control_screen_name
@@ -308,4 +305,88 @@ loess_MA <- function(x, y, sp = 0.4, dg = 2, binSize = 100) {
   result[["residual"]] <- gi
   result[["predicted"]] <- expected
   return(result)
+}
+
+#' Scores multiple drugs against multiple controls
+#' 
+#' Takes in an input .tsv file with two columns for "Screen" and "Control" and scores
+#' all screens listed in "Screen" against their corresponding screens listed in
+#' "Control." Outputs all files and plots in the specified folder. 
+#' 
+#' @param df LFC dataframe.
+#' @param screens List of screens generated with \code{add_screens}.
+#' @param batch_file Path to .tsv file mapping screens to their controls for scoring, with two 
+#'   columns for "Screen" and "Control." Screens to score against dervied null-models with the
+#'   combn scoring mode must have their respective control labeled as "combn." 
+#' @param output_folder Folder to output scored data and plots to. 
+#' @param min_guides The minimum number of guides per gene pair required to score data 
+#'   (default 3).
+#' @param test Type of hypothesis testing to run. Must be one of "rank-sum" for Wilcoxon
+#'   rank-sum testing or "moderated-t" for moderated t-testing (default "moderated-t").
+#' @param loess If true, loess-normalizes residuals before running hypothesis testing.
+#'   Only works when test = "moderated-t" (default TRUE).
+#' @param control_genes List of control genes to remove, e.g. "luciferase" (default c("None", "")).
+#' @param fdr_method Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default
+#'   "BY")
+#' @param fdr_threshold Threshold below which to call gene effects as significant 
+#'   (default 0.1).
+#' @param differential_threshold Absolute value threshold on differential effects, 
+#'   below which gene effects are not called as significant (default 0.5).
+#' @param neg_type Label for significant effects with a negative differential effect
+#'   (default "Negative").
+#' @param pos_type Label for significant effects with a positive differential effect
+#'   (default "Positive").
+#' @param plot_residuals If true, plots residual effects for all top hits (default TRUE).
+#' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
+#' @export
+score_drugs_batch <- function(df, screens, batch_file, output_folder, 
+                              min_guides = 3, test = "moderated-t", 
+                              loess = TRUE, control_genes = c("None", ""), fdr_method = "BY",
+                              fdr_threshold = 0.1, differential_threshold = 0.5, 
+                              neg_type = "Negative", pos_type = "Positive",
+                              plot_residuals = TRUE, plot_type = "png") {
+  
+  # Checks batch file and loads it
+  check_batch_file(batch_file, screens)
+  batch <- utils::read.csv(batch_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+  
+  # Makes output folders if nonexistent
+  lfc_folder <- file.path(output_folder, "lfc")
+  plot_folder <- file.path(output_folder, "plots")
+  if (!dir.exists(output_folder)) { dir.create(output_folder) }
+  if (!dir.exists(lfc_folder)) { dir.create(lfc_folder) }
+  if (!dir.exists(plot_folder)) { dir.create(plot_folder) }
+  
+  # Scores guides for each batch
+  all_scores <- NULL
+  for (i in 1:nrow(batch)) {
+    condition <- batch[i,1]
+    control <- batch[i,2]
+    temp <- score_drugs_vs_control(df, screens, control, condition, test = test, 
+                                   min_guides = min_guides, loess = loess, 
+                                   control_genes = control_genes, fdr_method = fdr_method)
+    scores <- temp[["scored_data"]]
+    residuals <- temp[["residuals"]]
+    scores <- call_drug_hits(scores, control, condition,
+                             neg_type = neg_type, pos_type = pos_type,
+                             fdr_threshold = fdr_threshold, 
+                             differential_threshold = differential_threshold)
+    plot_drug_response(scores, control, condition, plot_folder,
+                       neg_type = neg_type, pos_type = pos_type,
+                       plot_type = plot_type)
+    if (plot_residuals) {
+      plot_drug_residuals(scores, residuals, control, condition, lfc_folder, 
+                          neg_type = neg_type, pos_type = pos_type,
+                          plot_type = plot_type)
+    }
+    if (is.null(all_scores)) {
+      all_scores <- scores
+    } else {
+      all_scores <- cbind(all_scores, scores[,3:ncol(scores)])
+    }
+  }
+  if (!is.null(all_scores)) {
+    utils::write.table(all_scores, file.path(output_folder, "condition_gene_calls.tsv"), sep = "\t",
+                       row.names = FALSE, col.names = TRUE, quote = FALSE) 
+  }
 }

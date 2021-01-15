@@ -2,7 +2,7 @@
 # PRE-PROCESSING CODE
 ######
 
-#' Normalizes reads for given screens
+#' Normalizes reads for the given screens
 #' 
 #' Log2 and depth-normalizes reads between a given list of columns and a given
 #' column of an earlier timepoint (e.g. T0) specified in the "normalize_name"
@@ -42,15 +42,15 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
   for (col in filter_cols) {
     to_remove[df[,col] < min_reads] <- TRUE
   }
-  sum_low <- sum(to_remove)
+  sum_low <- sum(to_remove, na.rm = TRUE)
   for (col in filter_cols) {
     to_remove[df[,col] > max_reads] <- TRUE
   }
-  sum_high <- sum(to_remove) - sum_low
+  sum_high <- sum(to_remove, na.rm = TRUE) - sum_low
   for (col in filter_cols) {
     to_remove[is.na(df[,col])] <- TRUE
   }
-  sum_na <- sum(to_remove) - (sum_high + sum_low)
+  sum_na <- sum(to_remove, na.rm = TRUE) - (sum_high + sum_low)
   removed_guides_ind <- which(to_remove)
   
   # Log2 and depth-normalizes every screen
@@ -69,7 +69,7 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
           rep_cols <- screens[[normalize_name]][["replicates"]]
           rep_norm <- df[,rep_cols]
           if (length(rep_cols) > 1) {
-            rep_norm <- rowMeans(rep_norm)
+            rep_norm <- rowMeans(rep_norm, na.rm = TRUE)
           }
           df[,col] <- df[,col] - rep_norm
         }
@@ -84,6 +84,44 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
   cat(paste("Excluded a total of", sum_low, "guides for low t0 representation\n"))
   cat(paste("Excluded a total of", sum_high, "guides for high t0 representation\n"))
   cat(paste("Excluded a total of", sum_na, "guides with NA t0 values\n"))
+  return(df)
+}
+
+#' PCA-normalizes LFCs for the given screens
+#' 
+#' PCA-normalizes LFCs for a dataset by extracting a given number of principal
+#' components from the dataset, projecting the dataset to those components, and 
+#' subtracting the projected dataset from the original dataset. After performing 
+#' PCA-normalization, consider re-centering LFCs by the mean of non-essential genes. 
+#' 
+#' @param df LFC dataframe.
+#' @param screens List of screens generated with \code{add_screens}. 
+#' @param n_components Number of components to remove from data. 
+#' @param scale Whether or not to scale replicates before extracting principal 
+#'   components (default FALSE).
+#' @return PCA-normalized dataframe.
+#' @export 
+pca_screens <- function(df, screens, n_components = 5,scale = FALSE) {
+  
+  # Gets replicate columns for numerical portion of dataframe
+  replicate_cols <- c()
+  for (screen in screens) {
+    replicate_cols <- c(replicate_cols, screen[["replicates"]])
+  }
+  
+  # Checks number of components to remove
+  if (n_components > length(replicate_cols)) {
+    cat("specified too many PCs relative to number of replicates in screens\n")
+    cat(paste("defaulting to removing number of PCs", length(replicate_cols), 
+              "equal to the number of replicates\n"))
+    n_components <- length(replicate_cols)
+  }
+  
+  # PCA-normalizes data
+  pca <- prcomp(df[,replicate_cols], center = TRUE, scale. = scale)
+  real_v <- pca$rotation[,1:n_components]
+  projected <- as.matrix(df[,replicate_cols]) %*% real_v %*% t(real_v)
+  df[,replicate_cols] <- df[,replicate_cols] - projected
   return(df)
 }
 
@@ -119,39 +157,53 @@ filter_reads <- function(df, cols, min_reads = 30, max_reads = 10000) {
 #' Computes essential gene recovery AUC.
 #' 
 #' Computes area under the curve for ROC curves that measure how well each technical replicate
-#' recovers signal for essential-targeting guides and saves results to file.
+#' recovers signal for essential-targeting guides. Only computes AUC for guides that target 
+#' essential genes twice, guides that target two different essential genes, or guides that 
+#' target an essential gene and an intergenic region.
 #' 
 #' @param df LFC dataframe.
 #' @param screens List of screens generated with \code{add_screens}. 
-#' @param gene_col A column containing gene names for all guides.
-#' @param output_folder Folder to which essential gene QC results should be saved.
-#' @return All output is saved to the file "essential_PR_QC.txt" in the folder given by
-#'   output_folder.
-#' @export
-essential_lfc_qc <- function(df, screens, gene_col, output_folder) {
+#' @return Returns a dataframe with three columns for replicate name, essential AUC relative 
+#'   to all other genes, and essential AUC relative to a specified set of non-essentials.
+essential_lfc_qc <- function(df, screens) {
   
   # Checks that the given gene_col is in the data
-  if (!(gene_col %in% colnames(df))) {
-    stop(paste("gene name column", gene_col, "not in df"))
+  if (!("gene" %in% colnames(df))) {
+    stop(paste("gene name column 'gene' not in df"))
   }
   
   # Loads essential gene standard from internal data
   essentials <- traver_core_essentials
   
+  # Gets indices of essential-targeting guides
+  essential_ind <- df$gene %in% essentials
+  
+  # Throws warning if too few genes in standards
+  if (sum(essential_ind) < 10) {
+    warning(paste("too few essential-targeting guides in df, skipping all AUC computation"))
+    return(NULL)
+  }
+  
   # Gets PR curves for all essential genes and all technical replicates
-  output_file <- file.path(output_folder, "essential_PR_QC.txt")
-  sink(output_file)
-  if (sum(df[[gene_col]] %in% essentials) > 0) {
-    for (screen in screens) {
-      for (rep in screen[["replicates"]]) {
-        temp <- df[!is.na(df[[rep]]),]
-        ind <- temp[[gene_col]] %in% essentials
-        roc <- PRROC::roc.curve(-temp[[rep]], weights.class0 = as.numeric(ind), curve = TRUE)
-        cat(paste(rep, "essential-gene recovery AUC under ROC curve:", roc$auc, "\n")) 
+  results <- data.frame(screen = NA,
+                        replicate = NA, 
+                        essential_AUC_all = NA)
+  counter <- 1
+  for (screen_name in names(screens)) {
+    screen <- screens[[screen_name]]
+    for (rep in screen[["replicates"]]) {
+      temp <- df[!is.na(df[[rep]]),]
+      ind <- temp$gene %in% essentials
+      if (sum(ind) < 10) {
+        warning(paste("too few essential-targeting guides for replicate", rep, ", skipping AUC computation"))
       }
+      roc <- PRROC::roc.curve(-temp[[rep]], weights.class0 = as.numeric(ind), curve = TRUE)
+      auc1 <- roc$auc
+      results[counter,] <- c(screen_name, rep, auc1)
+      counter <- counter + 1
     }
   }
-  sink()
+  return(results)
 }
 
 #' Log-normalizes reads.
