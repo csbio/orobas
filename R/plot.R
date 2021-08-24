@@ -330,7 +330,8 @@ plot_heatmap <- function(df, col_groups, filename, display_numbers = TRUE,
 #' \code{call_drug_hits}.
 #' 
 #' @param scores Dataframe of scores returned from \code{call_drug_hits}.
-#' @param control_name Name of control passed to \code{call_drug_hits}.
+#' @param control_name Name of control passed to \code{call_drug_hits}, or 
+#'   NULL for data scored by \code{score_drugs_vs_controls} (default NULL).
 #' @param condition_name Name of condition passed to \code{call_drug_hits}.
 #' @param output_folder Folder to output plots to. 
 #' @param loess If true and data was loess-normalized, plots loess null model instead
@@ -341,20 +342,30 @@ plot_heatmap <- function(df, col_groups, filename, display_numbers = TRUE,
 #'   passed to \code{call_drug_hits} (default "Positive").
 #' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
 #' @export
-plot_drug_response <- function(scores, control_name, 
-                               condition_name, output_folder,
+plot_drug_response <- function(scores, control_name = NULL, 
+                               condition_name = NULL, output_folder = NULL,
                                loess = TRUE, neg_type = "Negative", 
                                pos_type = "Positive", plot_type = "png") {
   
+  # Gets variables depending on scoring type
+  plot_file <- paste0(condition_name, "_vs_", control_name, "_scatter.", plot_type)
+  control_mean_col <- paste0("mean_", control_name)
+  response_col <- paste0("effect_type_", condition_name)
+  diff_col <- paste0("differential_", condition_name, "_vs_", control_name) 
+  control_label <- paste0(control_name, " LFC")
+  if (is.null(control_name)) {
+    plot_file <- paste0(condition_name, "_vs_controls_scatter.", plot_type)
+    control_mean_col <- paste0("mean_controls_", condition_name)
+    diff_col <- paste0("differential_", condition_name, "_vs_controls") 
+    control_label <- paste0("Weighted control LFC")
+  }
+  
   # Manually sets colors for plot
-  scores <- scores[order(scores[[paste0("differential_", condition_name, "_vs_", control_name)]]),]
+  scores <- scores[order(scores[[diff_col]]),]
   colors <- c("Black", "Gray", "Black")
   fill <- c("Blue", "Gray", "Yellow")
-  response_col <- paste0("effect_type_", condition_name)
-  neg_ind <- scores[[paste0("differential_", condition_name, "_vs_", control_name)]] < 0 &
-    scores[[response_col]] != "None"
-  pos_ind <- scores[[paste0("differential_", condition_name, "_vs_", control_name)]] > 0 &
-    scores[[response_col]] != "None"
+  neg_ind <- scores[[diff_col]] < 0 & scores[[response_col]] != "None"
+  pos_ind <- scores[[diff_col]] > 0 & scores[[response_col]] != "None"
   if (any(neg_ind) & !any(pos_ind)) {
     scores[[response_col]] <- factor(scores[[response_col]], levels = c(neg_type, "None"))
     colors <- c("Blue", "Gray")
@@ -372,8 +383,7 @@ plot_drug_response <- function(scores, control_name,
   }
 
   # Builds basic plot
-  p <- ggplot2::ggplot(scores, ggplot2::aes_string(x = paste0("mean_", control_name), 
-                                          y = paste0("mean_", condition_name))) +
+  p <- ggplot2::ggplot(scores, ggplot2::aes_string(x = control_mean_col, y = paste0("mean_", condition_name))) +
     ggplot2::geom_hline(yintercept = 0, linetype = 2, size = 1, alpha = 1, color = "Gray") +
     ggplot2::geom_vline(xintercept = 0, linetype = 2, size = 1, alpha = 1, color = "Gray")
   
@@ -389,14 +399,14 @@ plot_drug_response <- function(scores, control_name,
     ggplot2::geom_point(ggplot2::aes_string(color = response_col, fill = response_col), shape = 21, alpha = 0.7) +
     ggplot2::scale_color_manual(values = colors) +
     ggplot2::scale_fill_manual(values = fill) +
-    ggplot2::xlab(paste0(control_name, " mean log FC")) +
-    ggplot2::ylab(paste0(condition_name, " mean log FC")) +
+    ggplot2::xlab(control_label) +
+    ggplot2::ylab(paste0(condition_name, " LFC")) +
     ggplot2::labs(fill = "Significant response") +
     ggplot2::guides(color = FALSE, size = FALSE) +
     ggthemes::theme_tufte(base_size = 20) +
-    ggplot2::theme(axis.text.x = ggplot2:: element_text(color = "Black", size = 16),
-                   axis.text.y = ggplot2:: element_text(color = "Black", size = 16),
-                   legend.text = ggplot2:: element_text(size = 16))
+    ggplot2::theme(axis.text.x = ggplot2::element_text(color = "Black", size = 16),
+                   axis.text.y = ggplot2::element_text(color = "Black", size = 16),
+                   legend.text = ggplot2::element_text(size = 16))
   
   # Saves to file
   file_name <- paste0(condition_name, "_vs_", control_name, "_scatter.", plot_type)
@@ -545,4 +555,106 @@ plot_gene_residuals <- function(scores, residuals, gene, control_name,
   return(p)
 }
 
+#' Plot guide-level LFCs for a given gene.
+#' 
+#' Plots guide-level LFCs for a given gene and returns the plot. Works for data 
+#' returned from \code{call_drug_hits}.
+#' 
+#' @param scores Dataframe of scores returned from \code{call_drug_hits}.
+#' @param residuals Residuals returned with the return_residuals argument set to true
+#'   from \code{call_drug_hits}.
+#' @param gene Gene name for guides to plot.
+#' @param control_name Name of control passed to \code{call_drug_hits}.
+#' @param condition_name Name of condition passed to \code{call_drug_hits}.
+#' @return A ggplot object.
+#' @export 
+plot_gene_lfc <- function(scores, residuals, gene, control_name, 
+                          condition_name) {
+  
+  # Gets guide-level residuals for the given gene
+  ind <- which(scores$gene == gene)
+  df <- residuals[residuals$n == ind,]
+  x_label <- paste0("Guides")
+  y_label <- paste0("Average LFC across replicates")
+  control_col <- paste0("mean_", control_name)
+  condition_col <- paste0("mean_", condition_name)
+  
+  # Adds ID column for plotting
+  df$ID <- paste("Guide", 1:nrow(df))
+  
+  # Reshapes to long format for plotting
+  df <- stats::reshape(df, direction = "long", varying = c(control_col, condition_col), 
+                       idvar = "ID", sep = "", timevar = "screen", v.names = "screen_LFC",
+                       times = c(control_name, condition_name))
+  
+  # Plots data
+  p <- ggplot2::ggplot(df) +
+    ggplot2::xlab(x_label) +
+    ggplot2::ylab(y_label) +
+    ggplot2::geom_bar(ggplot2::aes_string(x = "ID", y = "screen_LFC"), stat = "identity", color = "Black", 
+                      fill = ggplot2::alpha(c("gray30"), 1)) +
+    ggplot2::geom_hline(yintercept = 1, linetype = 2, size = 1, alpha = 0.75, color = "Yellow") +
+    ggplot2::geom_hline(yintercept = 0, linetype = 2, size = 1, alpha = 0.75, color = "Gray") +
+    ggplot2::geom_hline(yintercept = -1, linetype = 2, size = 1, alpha = 0.75, color = "Blue") +
+    ggplot2::coord_flip() +
+    ggplot2::facet_grid(. ~ screen) +
+    ggthemes::theme_tufte(base_size = 20, base_family = "sans") +
+    ggplot2::theme(axis.text.y = ggplot2::element_blank(),
+                   axis.ticks.y = ggplot2::element_blank(),
+                   panel.border = ggplot2::element_rect(fill = NA, color = "black"))
+  return(p)
+}
 
+#' Makes scree plot
+#' 
+#' Outputs scree plot for a dataset to help select a number of principal components to
+#' remove. 
+#' 
+#' @param df LFC dataframe.
+#' @param cols Numerical column names to normalize with PCA. 
+#' @param scale Whether or not to scale replicates before extracting principal 
+#'   components (default FALSE).
+#' @param na_behavior Whether to replace NAs with row (per-guide) mean values or to
+#'   omit NAs, as either "mean_replace" or "omit" (default "mean_replace").
+#' @param exclude_screens A list of screen names to exclude, e.g. for replicates with
+#'   mostly NA values (default NULL).
+#' @return Scree plot as a ggplot2 object.
+#' @export 
+plot_scree <- function(df, cols, scale = FALSE, na_behavior = "mean_replace",
+                       exclude_screens = NULL) {
+  
+  # Replaces NAs with row means
+  temp <- data.matrix(df[,cols])
+  if (na_behavior == "mean_replace") {
+    for (i in 1:nrow(temp)) {
+      na_ind <- is.na(temp[i,])
+      if (any(na_ind)) {
+        if (!all(na_ind)) {
+          temp[i,na_ind] <- mean(temp[i,], na.rm = TRUE)
+        } else {
+          temp[i,] <- mean(temp, na.rm = TRUE)
+        }
+      }
+    }
+  } else if (na_behavior == "omit") {
+    temp <- na.omit(temp)
+  } else {
+    stop("na_behavior must be either 'mean_replace' or 'omit'")
+  }
+  
+  # Makes scree plot
+  n_components <- length(cols) - 1
+  pca <- stats::prcomp(temp, center = TRUE, scale. = scale)
+  var_df <- data.frame(PC = paste0("PC", 1:length(pca$sdev)),
+                       var = 100 * (pca$sdev ^ 2) / sum(pca$sdev ^ 2))
+  var_df$PC <- factor(var_df$PC, levels = var_df$PC)
+  p <- ggplot2::ggplot(var_df, aes(x = PC, y = var))+
+    ggplot2::geom_bar(stat = "identity") +
+    ggplot2::xlab("Principal component") +
+    ggplot2::ylab("% variance explained") +
+    ggthemes::theme_tufte(base_size = 12) +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45))
+  
+  # Returns plot
+  return(p)
+}

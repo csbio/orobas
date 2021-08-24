@@ -61,6 +61,7 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
   }
   
   # Normalizes specified screens to earlier timepoints
+  new_df <- df
   for (screen in screens) {
     normalize_name <- screen[["normalize_name"]]
     if (!is.null(normalize_name)) {
@@ -71,7 +72,7 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
           if (length(rep_cols) > 1) {
             rep_norm <- rowMeans(rep_norm, na.rm = TRUE)
           }
-          df[,col] <- df[,col] - rep_norm
+          new_df[,col] <- df[,col] - rep_norm
         }
       } else {
         cat(paste("WARNING: screen", normalize_name, "not found.\n"))
@@ -80,48 +81,70 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
   }
   
   # Removes flagged guides
-  df <- df[!to_remove,]
+  new_df <- new_df[!to_remove,]
   cat(paste("Excluded a total of", sum_low, "guides for low t0 representation\n"))
   cat(paste("Excluded a total of", sum_high, "guides for high t0 representation\n"))
   cat(paste("Excluded a total of", sum_na, "guides with NA t0 values\n"))
-  return(df)
+  return(new_df)
 }
 
-#' PCA-normalizes LFCs for the given screens
+#' PCA-normalizes residual LFCs for the given screens
 #' 
-#' PCA-normalizes LFCs for a dataset by extracting a given number of principal
+#' PCA-normalizes residual LFCs for a dataset by extracting a given number of principal
 #' components from the dataset, projecting the dataset to those components, and 
 #' subtracting the projected dataset from the original dataset. After performing 
 #' PCA-normalization, consider re-centering LFCs by the mean of non-essential genes. 
 #' 
 #' @param df LFC dataframe.
-#' @param screens List of screens generated with \code{add_screens}. 
-#' @param n_components Number of components to remove from data. 
+#' @param cols Numerical column names to normalize with PCA. 
+#' @param n_components Number of principal components to remove from data. 
 #' @param scale Whether or not to scale replicates before extracting principal 
 #'   components (default FALSE).
+#' @param na_behavior Whether to replace NAs with row (per-guide) mean values or to
+#'   omit NAs, as either "mean_replace" or "omit" (default "mean_replace").
+#' @param exclude_screens A list of screen names to exclude, e.g. for replicates with
+#'   mostly NA values (default NULL).
 #' @return PCA-normalized dataframe.
 #' @export 
-pca_screens <- function(df, screens, n_components = 5,scale = FALSE) {
-  
-  # Gets replicate columns for numerical portion of dataframe
-  replicate_cols <- c()
-  for (screen in screens) {
-    replicate_cols <- c(replicate_cols, screen[["replicates"]])
-  }
+pca_screens <- function(df, cols, n_components, scale = FALSE, na_behavior = "mean_replace",
+                        exclude_screens = NULL) {
   
   # Checks number of components to remove
-  if (n_components > length(replicate_cols)) {
-    cat("specified too many PCs relative to number of replicates in screens\n")
-    cat(paste("defaulting to removing number of PCs", length(replicate_cols), 
-              "equal to the number of replicates\n"))
-    n_components <- length(replicate_cols)
+  if (n_components > length(cols)) {
+    cat("Specified too many PCs relative to number of columns in data\n")
+    cat(paste("Defaulting to removing number of PCs", length(cols), 
+              "equal to the number of columns - 1\n"))
+    n_components <- length(cols) - 1
+  }
+  
+  # Replaces NAs with row means
+  na_mask <- is.na(df[,cols])
+  temp <- data.matrix(df[,cols])
+  if (na_behavior == "mean_replace") {
+    for (i in 1:nrow(temp)) {
+      na_ind <- is.na(temp[i,])
+      if (any(na_ind)) {
+        if (!all(na_ind)) {
+          temp[i,na_ind] <- mean(temp[i,], na.rm = TRUE)
+        } else {
+          temp[i,] <- mean(temp, na.rm = TRUE)
+        }
+      }
+    }
+  } else if (na_behavior == "omit") {
+    temp <- na.omit(temp)
+  } else {
+    stop("na_behavior must be either 'mean_replace' or 'omit'")
   }
   
   # PCA-normalizes data
-  pca <- prcomp(df[,replicate_cols], center = TRUE, scale. = scale)
+  pca <- stats::prcomp(temp, center = TRUE, scale. = scale)
   real_v <- pca$rotation[,1:n_components]
-  projected <- as.matrix(df[,replicate_cols]) %*% real_v %*% t(real_v)
-  df[,replicate_cols] <- df[,replicate_cols] - projected
+  projected <- temp %*% real_v %*% t(real_v)
+  df[,cols] <- temp - projected
+  df[,cols][na_mask] <- NA
+  
+  # Returns PCA-normalized data
   return(df)
 }
 

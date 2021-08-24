@@ -17,7 +17,8 @@
 #'   normalize against (in "normalize_name").
 #' @export
 add_screens_from_table <- function(table_file) {
-  table <- utils::read.csv(table_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+  table <- utils::read.csv(table_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE,
+                           encoding = "UTF-8")
   
   # Checks columns of table
   cols <- c("Screen", "Replicates", "NormalizeTo")
@@ -124,6 +125,50 @@ remove_screen <- function(screen_list, name) {
   return(screen_list)
 }
 
+#' Checks replicates
+#' 
+#' Checks to make sure that all replicates contained in a screens object returned from 
+#' \code{add_screens_from_table} or \code{add_screen} are contained in a given dataframe.
+#' Returns three vectors in a list, where the first contains columns missing from the 
+#' screens but contained in the dataframe, the second contains columns contained in the
+#' screens but missing from the dataframe, and the third contains replicates duplicated
+#' in multiple screens. 
+#' 
+#' @param df Reads or LFC dataframe.
+#' @param screens List of screens created with \code{add_screens}.
+#' @return List of up to three vectors, where "missing_from_screens" contains all screens 
+#'  in df but not screens, "missing_from_df" contains all screens in screens but not df,
+#'  and "dupe_reps" contains names of all technical replicates mapped to multiple screens
+#'  in screens. 
+check_replicates <- function(df, screens) {
+  
+  # Gets all screens in each category
+  all_reps <- c()
+  missing_screens <- c()
+  missing_df <- c()
+  dupe_reps <- c()
+  for (screen in screens) {
+    reps <- screen$replicates
+    for (rep in reps) {
+      if (!(rep %in% colnames(df))) {
+        missing_df <- c(missing_df, rep)
+      }
+      if (rep %in% all_reps) {
+        dupe_reps <- c(dupe_reps, rep)
+      }
+      all_reps <- c(all_reps, rep)
+    }
+  }
+  missing_screens <- colnames(df)[!(colnames(df) %in% all_reps)]
+  
+  # Returns three vectors of screens in a list
+  output <- list()
+  output[["missing_from_screens"]] <- missing_screens
+  output[["missing_from_df"]] <- missing_df
+  output[["dupe_reps"]] <- dupe_reps
+  return(output)
+}
+
 #' Checks input parameters
 #' 
 #' Checks to make sure that the given screens match the given dataframe.
@@ -177,7 +222,7 @@ check_batch_file <- function(batch_file, screens) {
   }
   
   # Loads file and checks its format
-  df <- utils::read.csv(batch_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+  df <- utils::read.csv(batch_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
   if (colnames(df)[1] != "Screen" | colnames(df)[2] != "Control" | length(colnames(df)) > 2) {
     stop(paste("file", batch_file, "does not contain exactly two columns labeled Screen and Control"))
   }
@@ -193,6 +238,51 @@ check_batch_file <- function(batch_file, screens) {
       if (!(screen %in% names(screens))) {
         stop(paste("screen", screen, "not in screens"))
       }
+    }
+  }
+  
+  return(TRUE)
+}
+
+#' Checks a group file
+#' 
+#' Checks to make sure that the contents of the .tsv file and its formats are appropriate for
+#' running group scoring functions.
+#' 
+#' @param group_file Path to .tsv file mapping screens to their controls for scoring, with four 
+#'   columns for "Screen", "Control", "Group" and "Type." The "Group" column can contain any 
+#'   meaningful label for each group, whereas the "Type" column must be labeled either "control" 
+#'   or "condition." For each unique group label, all conditions in that group are scored
+#'   against all controls.
+#' @return TRUE.
+#' @keywords internal
+check_group_file <- function(group_file, screens) {
+  
+  # Checks if file exists and is a .tsv file
+  ext <- tools::file_ext(group_file)
+  if (ext != "tsv") {
+    stop(paste("file", group_file, "not a .tsv file"))
+  }
+  if (!file.exists(group_file)) {
+    stop(paste("file", group_file, "does not exist at the specified path"))
+  }
+  
+  # Loads file and checks its format
+  df <- utils::read.csv(group_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
+  if (colnames(df)[1] != "Screen" | colnames(df)[2] != "Control" | colnames(df)[3] != "Group" | 
+      colnames(df)[4] != "Type" | length(colnames(df)) > 4) {
+    stop(paste("file", group_file, "does not contain exactly four columns labeled Screen, Control, Group and Type"))
+  }
+  
+  # Checks that all screens are represented in the screens object
+  for (screen in df$Screen) {
+    if (!(screen %in% names(screens))) {
+      stop(paste("screen", screen, "not in screens"))
+    }
+  }
+  for (type in df$Type) {
+    if (type != "control" & type != "condition") {
+      stop(paste("type", type, "must be either 'control' or 'condition'"))
     }
   }
   
