@@ -2,7 +2,7 @@
 % Please edit documentation in R/process.R
 \name{normalize_screens}
 \alias{normalize_screens}
-\title{Normalizes reads for given screens}
+\title{Normalizes reads for the given screens}
 \usage{
 normalize_screens(
   df,

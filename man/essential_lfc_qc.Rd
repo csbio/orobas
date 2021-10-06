@@ -4,22 +4,20 @@
 \alias{essential_lfc_qc}
 \title{Computes essential gene recovery AUC.}
 \usage{
-essential_lfc_qc(df, screens, gene_col, output_folder)
+essential_lfc_qc(df, screens)
 }
 \arguments{
 \item{df}{LFC dataframe.}
 
 \item{screens}{List of screens generated with \code{add_screens}.}
-
-\item{gene_col}{A column containing gene names for all guides.}
-
-\item{output_folder}{Folder to which essential gene QC results should be saved.}
 }
 \value{
-All output is saved to the file "essential_PR_QC.txt" in the folder given by
-  output_folder.
+Returns a dataframe with three columns for replicate name, essential AUC relative 
+  to all other genes, and essential AUC relative to a specified set of non-essentials.
 }
 \description{
 Computes area under the curve for ROC curves that measure how well each technical replicate
-recovers signal for essential-targeting guides and saves results to file.
+recovers signal for essential-targeting guides. Only computes AUC for guides that target 
+essential genes twice, guides that target two different essential genes, or guides that 
+target an essential gene and an intergenic region.
 }

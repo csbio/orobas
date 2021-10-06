@@ -1,0 +1,261 @@
+######
+# qGI UTILITY FUNCTIONS
+######
+
+### All utility functions directly ported from the qGI scoring pipeline,
+### written by Maximilian Billmann, are located here. 
+
+# Fits a loess curve to predict y given x
+loess_MA <- function(x, y, sp = 0.4, dg = 2, binSize = 100, ma_transform = TRUE) {
+  #this concept is based on pythagoras and cancels out sqrt, square and factor 2
+  #it also ignores the factor sqrt(2) as factor between y and x vs distance of x,y from diagonal x = y
+  gi <- NULL
+  expected <- NULL
+  if(all(x == y, na.rm = T)) { #if e.g. wt scored against itself
+    gi <- rep(NA, length(x))
+  }
+  else {
+    if (ma_transform) {
+      m <- y - x
+      a <- y + x
+      A <- (a - stats::median(a, na.rm = T)) / stats::mad(a, na.rm = T)  # scale to generate bins along m
+      B <- seq(floor(min(A, na.rm = T)), ceiling(max(A, na.rm = T)), .1) # define bins
+      b <- c() #indices for model training
+      for(i in 1:(length(B) - 1)) {
+        temp_b <- which(A > B[i] & A < B[i+1])
+        if(length(temp_b) > binSize) { #sample if more events in bin than max bin size
+          set.seed(1)
+          temp_b <- sample(temp_b, binSize)
+        }
+        b <- c(b, temp_b)
+      }
+      I <- is.finite(m[b]) & is.finite(a[b]) #only use finite values
+      model <- stats::loess(m[b][I] ~ a[b][I], span = sp, degree = dg) # train model on m ~ a (approx. y ~ x)
+      expected <- stats::predict(model, a) #predict expected m ~ a
+      gi <- m - expected
+    } else {
+      m <- y
+      a <- x
+      A <- (a - stats::median(a, na.rm = T)) / stats::mad(a, na.rm = T)  # scale to generate bins along m
+      B <- seq(floor(min(A, na.rm = T)), ceiling(max(A, na.rm = T)), .1) # define bins
+      b <- c() #indices for model training
+      for(i in 1:(length(B) - 1)) {
+        temp_b <- which(A > B[i] & A < B[i+1])
+        if(length(temp_b) > binSize) { #sample if more events in bin than max bin size
+          set.seed(1)
+          temp_b <- sample(temp_b, binSize)
+        }
+        b <- c(b, temp_b)
+      }
+      I <- is.finite(m[b]) & is.finite(a[b]) #only use finite values
+      model <- stats::loess(m[b][I] ~ a[b][I], span = sp, degree = dg) # train model on m ~ a (approx. y ~ x)
+      expected <- stats::predict(model, a) #predict expected m ~ a
+      gi <- m - expected
+    }
+  }
+  result <- list()
+  result[["residual"]] <- gi
+  result[["predicted"]] <- expected
+  return(result)
+}
+
+# Chromosomal 
+fragment_transition <- function(x, x_ref, th1, th2, tb,
+                                maxORmin = "max", pi = NA) {
+  
+  if (mean(pi, na.rm = TRUE) * -2 < max(x) | mean(pi, na.rm = TRUE) * 2 > min(x)) {
+    if (missing(th1)) {
+      th1 <- max(abs(x_ref))/2 #stringent threshold if not specifically stated
+    }
+    if (missing(th2)) {
+      th2 <- max(abs(x_ref))/4
+    }
+    
+    # While large SD also indicates a shift, strongly fluctuating screens
+    # should not be corrected on every chromosome
+    #th1 <- th1 + sd(pi, na.rm = TRUE)/5 # ~0.07 per chromosome in median. 
+    #th2 <- th2 + sd(pi, na.rm = TRUE)/10
+    
+    if (maxORmin == "max") {
+      if (any(x > th1)) {
+        if (missing(tb)) {
+          x_max <- x > th1 #detects peaks
+          tb <- min(which(x_max), na.rm = TRUE)
+          tb <- c(tb, max(which(x_max), na.rm = TRUE))
+          if (all(x[tb[1] : tb[2]] > th2, na.rm = TRUE)) {
+            localMax <- which(x == max(x[tb[1] : tb[2]], na.rm = TRUE))
+            return(localMax)
+          } else {
+            return(tb) # has twice the length as localMax
+          }
+        } else if (length(tb) %in% seq(2,50,4)) {
+          a <- length(tb) - 1
+          b <- length(tb)
+          x_max <- x[tb[a] : tb[b]] < th2 #detects breaks between peaks
+          tb <- c(tb, min(which(x_max), na.rm = TRUE) + tb[a]) #extend input tb
+          tb <- c(tb, max(which(x_max), na.rm = TRUE) + tb[a])
+          if (all(x[tb[b+1] : tb[b+2]] < th1, na.rm = TRUE)) {
+            tb <- sort(tb)
+            localMax <- which(x == max(x[tb[1] : tb[2]], na.rm = TRUE))
+            for (i in 2:(length(tb)/2) - 1) {
+              localMax <- c(localMax, which(x == max(x[tb[i * 2 + 1] : tb[i * 2 + 2]], na.rm = TRUE)))
+            }
+            return(localMax)
+          } else {
+            return(tb) #has twice the length as localMax
+          }
+        } else if (length(tb) %in% seq(4,48,4)) {
+          a <- length(tb) - 1
+          b <- length(tb)
+          x_max <- x[tb[a] : tb[b]] > th1 #detects peaks
+          tb <- c(tb, min(which(x_max), na.rm = TRUE) + tb[a]) #extend input tb
+          tb <- c(tb, max(which(x_max), na.rm = TRUE) + tb[a])
+          if (all(x[tb[b+1] : tb[b+2]] > th2, na.rm = TRUE)) {
+            tb <- sort(tb)
+            localMax <- which(x == max(x[tb[1] : tb[2]], na.rm = TRUE))
+            for (i in 2:(length(tb)/2) - 1) {
+              localMax <- c(localMax, which(x == max(x[tb[i * 2 + 1] : tb[i * 2 + 2]], na.rm = TRUE)))
+            }
+            return(localMax)
+          } else {
+            return(tb) #has twice the length as localMax
+          }
+        }
+      }
+    } else if (maxORmin == "min") {
+      if (any(x < -th1)) {
+        if (missing(tb)) {
+          x_max <- x < -th1 #detects peaks
+          tb <- min(which(x_max), na.rm = TRUE)
+          tb <- c(tb, max(which(x_max), na.rm = TRUE))
+          if (all(x[tb[1] : tb[2]] < -th2, na.rm = TRUE)) {
+            localMax <- which(x == min(x[tb[1] : tb[2]], na.rm = TRUE))
+            return(localMax)
+          } else {
+            return(tb) #has twice the length as localMax
+          }
+        }
+        else if (length(tb) %in% seq(2,50,4)) {
+          a <- length(tb) - 1
+          b <- length(tb)
+          x_max <- x[tb[a] : tb[b]] > -th2 #detects breaks between peaks
+          tb <- c(tb, min(which(x_max), na.rm = TRUE) + tb[a]) #extend input tb
+          tb <- c(tb, max(which(x_max), na.rm = TRUE) + tb[a])
+          if (all(x[tb[b+1] : tb[b+2]] > -th1, na.rm = TRUE)) {
+            tb <- sort(tb)
+            localMax <- which(x == min(x[tb[1] : tb[2]], na.rm = TRUE))
+            for (i in 2:(length(tb)/2) - 1) {
+              localMax <- c(localMax, which(x == min(x[tb[i * 2 + 1] : tb[i * 2 + 2]], na.rm = TRUE)))
+            }
+            return(localMax)
+          } else {
+            return(tb) #has twice the length as localMax
+          }
+        } else if (length(tb) %in% seq(4,48,4)) {
+          a <- length(tb) - 1
+          b <- length(tb)
+          x_max <- x[tb[a] : tb[b]] < -th1 #detects peaks
+          tb <- c(tb, min(which(x_max), na.rm = TRUE) + tb[a]) #extend input tb
+          tb <- c(tb, max(which(x_max), na.rm = TRUE) + tb[a])
+          if (all(x[tb[b+1] : tb[b+2]] < -th2, na.rm = TRUE)) {
+            tb <- sort(tb)
+            localMax <- which(x == min(x[tb[1] : tb[2]], na.rm = TRUE))
+            for (i in 2:(length(tb)/2) - 1) {
+              localMax <- c(localMax, which(x == min(x[tb[i * 2 + 1] : tb[i * 2 + 2]], na.rm = TRUE)))
+            }
+            return(localMax)
+          } else {
+            return(tb) #has twice the length as localMax
+          }
+        }
+      }
+    } else { print("what do you want?") }
+  }
+}
+
+define_fragments <- function(chrShift_genes_temp, x_max = x_maxima, x_min = x_minima,
+                             th3, th4, chromOI = chrom, Qoi = qoi, x_ref = rmean,
+                             pi = y, b = rollwindow, chrAnno = names(y)) {
+  
+  sIndex <- 1
+  
+  # identify all stretches in middle of chromosome
+  if (length(x_min) > 0 & length(x_max) > 0) { #run only if shifts detected
+    for (i in 1:length(x_min)) {
+      a <- x_max - x_min[i]
+      if (any(a < 0)) {
+        a1 <- x_max[which(a == min(abs(a[a < 0]), na.rm = TRUE) * -1)] #previous max
+        a1 <- a1 + 2 * b #add b, because max to min on drmean can only be negative rmean and a max shows were it starts with a shift of length(b)
+        # add second b, because indices on pi (not x_ref) are of interest
+        if (mean(pi[x_min[i]:a1], na.rm = TRUE) < -th3) {
+          if (sIndex == 1) {
+            chrShift_genes_temp[[Qoi]][[chromOI]] <- list()
+          }
+          x <- x_min[i] : a1#save negative shift indices x_min[i]:a1
+          chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno[x]) #get gene names for saved guide indices
+          sIndex <- sIndex + 1
+        }
+      }
+      
+      if (any(a > 0)) {
+        a2 <- x_max[which(a == min(abs(a[a > 0]), na.rm = TRUE))]
+        if (mean(pi[x_min[i]:a2 + b], na.rm = TRUE) > th3) {
+          if (sIndex == 1) {
+            chrShift_genes_temp[[Qoi]][[chromOI]] <- list()
+          }
+          x <- x_min[i] : a2 + b #save positive shift indices x_min[i]:a2 + b
+          chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno[x]) #get gene names for saved guide indices
+          sIndex <- sIndex + 1
+        }
+      }
+    }
+  }
+  
+  x_m <- c(x_min, x_max)
+  
+  if (length(x_m) > 0) {
+    if (min(x_m) %in% x_min) { #define as first stretch
+      if (mean(pi[1:(min(x_m)+b)], na.rm = TRUE) < -th3) {
+        if (sIndex == 1) {
+          chrShift_genes_temp[[Qoi]][[chromOI]] <- list()
+        }
+        x <- 1:(min(x_m) + b)
+        chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno[x])
+        sIndex <- sIndex + 1
+      }
+    } else if (min(x_m) %in% x_max) {
+      if (mean(pi[1:(min(x_m)+b)], na.rm = TRUE) > th3) {
+        if (sIndex == 1) {
+          chrShift_genes_temp[[Qoi]][[chromOI]] <- list()
+        }
+        x <- 1:(min(x_m) + b)
+        chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno[x])
+        sIndex <- sIndex + 1
+      }
+    }
+    
+    if (max(x_m) %in% x_min) { #define as last stretch
+      if (mean(pi[b + max(x_m):length(x_ref)], na.rm = TRUE) > th3) {
+        if (sIndex == 1) {
+          chrShift_genes_temp[[Qoi]][[chromOI]] <- list()
+        }
+        x <- b + max(x_m):length(x_ref)
+        chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno[x])
+        sIndex <- sIndex + 1
+      }
+    } else if (max(x_m) %in% x_max) {
+      if (mean(pi[b + max(x_m):length(x_ref)], na.rm = TRUE) < -th3) {
+        if (sIndex == 1) {
+          chrShift_genes_temp[[Qoi]][[chromOI]] <- list()
+        }
+        x <- b + max(x_m):length(x_ref)
+        chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno[x])
+        sIndex <- sIndex + 1
+      }
+    }
+  }
+  if (length(x_m) == 0 & abs(mean(pi, na.rm = TRUE)) > th4) {
+    chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno)
+  }
+  return(chrShift_genes_temp) #return list
+}

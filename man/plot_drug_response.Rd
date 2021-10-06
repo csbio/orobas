@@ -6,19 +6,24 @@
 \usage{
 plot_drug_response(
   scores,
-  control_name,
-  condition_name,
+  control_name = NULL,
+  condition_name = NULL,
+  output_folder = NULL,
   loess = TRUE,
   neg_type = "Negative",
-  pos_type = "Positive"
+  pos_type = "Positive",
+  plot_type = "png"
 )
 }
 \arguments{
 \item{scores}{Dataframe of scores returned from \code{call_drug_hits}.}
 
-\item{control_name}{Name of control passed to \code{call_drug_hits}.}
+\item{control_name}{Name of control passed to \code{call_drug_hits}, or 
+NULL for data scored by \code{score_drugs_vs_controls} (default NULL).}
 
 \item{condition_name}{Name of condition passed to \code{call_drug_hits}.}
+
+\item{output_folder}{Folder to output plots to.}
 
 \item{loess}{If true and data was loess-normalized, plots loess null model instead
 (default TRUE).}
@@ -28,9 +33,8 @@ passed to \code{call_drug_hits} (default "Negative").}
 
 \item{pos_type}{Label for significant effects with a positive differential effect
 passed to \code{call_drug_hits} (default "Positive").}
-}
-\value{
-A ggplot object.
+
+\item{plot_type}{Type of plot to output, one of "png" or "pdf" (default "png").}
 }
 \description{
 Pretty-plots response for chemogenomic (e.g. for directly comparing drug 

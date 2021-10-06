@@ -234,10 +234,8 @@ check_batch_file <- function(batch_file, screens) {
     }
   }
   for (screen in df$Control) {
-    if (screen != "combn") {
-      if (!(screen %in% names(screens))) {
-        stop(paste("screen", screen, "not in screens"))
-      }
+    if (!(screen %in% names(screens))) {
+      stop(paste("screen", screen, "not in screens"))
     }
   }
   

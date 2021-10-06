@@ -26,6 +26,8 @@ scale_values <- function(x) {
 #'   rank-sum testing or "moderated-t" for moderated t-testing (default "moderated-t").
 #' @param loess If true, loess-normalizes residuals before running hypothesis testing.
 #'   Only works when test = "moderated-t" (default TRUE).
+#' @param ma_transform If true, M-A transforms data before running loess normalization. Only
+#'   has an effect when loess = TRUE (default TRUE).
 #' @param fdr_method Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default "BY").
 #' @param return_residuals If FALSE, returns NA instead of residuals dataframe (default TRUE).
 #'   This is recommend if scoring large datasets and memory is a limitation.  
@@ -37,10 +39,13 @@ scale_values <- function(x) {
 #' @export
 score_drugs_vs_control <- function(df, screens, control_screen_name, condition_screen_names, 
                                    control_genes = c("None", ""), min_guides = 3, test = "moderated-t", 
-                                   loess = TRUE, fdr_method = "BY",
+                                   loess = TRUE, ma_transform = TRUE, fdr_method = "BY",
                                    return_residuals = TRUE, verbose = FALSE) {
   
   # Gets condition names and columns for any number of conditions
+  if (verbose) {
+    cat(paste("Preparing to score...\n"))
+  }
   control_name <- control_screen_name
   control_cols <- screens[[control_name]][["replicates"]]
   condition_names <- c()
@@ -167,7 +172,7 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
     control_values <- loess_residuals[[paste0("mean_", control_name)]]
     for (name in condition_names) {
       condition_values <- loess_residuals[[paste0("mean_", name)]]
-      temp <- loess_MA(control_values, condition_values)
+      temp <- loess_MA(control_values, condition_values, ma_transform = ma_transform)
       loess_residuals[[paste0("loess_residual_", name)]] <- temp[["residual"]]
       loess_residuals[[paste0("loess_predicted_", name)]] <- temp[["predicted"]]
     }
@@ -204,17 +209,19 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
       stats::p.adjust(scores[[paste0("pval_", name, "_vs_", control_name)]], method = fdr_method)
   }
   
-  # Removes genes with too few observations
-  scores <- scores[scores[[paste0("n_", control_name)]] >= min_guides,]
-  
-  # Removes extra zero row from residuals
-  loess_residuals <- loess_residuals[1:(nrow(loess_residuals) - 1),]
+  # Removes extra zero row from loess-normalized residuals
+  if (loess) {
+    loess_residuals <- loess_residuals[1:(nrow(loess_residuals) - 1),]
+  }
   
   # Explicitly returns scored data
   output <- list()
   output[["scored_data"]] <- scores
-  if (return_residuals) {
+  if (return_residuals & loess) {
     output[["residuals"]] <- loess_residuals
+  } else if (return_residuals) {
+    cat("WARNING: returning residuals is currently only supported with loess-normalization enabled\n")
+    output[["residuals"]] <- NA
   } else {
     output[["residuals"]] <- NA
   }
@@ -396,7 +403,7 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
         dplyr::group_by(gene) %>%
         dplyr::summarise(mean = mean(lfc, na.rm = TRUE),
                          var = var(lfc, na.rm = TRUE),
-                         n = n())
+                         n = dplyr::n())
       scores[[paste0("n_controls_", condition)]] <- temp$n
       scores[[paste0("mean_controls_", condition)]] <- temp$mean
       scores[[paste0("variance_controls_", condition)]] <- temp$var
@@ -407,7 +414,7 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
         dplyr::group_by(gene) %>%
         dplyr::summarise(mean = mean(lfc, na.rm = TRUE),
                          var = var(lfc, na.rm = TRUE),
-                         n = n())
+                         n = dplyr::n())
       scores[[paste0("n_", condition)]] <- temp$n
       scores[[paste0("mean_", condition)]] <- temp$mean
       scores[[paste0("variance_", condition)]] <- temp$var
@@ -564,7 +571,7 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
 #' Run this within \code{score_drugs_vs_controls} to implement qGI chromosomal correction 
 #' steps.
 #' 
-#' @param df LFC dataframe passed into \code{score_drugs_vs_controls}  with chromosomal location 
+#' @param df LFC dataframe passed into \code{score_drugs_vs_controls} with chromosomal location 
 #'   specified in a column named "chr", start coordinates specified in "start_loc" and stop 
 #'   coordinates specified in "stop_loc." 
 #' @param guide_df Dataframe of guide-level qGI scores.
@@ -780,6 +787,8 @@ call_drug_hits <- function(scores, control_screen_name = NULL, condition_screen_
 #'   rank-sum testing or "moderated-t" for moderated t-testing (default "moderated-t").
 #' @param loess If true, loess-normalizes residuals before running hypothesis testing.
 #'   Only works when test = "moderated-t" (default TRUE).
+#' @param ma_transform If true, M-A transforms data before running loess normalization. Only
+#'   has an effect when loess = TRUE (default TRUE).
 #' @param control_genes List of control genes to remove, e.g. "luciferase" (default c("None", "")).
 #' @param n_components Number of principal components to remove from data. 
 #' @param chromosomal_correction If TRUE, corrects chromosomal shifts by down-weighting qGI
@@ -802,13 +811,13 @@ call_drug_hits <- function(scores, control_screen_name = NULL, condition_screen_
 #' @export
 score_drugs_batch <- function(df, screens, batch_file, output_folder, 
                               min_guides = 3, test = "moderated-t", 
-                              loess = TRUE, control_genes = c("None", ""), 
-                              n_components = 0, chromosomal_correction = FALSE,
-                              fdr_method = "BY", fdr_threshold = 0.1, 
-                              differential_threshold = 0.5, neg_type = "Negative", 
-                              pos_type = "Positive", save_residuals = FALSE, 
-                              plot_residuals = TRUE, plot_type = "png", 
-                              verbose = FALSE) {
+                              loess = TRUE, ma_transform = TRUE,
+                              control_genes = c("None", ""), n_components = 0, 
+                              chromosomal_correction = FALSE, fdr_method = "BY", 
+                              fdr_threshold = 0.1, differential_threshold = 0.5, 
+                              neg_type = "Negative", pos_type = "Positive", 
+                              save_residuals = FALSE, plot_residuals = TRUE, 
+                              plot_type = "png", verbose = FALSE) {
   
   # Creates output folder if nonexistent
   if (!dir.exists(output_folder)) { dir.create(output_folder, recursive = TRUE) }
@@ -843,7 +852,8 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
       control <- batch[i,2]
       temp <- score_drugs_vs_control(df, screens, control, condition, test = test, 
                                      min_guides = min_guides, loess = loess, 
-                                     control_genes = control_genes, fdr_method = fdr_method)
+                                     ma_transform = ma_transform, control_genes = control_genes, 
+                                     fdr_method = fdr_method, verbose = verbose)
       scores <- temp[["scored_data"]]
       residuals <- temp[["residuals"]]
       scores <- call_drug_hits(scores, control, condition,
@@ -854,14 +864,22 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
                          neg_type = neg_type, pos_type = pos_type,
                          plot_type = plot_type)
       if (plot_residuals) {
-        plot_drug_residuals(scores, residuals, control, condition, lfc_folder, 
-                            neg_type = neg_type, pos_type = pos_type,
-                            plot_type = plot_type)
+        if (!is.na(residuals)) {
+          plot_drug_residuals(scores, residuals, control, condition, lfc_folder, 
+                              neg_type = neg_type, pos_type = pos_type,
+                              plot_type = plot_type) 
+        } else {
+          cat("WARNING: residuals are set to NA, skipping residual plots\n")
+        }
       }
       if (save_residuals) {
-        residuals_file <- paste0(condition, "_vs_", control, "_residuals.tsv")
-        utils::write.table(residuals, file.path(output_folder, residuals_file), sep = "\t",
-                           row.names = FALSE, col.names = TRUE, quote = FALSE) 
+        if (!is.na(residuals)) {
+          residuals_file <- paste0(condition, "_vs_", control, "_residuals.tsv")
+          utils::write.table(residuals, file.path(output_folder, residuals_file), sep = "\t",
+                             row.names = FALSE, col.names = TRUE, quote = FALSE) 
+        } else {
+          cat("WARNING: residuals are set to NA, skipping writing residuals to file\n")
+        }
       }
       if (is.null(all_scores)) {
         all_scores <- scores
@@ -930,233 +948,4 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
       }
     }
   }
-}
-
-# Fits a loess curve to predict y given x
-loess_MA <- function(x, y, sp = 0.4, dg = 2, binSize = 100) {
-  #this concept is based on pythagoras and cancels out sqrt, square and factor 2
-  #it also ignores the factor sqrt(2) as factor between y and x vs distance of x,y from diagonal x = y
-  if(all(x == y, na.rm = T)) { #if e.g. wt scored against itself
-    gi <- rep(NA, length(x))
-  }
-  else {
-    m <- y - x
-    a <- y + x
-    A <- (a - stats::median(a, na.rm = T)) / stats::mad(a, na.rm = T) #scale to generate bins along m
-    B <- seq(floor(min(A, na.rm = T)), ceiling(max(A, na.rm = T)), .1) #define bins
-    b <- c() #indices for model training
-    for(i in 1:(length(B) - 1)) {
-      temp_b <- which(A > B[i] & A < B[i+1])
-      if(length(temp_b) > binSize) { #sample if more events in bin than max bin size
-        set.seed(1)
-        temp_b <- sample(temp_b, binSize)
-      }
-      b <- c(b, temp_b)
-    }
-    I <- is.finite(m[b]) & is.finite(a[b]) #only use finite values
-    model <- stats::loess(m[b][I] ~ a[b][I], span = sp, degree = dg) #train model on m ~ a (approx. y ~ x)
-    expected <- stats::predict(model, a) #predict expected m ~ a
-    gi <- m - expected
-  }
-  result <- list()
-  result[["residual"]] <- gi
-  result[["predicted"]] <- expected
-  return(result)
-}
-
-fragment_transition <- function(x, x_ref, th1, th2, tb,
-                                maxORmin = "max", pi = NA) {
-  
-  if (mean(pi, na.rm = TRUE) * -2 < max(x) | mean(pi, na.rm = TRUE) * 2 > min(x)) {
-    if (missing(th1)) {
-      th1 <- max(abs(x_ref))/2 #stringent threshold if not specifically stated
-    }
-    if (missing(th2)) {
-      th2 <- max(abs(x_ref))/4
-    }
-    #th1 <- th1 + sd(pi, na.rm = TRUE)/5 # ~0.07 per chromosome in median. While large SD also indicates a shift, strongly fluctuating screens such as SHMT2_135 or GFPT1_127 should not be corrected on every chromosome
-    #th2 <- th2 + sd(pi, na.rm = TRUE)/10
-    
-    if (maxORmin == "max") {
-      if (any(x > th1)) {
-        if (missing(tb)) {
-          x_max <- x > th1 #detects peaks
-          tb <- min(which(x_max), na.rm = TRUE)
-          tb <- c(tb, max(which(x_max), na.rm = TRUE))
-          if (all(x[tb[1] : tb[2]] > th2, na.rm = TRUE)) {
-            localMax <- which(x == max(x[tb[1] : tb[2]], na.rm = TRUE))
-            return(localMax)
-          } else {
-            return(tb) # has twice the length as localMax
-          }
-        } else if (length(tb) %in% seq(2,50,4)) {
-          a <- length(tb) - 1
-          b <- length(tb)
-          x_max <- x[tb[a] : tb[b]] < th2 #detects breaks between peaks
-          tb <- c(tb, min(which(x_max), na.rm = TRUE) + tb[a]) #extend input tb
-          tb <- c(tb, max(which(x_max), na.rm = TRUE) + tb[a])
-          if (all(x[tb[b+1] : tb[b+2]] < th1, na.rm = TRUE)) {
-            tb <- sort(tb)
-            localMax <- which(x == max(x[tb[1] : tb[2]], na.rm = TRUE))
-            for (i in 2:(length(tb)/2) - 1) {
-              localMax <- c(localMax, which(x == max(x[tb[i * 2 + 1] : tb[i * 2 + 2]], na.rm = TRUE)))
-            }
-            return(localMax)
-          } else {
-            return(tb) #has twice the length as localMax
-          }
-        } else if (length(tb) %in% seq(4,48,4)) {
-          a <- length(tb) - 1
-          b <- length(tb)
-          x_max <- x[tb[a] : tb[b]] > th1 #detects peaks
-          tb <- c(tb, min(which(x_max), na.rm = TRUE) + tb[a]) #extend input tb
-          tb <- c(tb, max(which(x_max), na.rm = TRUE) + tb[a])
-          if (all(x[tb[b+1] : tb[b+2]] > th2, na.rm = TRUE)) {
-            tb <- sort(tb)
-            localMax <- which(x == max(x[tb[1] : tb[2]], na.rm = TRUE))
-            for (i in 2:(length(tb)/2) - 1) {
-              localMax <- c(localMax, which(x == max(x[tb[i * 2 + 1] : tb[i * 2 + 2]], na.rm = TRUE)))
-            }
-            return(localMax)
-          } else {
-            return(tb) #has twice the length as localMax
-          }
-        }
-      }
-    } else if (maxORmin == "min") {
-      if (any(x < -th1)) {
-        if (missing(tb)) {
-          x_max <- x < -th1 #detects peaks
-          tb <- min(which(x_max), na.rm = TRUE)
-          tb <- c(tb, max(which(x_max), na.rm = TRUE))
-          if (all(x[tb[1] : tb[2]] < -th2, na.rm = TRUE)) {
-            localMax <- which(x == min(x[tb[1] : tb[2]], na.rm = TRUE))
-            return(localMax)
-          } else {
-            return(tb) #has twice the length as localMax
-          }
-        }
-        else if (length(tb) %in% seq(2,50,4)) {
-          a <- length(tb) - 1
-          b <- length(tb)
-          x_max <- x[tb[a] : tb[b]] > -th2 #detects breaks between peaks
-          tb <- c(tb, min(which(x_max), na.rm = TRUE) + tb[a]) #extend input tb
-          tb <- c(tb, max(which(x_max), na.rm = TRUE) + tb[a])
-          if (all(x[tb[b+1] : tb[b+2]] > -th1, na.rm = TRUE)) {
-            tb <- sort(tb)
-            localMax <- which(x == min(x[tb[1] : tb[2]], na.rm = TRUE))
-            for (i in 2:(length(tb)/2) - 1) {
-              localMax <- c(localMax, which(x == min(x[tb[i * 2 + 1] : tb[i * 2 + 2]], na.rm = TRUE)))
-            }
-            return(localMax)
-          } else {
-            return(tb) #has twice the length as localMax
-          }
-        } else if (length(tb) %in% seq(4,48,4)) {
-          a <- length(tb) - 1
-          b <- length(tb)
-          x_max <- x[tb[a] : tb[b]] < -th1 #detects peaks
-          tb <- c(tb, min(which(x_max), na.rm = TRUE) + tb[a]) #extend input tb
-          tb <- c(tb, max(which(x_max), na.rm = TRUE) + tb[a])
-          if (all(x[tb[b+1] : tb[b+2]] < -th2, na.rm = TRUE)) {
-            tb <- sort(tb)
-            localMax <- which(x == min(x[tb[1] : tb[2]], na.rm = TRUE))
-            for (i in 2:(length(tb)/2) - 1) {
-              localMax <- c(localMax, which(x == min(x[tb[i * 2 + 1] : tb[i * 2 + 2]], na.rm = TRUE)))
-            }
-            return(localMax)
-          } else {
-            return(tb) #has twice the length as localMax
-          }
-        }
-      }
-    } else { print("what do you want?") }
-  }
-}
-
-define_fragments <- function(chrShift_genes_temp, x_max = x_maxima, x_min = x_minima,
-                             th3, th4, chromOI = chrom, Qoi = qoi, x_ref = rmean,
-                             pi = y, b = rollwindow, chrAnno = names(y)) {
-  
-  sIndex <- 1
-  
-  # identify all stretches in middle of chromosome
-  if (length(x_min) > 0 & length(x_max) > 0) { #run only if shifts detected
-    for (i in 1:length(x_min)) {
-      a <- x_max - x_min[i]
-      if (any(a < 0)) {
-        a1 <- x_max[which(a == min(abs(a[a < 0]), na.rm = TRUE) * -1)] #previous max
-        a1 <- a1 + 2 * b #add b, because max to min on drmean can only be negative rmean and a max shows were it starts with a shift of length(b)
-        # add second b, because indices on pi (not x_ref) are of interest
-        if (mean(pi[x_min[i]:a1], na.rm = TRUE) < -th3) {
-          if (sIndex == 1) {
-            chrShift_genes_temp[[Qoi]][[chromOI]] <- list()
-          }
-          x <- x_min[i] : a1#save negative shift indices x_min[i]:a1
-          chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno[x]) #get gene names for saved guide indices
-          sIndex <- sIndex + 1
-        }
-      }
-      
-      if (any(a > 0)) {
-        a2 <- x_max[which(a == min(abs(a[a > 0]), na.rm = TRUE))]
-        if (mean(pi[x_min[i]:a2 + b], na.rm = TRUE) > th3) {
-          if (sIndex == 1) {
-            chrShift_genes_temp[[Qoi]][[chromOI]] <- list()
-          }
-          x <- x_min[i] : a2 + b #save positive shift indices x_min[i]:a2 + b
-          chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno[x]) #get gene names for saved guide indices
-          sIndex <- sIndex + 1
-        }
-      }
-    }
-  }
-  
-  x_m <- c(x_min, x_max)
-  
-  if (length(x_m) > 0) {
-    if (min(x_m) %in% x_min) { #define as first stretch
-      if (mean(pi[1:(min(x_m)+b)], na.rm = TRUE) < -th3) {
-        if (sIndex == 1) {
-          chrShift_genes_temp[[Qoi]][[chromOI]] <- list()
-        }
-        x <- 1:(min(x_m) + b)
-        chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno[x])
-        sIndex <- sIndex + 1
-      }
-    } else if (min(x_m) %in% x_max) {
-      if (mean(pi[1:(min(x_m)+b)], na.rm = TRUE) > th3) {
-        if (sIndex == 1) {
-          chrShift_genes_temp[[Qoi]][[chromOI]] <- list()
-        }
-        x <- 1:(min(x_m) + b)
-        chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno[x])
-        sIndex <- sIndex + 1
-      }
-    }
-    
-    if (max(x_m) %in% x_min) { #define as last stretch
-      if (mean(pi[b + max(x_m):length(x_ref)], na.rm = TRUE) > th3) {
-        if (sIndex == 1) {
-          chrShift_genes_temp[[Qoi]][[chromOI]] <- list()
-        }
-        x <- b + max(x_m):length(x_ref)
-        chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno[x])
-        sIndex <- sIndex + 1
-      }
-    } else if (max(x_m) %in% x_max) {
-      if (mean(pi[b + max(x_m):length(x_ref)], na.rm = TRUE) < -th3) {
-        if (sIndex == 1) {
-          chrShift_genes_temp[[Qoi]][[chromOI]] <- list()
-        }
-        x <- b + max(x_m):length(x_ref)
-        chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno[x])
-        sIndex <- sIndex + 1
-      }
-    }
-  }
-  if (length(x_m) == 0 & abs(mean(pi, na.rm = TRUE)) > th4) {
-    chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno)
-  }
-  return(chrShift_genes_temp) #return list
 }
