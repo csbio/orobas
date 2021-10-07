@@ -30,28 +30,41 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
   # Checks for input errors
   check_screen_params(df, screens)
   
-  # Flags guides with too few read counts
-  all_names <- names(screens)
-  for (name in filter_names) {
-    if (!(name %in% all_names)) {
-      cat(paste("WARNING: screen", name, "not found, data not filtered by this screen\n"))
+  # Ensures that screens are only filtered by valid screen names
+  if (length(filter_names) > 0) {
+    all_names <- names(screens)
+    names_to_keep <- rep(TRUE, length(filter_names))
+    for (i in 1:length(filter_names)) {
+      name <- filter_names[i]
+      if (!(name %in% all_names)) {
+        cat(paste("WARNING: screen", name, "not found, data not filtered by this screen\n"))
+        names_to_keep[i] <- FALSE
+      }
     }
+    filter_names <- filter_names[names_to_keep] 
   }
+  
+  # Flags guides with too few or too many read counts if there are valid names to filter by
   to_remove <- rep(FALSE, nrow(df))
-  filter_cols <- sapply(screens[filter_names], "[[", "replicates")
-  for (col in filter_cols) {
-    to_remove[df[,col] < min_reads] <- TRUE
+  sum_low <- 0
+  sum_high <- 0
+  sum_na <- 0
+  if (length(filter_names) > 0) {
+    filter_cols <- sapply(screens[filter_names], "[[", "replicates")
+    for (col in filter_cols) {
+      to_remove[df[,col] < min_reads] <- TRUE
+    }
+    sum_low <- sum(to_remove, na.rm = TRUE)
+    for (col in filter_cols) {
+      to_remove[df[,col] > max_reads] <- TRUE
+    }
+    sum_high <- sum(to_remove, na.rm = TRUE) - sum_low
+    for (col in filter_cols) {
+      to_remove[is.na(df[,col])] <- TRUE
+    }
+    sum_na <- sum(to_remove, na.rm = TRUE) - (sum_high + sum_low)
+    removed_guides_ind <- which(to_remove) 
   }
-  sum_low <- sum(to_remove, na.rm = TRUE)
-  for (col in filter_cols) {
-    to_remove[df[,col] > max_reads] <- TRUE
-  }
-  sum_high <- sum(to_remove, na.rm = TRUE) - sum_low
-  for (col in filter_cols) {
-    to_remove[is.na(df[,col])] <- TRUE
-  }
-  sum_na <- sum(to_remove, na.rm = TRUE) - (sum_high + sum_low)
-  removed_guides_ind <- which(to_remove)
   
   # Log2 and depth-normalizes every screen
   for (screen in screens) {
@@ -80,11 +93,15 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
     }
   }
   
-  # Removes flagged guides
-  new_df <- new_df[!to_remove,]
-  cat(paste("Excluded a total of", sum_low, "guides for low t0 representation\n"))
-  cat(paste("Excluded a total of", sum_high, "guides for high t0 representation\n"))
-  cat(paste("Excluded a total of", sum_na, "guides with NA t0 values\n"))
+  # Removes flagged guides if applicable
+  if (length(filter_names) > 0) {
+    new_df <- new_df[!to_remove,]
+    cat(paste("Excluded a total of", sum_low, "guides for low t0 representation\n"))
+    cat(paste("Excluded a total of", sum_high, "guides for high t0 representation\n"))
+    cat(paste("Excluded a total of", sum_na, "guides with NA t0 values\n"))
+  } else {
+    cat(paste("Filtering skipped because no valid screens were specified\n"))
+  }
   return(new_df)
 }
 

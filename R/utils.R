@@ -75,7 +75,9 @@ add_screen <- function(screen_list = NULL, name, replicates,
     stop("replicates must be a list of one or more column names containing technical replicate readcounts")
   } else if (any(is.na(target_coverage)) | is.null(target_coverage) | is.character(target_coverage)) {
     stop("target_coverage must be a numeric value (e.g. 100 for 100x coverage)")
-  } 
+  } else if (name %in% names(screen_list)) {
+    stop(paste("screen", name, "already contained in screens - duplicate screen names are not allowed"))
+  }
   
   # Adds arguments to list
   screen <- list()
@@ -129,17 +131,18 @@ remove_screen <- function(screen_list, name) {
 #' 
 #' Checks to make sure that all replicates contained in a screens object returned from 
 #' \code{add_screens_from_table} or \code{add_screen} are contained in a given dataframe.
-#' Returns three vectors in a list, where the first contains columns missing from the 
+#' Returns four vectors in a list, where the first contains columns missing from the 
 #' screens but contained in the dataframe, the second contains columns contained in the
-#' screens but missing from the dataframe, and the third contains replicates duplicated
-#' in multiple screens. 
+#' screens but missing from the dataframe, the third contains replicates duplicated
+#' in multiple screens, and the last contains duplicated screen names.
 #' 
 #' @param df Reads or LFC dataframe.
 #' @param screens List of screens created with \code{add_screens}.
-#' @return List of up to three vectors, where "missing_from_screens" contains all screens 
+#' @return List of up to four vectors, where "missing_from_screens" contains all screens 
 #'  in df but not screens, "missing_from_df" contains all screens in screens but not df,
-#'  and "dupe_reps" contains names of all technical replicates mapped to multiple screens
-#'  in screens. 
+#'  "dupe_reps" contains names of all technical replicates mapped to multiple screens
+#'  in screens, and "dupe_screens" contains duplicated screen names.
+#' @export
 check_replicates <- function(df, screens) {
   
   # Gets all screens in each category
@@ -147,6 +150,7 @@ check_replicates <- function(df, screens) {
   missing_screens <- c()
   missing_df <- c()
   dupe_reps <- c()
+  dupe_screens <- c()
   for (screen in screens) {
     reps <- screen$replicates
     for (rep in reps) {
@@ -161,11 +165,18 @@ check_replicates <- function(df, screens) {
   }
   missing_screens <- colnames(df)[!(colnames(df) %in% all_reps)]
   
+  # Gets any duplicate screens
+  screen_table <- table(names(screens))
+  if (any(screen_table) > 1) {
+    dupe_screens <- names(screen_table[screen_table > 1])
+  }
+  
   # Returns three vectors of screens in a list
   output <- list()
   output[["missing_from_screens"]] <- missing_screens
   output[["missing_from_df"]] <- missing_df
   output[["dupe_reps"]] <- dupe_reps
+  output[["dupe_screens"]] <- dupe_screens
   return(output)
 }
 
