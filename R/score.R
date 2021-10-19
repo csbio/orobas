@@ -340,6 +340,10 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
     condition_df[[condition]] <- rowMeans(reps, na.rm = TRUE)
   }
   
+  # Ensures that NaNs are converted to NAs
+  control_df[is.na(control_df)] <- NA
+  condition_df[is.na(condition_df)] <- NA
+  
   # Takes residuals between each control and each condition
   if (verbose & !load_intermediate) {
     cat(paste("Taking residuals between all condition-control LFC pairs...\n"))
@@ -363,8 +367,8 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
     } 
   }
   
-  # Weights matched controls to contribute 50% of the effect size, and all other controls
-  # to contribute the other 50% of the effect size
+  # Weights matched controls to contribute 75% of the effect size, and all other controls
+  # to contribute the other 25% of the effect size
   if (verbose & !load_intermediate) {
     cat(paste("Weighting controls for computing qGI scores...\n"))
   } else if (verbose & load_intermediate) {

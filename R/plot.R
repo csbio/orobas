@@ -594,8 +594,7 @@ plot_drug_response <- function(scores, control_name = NULL,
                    legend.text = ggplot2::element_text(size = 16))
   
   # Saves to file
-  file_name <- paste0(condition_name, "_vs_", control_name, "_scatter.", plot_type)
-  suppressWarnings(ggplot2::ggsave(file.path(output_folder, file_name), width = 10, height = 7, dpi = 300))
+  suppressWarnings(ggplot2::ggsave(file.path(output_folder, plot_file), width = 10, height = 7, dpi = 300))
 }
 
 #' Plot guide-level residuals for all hits
