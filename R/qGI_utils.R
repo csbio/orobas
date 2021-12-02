@@ -3,7 +3,60 @@
 ######
 
 ### All utility functions directly ported from the qGI scoring pipeline,
-### written by Maximilian Billmann, are located here. 
+### written by Maximilian Billmann and edited by Henry Ward, are located 
+### here.
+
+# Weights control screens for \code{score_drugs_vs_controls} depending on the 
+# mode specified by the user. 
+# method: "linear" or "exp"
+compute_control_weights <- function(control_df, condition_df, control_names, condition_names,
+                                    matched_controls, method = "exp", matched_fraction = 0.75) {
+  
+  # For a 100% matched control weighting, the default type is set to linear
+  if (matched_fraction >= 1) {
+    cat(paste("Defaulting to linear weighting because matched_fraction >= 1\n"))
+  }
+  
+  # If there is only 1 control, all weights are equal to 1
+  weights <- matrix(1, nrow = length(condition_names), ncol = length(control_names))
+  rownames(weights) <- condition_names
+  colnames(weights) <- control_names
+  if (ncol(weights) > 1) {
+    for (i in 1:nrow(weights)) {
+      
+      # Gets the current condition, its matched control and all other controls
+      condition <- rownames(weights)[i]
+      matched_control <- matched_controls[i]
+      other_controls <- control_names[!(control_names == matched_control)]
+      
+      # Sets weight for matched control
+      weights[i,matched_control] <- matched_fraction
+      
+      # If the method is "linear" all non-matched controls are given an equal weight
+      if (method == "linear") {
+        weights[i,] <- (1 - matched_fraction) / (ncol(weights) - 1)
+        weights[i,matched_control] <- matched_fraction
+      } else if (method == "exp") {
+        
+        # For exponential ranking, we determine weights of non-matched screens depending
+        # on the rank of their correlation to the condition according to an exponentially
+        # decreasing function
+        temp <- cbind(condition_df[,condition], control_df[,other_controls])
+        cor <- cor(temp, use = "complete.obs")
+        weight_rank <- rank(cor[1,2:ncol(cor)])
+        weight_rank <- exp(-weight_rank)
+        weight_rank <- weight_rank * ((1 - matched_fraction) / sum(weight_rank))
+        weight_rank[[matched_control]] <- matched_fraction
+        weight_rank <- weight_rank[colnames(weights)]
+        if (sum(weight_rank) != 1) {
+          cat(paste("WARNING: weights for screen,", condition, "do not sum to 1\n"))
+        }
+        weights[i,] <- weight_rank
+      }
+    }
+  }
+  return(weights)
+}
 
 # Fits a loess curve to predict y given x
 loess_MA <- function(x, y, sp = 0.4, dg = 2, binSize = 100, ma_transform = TRUE) {
@@ -59,7 +112,7 @@ loess_MA <- function(x, y, sp = 0.4, dg = 2, binSize = 100, ma_transform = TRUE)
   return(result)
 }
 
-# Chromosomal 
+# Chromosomal
 fragment_transition <- function(x, x_ref, th1, th2, tb,
                                 maxORmin = "max", pi = NA) {
   

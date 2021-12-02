@@ -203,43 +203,121 @@ filter_reads <- function(df, cols, min_reads = 30, max_reads = 10000) {
 #' 
 #' @param df LFC dataframe.
 #' @param screens List of screens generated with \code{add_screens}. 
+#' @param negative_controls List of negative control genes to append to default list of
+#'   non-essential genes (default NULL).
+#' @param append_to_negatives Whether to append the negative controls specified in
+#'   negative_controls to the list of gold-standard human non-essential genes if TRUE or to
+#'   replace the list of non-essential genes if FALSE (default FALSE).
 #' @return Returns a dataframe with three columns for replicate name, essential AUC relative 
 #'   to all other genes, and essential AUC relative to a specified set of non-essentials.
-essential_lfc_qc <- function(df, screens) {
+essential_lfc_qc <- function(df, screens, negative_controls = NULL, 
+                             append_to_negatives = FALSE) {
   
   # Checks that the given gene_col is in the data
   if (!("gene" %in% colnames(df))) {
     stop(paste("gene name column 'gene' not in df"))
   }
   
-  # Loads essential gene standard from internal data
+  # Loads gene standards from internal data
   essentials <- traver_core_essentials
+  nonessentials <- traver_nonessentials
   
-  # Gets indices of essential-targeting guides
+  # Adds genes to nonessentials list if specified
+  if (!is.null(negative_controls)) {
+    if (append_to_negatives) {
+      nonessentials <- c(nonessentials, negative_controls) 
+    } else {
+      nonessentials <- negative_controls
+    }
+  }
+  
+  # Gets indices of essential and non-essential guides in data
   essential_ind <- df$gene %in% essentials
+  nonessential_ind <- df$gene %in% nonessentials
   
   # Throws warning if too few genes in standards
+  skip_nonessential <- FALSE
   if (sum(essential_ind) < 10) {
     warning(paste("too few essential-targeting guides in df, skipping all AUC computation"))
     return(NULL)
+  }
+  if (sum(nonessential_ind) < 10) {
+    warning(paste("too few nonessential-targeting guides in df, skipping non-essential AUC computation"))
+    skip_nonessential <- TRUE
   }
   
   # Gets PR curves for all essential genes and all technical replicates
   results <- data.frame(screen = NA,
                         replicate = NA, 
-                        essential_AUC_all = NA)
+                        essential_AUC_all = NA,
+                        essential_AUC_nonessential = NA,
+                        essential_AUC_all_gene = NA,
+                        essential_AUC_nonessential_gene = NA)
   counter <- 1
   for (screen_name in names(screens)) {
     screen <- screens[[screen_name]]
     for (rep in screen[["replicates"]]) {
       temp <- df[!is.na(df[[rep]]),]
-      ind <- temp$gene %in% essentials
-      if (sum(ind) < 10) {
-        warning(paste("too few essential-targeting guides for replicate", rep, ", skipping AUC computation"))
+      essential_ind_rep <- temp$gene %in% essentials
+      nonessential_ind_rep <- NULL
+      if (!skip_nonessential) {
+        nonessential_ind_rep <- temp$gene %in% nonessentials
       }
-      roc <- PRROC::roc.curve(-temp[[rep]], weights.class0 = as.numeric(ind), curve = TRUE)
-      auc1 <- roc$auc
-      results[counter,] <- c(screen_name, rep, auc1)
+      
+      # Computes AUC relative to all guides
+      auc1 <- NA
+      auc2 <- NA
+      if (sum(essential_ind_rep) < 10) {
+        warning(paste("too few essential-targeting guides for replicate", rep, ", skipping AUC computation"))
+      } else {
+        roc <- PRROC::roc.curve(-temp[[rep]], weights.class0 = as.numeric(essential_ind_rep), curve = TRUE)
+        auc1 <- roc$auc 
+      }
+      
+      # Computes AUC relative to nonessential guides
+      if (!skip_nonessential & sum(nonessential_ind_rep) > 10) {
+        essential_rownames <- rownames(temp)[essential_ind_rep]
+        temp <- temp[essential_ind_rep | nonessential_ind_rep,]
+        temp_essential_ind <- rownames(temp) %in% essential_rownames
+        roc <- PRROC::roc.curve(-temp[[rep]], weights.class0 = as.numeric(temp_essential_ind), curve = TRUE)
+        auc2 <- roc$auc
+      }
+      
+      # Merges guide-level data to gene-level data
+      gene_df <- data.frame(gene = unique(temp$gene), 
+                            val = NA)
+      for (i in 1:nrow(gene_df)) {
+        gene <- gene_df$gene[i]
+        gene_df$val[i] <- mean(temp[temp$gene == gene, rep], na.rm = TRUE)
+      }
+      temp <- gene_df
+      
+      # Gets gene-level indices
+      essential_ind_gene <- temp$gene %in% essentials
+      nonessential_ind_gene <- NULL
+      if (!skip_nonessential) {
+        nonessential_ind_gene <- temp$gene %in% nonessentials
+      }
+      
+      # Computes AUC relative to all genes
+      auc3 <- NA
+      auc4 <- NA
+      if (sum(essential_ind_gene) < 10) {
+        warning(paste("too few essential-targeting guides for replicate", rep, ", skipping AUC computation"))
+      } else {
+        roc <- PRROC::roc.curve(-temp$val, weights.class0 = as.numeric(essential_ind_gene), curve = TRUE)
+        auc3 <- roc$auc 
+      }
+      
+      # Computes AUC relative to nonessential genes
+      if (!skip_nonessential & sum(nonessential_ind_gene) > 10) {
+        essential_rownames <- rownames(temp)[essential_ind_gene]
+        temp <- temp[essential_ind_gene | nonessential_ind_gene,]
+        temp_essential_ind <- rownames(temp) %in% essential_rownames
+        roc <- PRROC::roc.curve(-temp$val, weights.class0 = as.numeric(temp_essential_ind), curve = TRUE)
+        auc4 <- roc$auc
+      }
+      results[counter,] <- c(screen_name, rep, auc1, auc2, auc3, auc4)
       counter <- counter + 1
     }
   }

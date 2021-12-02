@@ -257,7 +257,14 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 #'   (default 3).
 #' @param loess If true, loess-normalizes residuals before running hypothesis testing.
 #'   Only works when test = "moderated-t" (default TRUE).
+#' @param ma_transform If true, M-A transforms data before running loess normalization. Only
+#'   has an effect when loess = TRUE (default TRUE).
 #' @param fdr_method Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default "BY").
+#' @param weight_method If "linear" weights non-matched control screens equally. If exponential,
+#'   instead weights non-matched control screens according to a decreasing exponential function
+#'   based on the similarity of control screens to the given condition screen.
+#' @param matched_fraction The weight given to the matched control as a fraction of 1, where
+#'   all non-matched controls receive a total weight equal to 1 - matched_fraction (default 0.75).
 #' @param n_components Number of principal components to remove from data. 
 #' @param chromosomal_correction If TRUE, corrects chromosomal shifts by down-weighting qGI
 #'   scores for shifted regions (default FALSE).
@@ -276,8 +283,9 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 #' @export
 score_drugs_vs_controls <- function(df, screens, control_screen_names, condition_screen_names, 
                                     matched_controls, output_folder, control_genes = c("None", ""), 
-                                    min_guides = 2, loess = TRUE, fdr_method = "BY", n_components = 0,
-                                    chromosomal_correction = FALSE, return_residuals = TRUE, intermediate_file = NULL,
+                                    min_guides = 2, loess = TRUE, ma_transform = TRUE, fdr_method = "BY", 
+                                    weight_method = "exp", matched_fraction = 0.75, n_components = 0, 
+                                    chromosomal_correction = FALSE, return_residuals = TRUE, intermediate_file = NULL, 
                                     load_intermediate = FALSE, plot_type = "png", verbose = FALSE) {
   
   # Disables dplyr warnings
@@ -360,7 +368,7 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
         } else {
           
           # Performs loess-normalization if specified
-          temp <- loess_MA(control_df[[control]], condition_df[[condition]])
+          temp <- loess_MA(control_df[[control]], condition_df[[condition]], ma_transform = ma_transform)
           residual_df[[col]] <- temp[["residual"]]
         }
       }
@@ -374,18 +382,12 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
   } else if (verbose & load_intermediate) {
     cat(paste("Skipping weighting to load saved weights...\n"))
   }
-  weights <- matrix(1, nrow = length(condition_names), ncol = length(control_names))
-  rownames(weights) <- condition_names
-  colnames(weights) <- control_names
+  
+  # Optionally loads weights if intermediate files are not loaded
   if (!load_intermediate) {
-    if (ncol(weights) > 1) {
-      for (i in 1:nrow(weights)) {
-        condition <- rownames(weights)[i]
-        matched_control <- matched_controls[i]
-        weights[i,] <- 0.25 / (ncol(weights) - 1)
-        weights[i,matched_control] <- 0.75
-      }
-    }
+    weights <- compute_control_weights(control_df, condition_df, control_names, condition_names,
+                                       matched_controls, method = weight_method,
+                                       matched_fraction = matched_fraction) 
   }
   
   # Stores basic stats and fills residual dataframes for moderated t-testing
@@ -399,15 +401,30 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
       }
       n_guides <- as.integer(ncol(condition_residuals[[name]]) / n_control)
       
-      # Gets weighted control LFCs
+      # Gets weighted control LFCs - importantly, we prevent rows of all NAs from
+      # being returned as 0 and instead return them as NA with another call to
+      # rowSums. See akrun's SO answer for more information: 
+      # https://stackoverflow.com/questions/38544325/rowsums-na-na-gives-0
       temp <- as.matrix(control_df[,2:ncol(control_df)])
-      temp <- rowSums(temp %*% diag(weights[i,]), na.rm = TRUE)
+      temp <- temp %*% diag(weights[i,])
+      temp <- rowSums(temp, na.rm = TRUE) * NA^!rowSums(!is.na(temp))
       temp <- data.frame(gene = control_df$gene, lfc = temp)
       temp <- temp %>%
         dplyr::group_by(gene) %>%
+        stats::na.omit() %>%
         dplyr::summarise(mean = mean(lfc, na.rm = TRUE),
                          var = var(lfc, na.rm = TRUE),
                          n = dplyr::n())
+      
+      # Ensures that all genes are represented before appending to scores,
+      # with scores that didn't make it through instead given NA values
+      if (!all(scores$gene %in% temp$gene)) {
+        to_append <- scores$gene[!(scores$gene %in% temp$gene)]
+        for (gene in to_append) {
+          temp[nrow(temp) + 1,] <- list(gene, NA, NA, 0)
+        }
+        temp <- temp[order(temp$gene),]
+      }
       scores[[paste0("n_controls_", condition)]] <- temp$n
       scores[[paste0("mean_controls_", condition)]] <- temp$mean
       scores[[paste0("variance_controls_", condition)]] <- temp$var
@@ -454,7 +471,7 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
   if (!load_intermediate) {
     for (condition in condition_names) {
       if (verbose) {
-        cat(paste("Computing FDRs for", condition, "\n"))
+        cat(paste("Computing FDRs for", condition, "...\n"))
       }
       corfit <- limma::duplicateCorrelation(condition_residuals[[condition]], ndups = 1, block = block)
       consensus_cor <- corfit$consensus.correlation
@@ -764,9 +781,6 @@ call_drug_hits <- function(scores, control_screen_name = NULL, condition_screen_
     }
   }
   
-  # Don't weight values for p-values
-  # Don't compute SVD for p-values
-  
   # Look into chromosomal correction by removing interactions on the X chromosome
   
   # Explicitly returns scored data
@@ -797,6 +811,11 @@ call_drug_hits <- function(scores, control_screen_name = NULL, condition_screen_
 #' @param n_components Number of principal components to remove from data. 
 #' @param chromosomal_correction If TRUE, corrects chromosomal shifts by down-weighting qGI
 #'   scores for shifted regions (default FALSE).
+#' @param weight_method If "linear" weights non-matched control screens equally. If exponential,
+#'   instead weights non-matched control screens according to a decreasing exponential function
+#'   based on the similarity of control screens to the given condition screen.
+#' @param matched_fraction The weight given to the matched control as a fraction of 1, where
+#'   all non-matched controls receive a total weight equal to 1 - matched_fraction (default 0.75).
 #' @param fdr_method Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default
 #'   "BY")
 #' @param fdr_threshold Threshold below which to call gene effects as significant 
@@ -817,7 +836,8 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
                               min_guides = 3, test = "moderated-t", 
                               loess = TRUE, ma_transform = TRUE,
                               control_genes = c("None", ""), n_components = 0, 
-                              chromosomal_correction = FALSE, fdr_method = "BY", 
+                              chromosomal_correction = FALSE, weight_method = "exp",
+                              matched_fraction = 0.75, fdr_method = "BY", 
                               fdr_threshold = 0.1, differential_threshold = 0.5, 
                               neg_type = "Negative", pos_type = "Positive", 
                               save_residuals = FALSE, plot_residuals = TRUE, 
@@ -855,9 +875,12 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
       condition <- batch[i,1]
       control <- batch[i,2]
       temp <- score_drugs_vs_control(df, screens, control, condition, test = test, 
-                                     min_guides = min_guides, loess = loess, 
-                                     ma_transform = ma_transform, control_genes = control_genes, 
-                                     fdr_method = fdr_method, verbose = verbose)
+                                     min_guides = min_guides, 
+                                     loess = loess, 
+                                     ma_transform = ma_transform, 
+                                     control_genes = control_genes, 
+                                     fdr_method = fdr_method, 
+                                     verbose = verbose)
       scores <- temp[["scored_data"]]
       residuals <- temp[["residuals"]]
       scores <- call_drug_hits(scores, control, condition,
@@ -928,9 +951,14 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
         conditions <- batch$Screen[group_ind & batch$Type == "condition"]
         matched_controls <- batch$Control[group_ind & batch$Type == "condition"]
         temp <- score_drugs_vs_controls(df, screens, controls, conditions, matched_controls,
-                                        plot_folder, min_guides = min_guides, loess = loess, 
+                                        plot_folder, 
+                                        min_guides = min_guides, 
+                                        loess = loess, 
+                                        ma_transform = ma_transform, 
                                         control_genes = control_genes, 
                                         fdr_method = fdr_method,
+                                        weight_method = weight_method,
+                                        matched_fraction = matched_fraction,
                                         n_components = components,
                                         chromosomal_correction = chromosomal_correction,
                                         return_residuals = FALSE,
