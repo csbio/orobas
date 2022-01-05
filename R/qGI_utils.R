@@ -42,8 +42,12 @@ compute_control_weights <- function(control_df, condition_df, control_names, con
         # on the rank of their correlation to the condition according to an exponentially
         # decreasing function
         temp <- cbind(condition_df[,condition], control_df[,other_controls])
+        colnames(temp) <- c(condition, other_controls)
         cor <- cor(temp, use = "complete.obs")
         weight_rank <- rank(cor[1,2:ncol(cor)])
+        if (length(weight_rank) == 1) {
+          names(weight_rank) <- colnames(cor)[2]
+        }
         weight_rank <- exp(-weight_rank)
         weight_rank <- weight_rank * ((1 - matched_fraction) / sum(weight_rank))
         weight_rank[[matched_control]] <- matched_fraction

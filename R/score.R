@@ -383,7 +383,10 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
     cat(paste("Skipping weighting to load saved weights...\n"))
   }
   
-  # Optionally loads weights if intermediate files are not loaded
+  # # Optionally loads weights if intermediate files are not loaded
+  # save(control_df, condition_df, control_names, condition_names, matched_controls, weight_method, 
+  #      matched_fraction, file = intermediate_file)
+  # stop()
   if (!load_intermediate) {
     weights <- compute_control_weights(control_df, condition_df, control_names, condition_names,
                                        matched_controls, method = weight_method,
@@ -508,11 +511,13 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
     save(scores, residual_df, control_df, weights, condition_residuals, file = intermediate_file)
   }
   
-  # The remaining sections of code compute qGI scores, which are more heavily processed than FDRs
+  # The  remaining sections of code compute qGI scores, which are more heavily processed than FDRs
   
   # Scaling goes here
   
   # Multiplies guide-level differential LFCs by weights
+  save(scores, control_df, condition_df, control_names, condition_names, matched_controls, weight_method, 
+       residual_df, weights, matched_fraction, n_control, n_components, file = intermediate_file)
   for (i in 1:nrow(weights)) {
     condition <- rownames(weights)[i]
     for (j in 1:ncol(weights)) {
