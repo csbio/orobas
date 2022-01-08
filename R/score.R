@@ -386,11 +386,13 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
   # # Optionally loads weights if intermediate files are not loaded
   # save(control_df, condition_df, control_names, condition_names, matched_controls, weight_method, 
   #      matched_fraction, file = intermediate_file)
-  # stop()
+  control_scores <- NULL
   if (!load_intermediate) {
-    weights <- compute_control_weights(control_df, condition_df, control_names, condition_names,
+    control_scores <- compute_control_effects(control_df, control_names, method = "linear",
+                                              loess = loess, ma_transform = ma_transform)
+    weights <- compute_control_weights(control_scores, condition_df, control_names, condition_names,
                                        matched_controls, method = weight_method,
-                                       matched_fraction = matched_fraction) 
+                                       matched_fraction = matched_fraction)
   }
   
   # Stores basic stats and fills residual dataframes for moderated t-testing
@@ -508,16 +510,16 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
     if (verbose) {
       cat(paste0("Saving intermediate output to ", intermediate_file, "...\n"))
     }
-    save(scores, residual_df, control_df, weights, condition_residuals, file = intermediate_file)
+    save(scores, residual_df, control_df, weights, condition_residuals, control_scores, file = intermediate_file)
   }
   
-  # The  remaining sections of code compute qGI scores, which are more heavily processed than FDRs
+  # The remaining sections of code compute qGI scores, which are more heavily processed than FDRs
   
   # Scaling goes here
   
   # Multiplies guide-level differential LFCs by weights
-  save(scores, control_df, condition_df, control_names, condition_names, matched_controls, weight_method, 
-       residual_df, weights, matched_fraction, n_control, n_components, file = intermediate_file)
+  # save(scores, control_df, condition_df, control_names, condition_names, matched_controls, weight_method, 
+  #      residual_df, weights, matched_fraction, n_control, n_components, file = intermediate_file)
   for (i in 1:nrow(weights)) {
     condition <- rownames(weights)[i]
     for (j in 1:ncol(weights)) {
@@ -589,6 +591,7 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
   } else {
     output[["residuals"]] <- NA
   }
+  output[["scored_controls"]] <- control_scores
   return(output)
 }
 
@@ -971,6 +974,7 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
                                         load_intermediate = load_intermediate,
                                         verbose = verbose)
         scores <- temp[["scored_data"]]
+        control_scores <- temp[["scored_controls"]]
         scores <- call_drug_hits(scores, NULL, conditions,
                                  neg_type = neg_type, pos_type = pos_type,
                                  fdr_threshold = fdr_threshold, 
@@ -981,6 +985,8 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
                              pos_type = pos_type, plot_type = plot_type) 
         }
         utils::write.table(scores, file.path(group_folder, "gene_calls.tsv"), sep = "\t",
+                           row.names = FALSE, col.names = TRUE, quote = FALSE) 
+        utils::write.table(control_scores, file.path(group_folder, "control_guide_effects.tsv"), sep = "\t",
                            row.names = FALSE, col.names = TRUE, quote = FALSE) 
       }
     }

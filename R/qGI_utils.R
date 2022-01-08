@@ -3,11 +3,36 @@
 ######
 
 ### All utility functions directly ported from the qGI scoring pipeline,
-### written by Maximilian Billmann and edited by Henry Ward, are located 
-### here.
+### written by Maximilian Billmann and Henry Ward, are located here.
+
+# Computes control screen effects against all other control screens as if they
+# were condition screens, setting the matched control contribution from the 
+# closest control screen to 0
+compute_control_effects <- function(control_df, control_names, method = "linear",
+                                    loess = TRUE, ma_transform = TRUE) {
+  weights <- compute_control_weights(control_df, control_df, control_names, control_names,
+                                     control_names, method = method, matched_fraction = 0)
+  control_scores <- control_df[,colnames(control_df) %in% c("gene", control_names)]
+  for (i in 1:length(control_names)) {
+    control <- control_names[i]
+    temp <- as.matrix(control_df[,2:ncol(control_df)])
+    temp <- temp %*% diag(weights[i,])
+    temp <- rowSums(temp, na.rm = TRUE) * NA^!rowSums(!is.na(temp))
+    temp <- data.frame(gene = control_df$gene, lfc = temp)
+    if (!loess) {
+      control_scores[[control]] <- control_scores[[control]] - temp$lfc
+    } else {
+      temp <- loess_MA(temp$lfc,  control_scores[[control]], ma_transform = ma_transform)
+      control_scores[[control]] <- temp[["residual"]]
+    }
+  }
+  return(control_scores)
+}
 
 # Weights control screens for \code{score_drugs_vs_controls} depending on the 
-# mode specified by the user. 
+# mode specified by the user.
+# matched_controls: if NULL, no matching is performed, otherwise takes a vector
+#   of control screen names corresponding to all condition names
 # method: "linear" or "exp"
 compute_control_weights <- function(control_df, condition_df, control_names, condition_names,
                                     matched_controls, method = "exp", matched_fraction = 0.75) {
@@ -52,7 +77,7 @@ compute_control_weights <- function(control_df, condition_df, control_names, con
         weight_rank <- weight_rank * ((1 - matched_fraction) / sum(weight_rank))
         weight_rank[[matched_control]] <- matched_fraction
         weight_rank <- weight_rank[colnames(weights)]
-        if (sum(weight_rank) != 1) {
+        if (!isTRUE(all.equal(sum(weight_rank), 1))) {
           cat(paste("WARNING: weights for screen,", condition, "do not sum to 1\n"))
         }
         weights[i,] <- weight_rank
