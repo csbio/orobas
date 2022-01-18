@@ -22,13 +22,19 @@
 #'   below this value will be filtered out).
 #' @param max_reads Maximum number of reads to keep (default 10000, anything
 #'   above this value will be filtered out).
+#' @param nonessential_norm Whether or not to normalize each screen against its
+#'   population of core non-essential genes, as defined by Traver et al. 2015 
+#'   (default FALSE).
 #' @return Normalized dataframe.
 #' @export 
 normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 = 1, 
-                              min_reads = 30, max_reads = 10000) {
+                              min_reads = 30, max_reads = 10000, nonessential_norm = FALSE) {
   
   # Checks for input errors
   check_screen_params(df, screens)
+  
+  # Loads gene standard from internal data
+  nonessentials <- traver_nonessentials
   
   # Ensures that screens are only filtered by valid screen names
   if (length(filter_names) > 0) {
@@ -91,6 +97,21 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
         cat(paste("WARNING: screen", normalize_name, "not found.\n"))
       }
     }
+  }
+  
+  # Normalizes all LFCs against per-screen non-essential median LFCs if specified
+  nonessential_ind <- new_df$gene %in% nonessentials
+  if (sum(nonessential_ind) > 0 & nonessential_norm) {
+    for (screen in screens) {
+      for (col in screen[["replicates"]]) {
+        nonessential_vals <- as.numeric(unlist(new_df[nonessential_ind, col]))
+        nonessential_median <- median(nonessential_vals, na.rm = TRUE)
+        print(paste0(col, ": ", nonessential_median))
+        new_df[,col] <- new_df[,col] - nonessential_median
+      }
+    }
+  } else {
+    cat(paste("Skipping LFC normalization to median per-screen non-essential gene LFC\n"))
   }
   
   # Removes flagged guides if applicable

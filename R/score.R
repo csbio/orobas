@@ -515,8 +515,6 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
   
   # The remaining sections of code compute qGI scores, which are more heavily processed than FDRs
   
-  # Scaling goes here
-  
   # Multiplies guide-level differential LFCs by weights
   # save(scores, control_df, condition_df, control_names, condition_names, matched_controls, weight_method, 
   #      residual_df, weights, matched_fraction, n_control, n_components, file = intermediate_file)
@@ -543,6 +541,23 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
     col_end <- 1 + i * n_control
     qGI[[condition]] <- rowSums(residual_df[,col_start:col_end], na.rm = TRUE)
   }
+  
+  # Scales moderate effects in top and bottom 10% of data to de-emphasize those and 
+  # merges pre- and post-scaling SDs into a single dataframe to be returned
+  pre_scaling_sd <- apply(qGI[,2:ncol(qGI)], 2, sd)
+  sd_range <- apply(qGI[,2:ncol(qGI)], 2, quantile, probs = c(0.1, 0.9), na.rm = TRUE)
+  target_sd <- rep(NA, ncol(qGI))
+  for (i in 2:ncol(qGI)) {
+    target_sd[i] <- sd(qGI[qGI[,i] > sd_range[1,i-1] & qGI[,i] < sd_range[2,i-1], i], na.rm = TRUE)
+  }
+  target_sd <- target_sd / mean(target_sd[2:length(target_sd)])
+  for (i in 2:ncol(qGI)) {
+    qGI[,i] <- qGI[,i] / target_sd[i]
+  }
+  post_scaling_sd <- apply(qGI[,2:ncol(qGI)], 2, sd)
+  sd_table <- data.frame(rbind(pre_scaling_sd, post_scaling_sd))
+  sd_table$source[1] <- "pre_scaling"
+  sd_table$source[2] <- "post_scaling"
   
   # Removes principal components from data if specified
   if (n_components > 0) {
@@ -592,6 +607,7 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
     output[["residuals"]] <- NA
   }
   output[["scored_controls"]] <- control_scores
+  output[["sd_table"]] <- sd_table
   return(output)
 }
 
@@ -975,6 +991,7 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
                                         verbose = verbose)
         scores <- temp[["scored_data"]]
         control_scores <- temp[["scored_controls"]]
+        sd_table <- temp[["sd_table"]]
         scores <- call_drug_hits(scores, NULL, conditions,
                                  neg_type = neg_type, pos_type = pos_type,
                                  fdr_threshold = fdr_threshold, 
@@ -987,6 +1004,8 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
         utils::write.table(scores, file.path(group_folder, "gene_calls.tsv"), sep = "\t",
                            row.names = FALSE, col.names = TRUE, quote = FALSE) 
         utils::write.table(control_scores, file.path(group_folder, "control_guide_effects.tsv"), sep = "\t",
+                           row.names = FALSE, col.names = TRUE, quote = FALSE) 
+        utils::write.table(sd_table, file.path(group_folder, "sd_table.tsv"), sep = "\t",
                            row.names = FALSE, col.names = TRUE, quote = FALSE) 
       }
     }

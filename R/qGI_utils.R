@@ -55,12 +55,12 @@ compute_control_weights <- function(control_df, condition_df, control_names, con
       other_controls <- control_names[!(control_names == matched_control)]
       
       # Sets weight for matched control
-      weights[i,matched_control] <- matched_fraction
+      weights[i, matched_control] <- matched_fraction
       
       # If the method is "linear" all non-matched controls are given an equal weight
       if (method == "linear") {
         weights[i,] <- (1 - matched_fraction) / (ncol(weights) - 1)
-        weights[i,matched_control] <- matched_fraction
+        weights[i, matched_control] <- matched_fraction
       } else if (method == "exp") {
         
         # For exponential ranking, we determine weights of non-matched screens depending
@@ -85,6 +85,31 @@ compute_control_weights <- function(control_df, condition_df, control_names, con
     }
   }
   return(weights)
+}
+
+# Find wildtype (control) weights
+#
+#' @param x: genetic interaction data array
+#' @param y: wildtype (control) foldchange data
+#' @param fraction_floor: ?
+#
+wt_weightID_func <- function(x, y, fraction_floor = 0.05) {
+  
+  x <- apply((x)^2, 2:3, sum, na.rm = TRUE) #compute square sum of guide-level gi scores for each query-wt pair
+  x[x == 0] <- NA #self-gi gets 0 sum, because na.rm = TRUE, set to NA
+  y <- apply(y, 2, var, na.rm = TRUE)
+  
+  for (i in 1:dim(x)[1] ) {
+    x[i,] <- x[i,] / y #if wt screens have higher log2FC variance, they tend to also have more gi signal (not linear)
+  }
+  
+  x <- ( x - apply(x, 1, max, na.rm = TRUE) ) * -1 #highest value for smallest sum
+  if (fraction_floor > 0) {
+    x <- x + apply(x, 1, max, na.rm = TRUE) / (1 / fraction_floor - 1) #add fraction (default 5%) of max weight
+  }
+  
+  x <- x / apply(x, 1, sum, na.rm = TRUE) #scale so sum is 1
+  return(x)
 }
 
 # Fits a loess curve to predict y given x
