@@ -28,7 +28,7 @@
 #' @return Normalized dataframe.
 #' @export 
 normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 = 1, 
-                              min_reads = 30, max_reads = 10000, nonessential_norm = FALSE) {
+                              min_reads = 30, max_reads = 10000, nonessential_norm = TRUE) {
   
   # Checks for input errors
   check_screen_params(df, screens)
@@ -106,7 +106,6 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
       for (col in screen[["replicates"]]) {
         nonessential_vals <- as.numeric(unlist(new_df[nonessential_ind, col]))
         nonessential_median <- median(nonessential_vals, na.rm = TRUE)
-        print(paste0(col, ": ", nonessential_median))
         new_df[,col] <- new_df[,col] - nonessential_median
       }
     }

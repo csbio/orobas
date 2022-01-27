@@ -265,6 +265,8 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 #'   based on the similarity of control screens to the given condition screen.
 #' @param matched_fraction The weight given to the matched control as a fraction of 1, where
 #'   all non-matched controls receive a total weight equal to 1 - matched_fraction (default 0.75).
+#' @param sd_mean Mean to normalize SDs against for scaling. If NULL, the mean is computed across
+#'   guide-level residuals, otherwise the given scalar is used instead (default NULL).
 #' @param n_components Number of principal components to remove from data. 
 #' @param chromosomal_correction If TRUE, corrects chromosomal shifts by down-weighting qGI
 #'   scores for shifted regions (default FALSE).
@@ -284,9 +286,10 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 score_drugs_vs_controls <- function(df, screens, control_screen_names, condition_screen_names, 
                                     matched_controls, output_folder, control_genes = c("None", ""), 
                                     min_guides = 2, loess = TRUE, ma_transform = TRUE, fdr_method = "BY", 
-                                    weight_method = "exp", matched_fraction = 0.75, n_components = 0, 
-                                    chromosomal_correction = FALSE, return_residuals = TRUE, intermediate_file = NULL, 
-                                    load_intermediate = FALSE, plot_type = "png", verbose = FALSE) {
+                                    weight_method = "exp", matched_fraction = 0.75, sd_mean = NULL,
+                                    n_components = 0, chromosomal_correction = FALSE, return_residuals = TRUE, 
+                                    intermediate_file = NULL, load_intermediate = FALSE, plot_type = "png", 
+                                    verbose = FALSE) {
   
   # Disables dplyr warnings
   options(dplyr.summarise.inform = FALSE)
@@ -513,7 +516,7 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
     save(scores, residual_df, control_df, weights, condition_residuals, control_scores, file = intermediate_file)
   }
   
-  # The remaining sections of code compute qGI scores, which are more heavily processed than FDRs
+  ## The remaining sections of code compute qGI scores, which are more heavily processed than FDRs
   
   # Multiplies guide-level differential LFCs by weights
   # save(scores, control_df, condition_df, control_names, condition_names, matched_controls, weight_method, 
@@ -543,14 +546,18 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
   }
   
   # Scales moderate effects in top and bottom 10% of data to de-emphasize those and 
-  # merges pre- and post-scaling SDs into a single dataframe to be returned
+  # merges pre- and post-scaling SDs into a single dataframe to be returned. The mean
+  # to divide SD values by is either the mean of all SDs or a pre-computed scalar
   pre_scaling_sd <- apply(qGI[,2:ncol(qGI)], 2, sd)
   sd_range <- apply(qGI[,2:ncol(qGI)], 2, quantile, probs = c(0.1, 0.9), na.rm = TRUE)
   target_sd <- rep(NA, ncol(qGI))
   for (i in 2:ncol(qGI)) {
     target_sd[i] <- sd(qGI[qGI[,i] > sd_range[1,i-1] & qGI[,i] < sd_range[2,i-1], i], na.rm = TRUE)
   }
-  target_sd <- target_sd / mean(target_sd[2:length(target_sd)])
+  if (is.null(sd_mean)) {
+    sd_mean <- mean(target_sd[2:length(target_sd)])
+  }
+  target_sd <- target_sd / sd_mean
   for (i in 2:ncol(qGI)) {
     qGI[,i] <- qGI[,i] / target_sd[i]
   }
@@ -840,6 +847,8 @@ call_drug_hits <- function(scores, control_screen_name = NULL, condition_screen_
 #'   based on the similarity of control screens to the given condition screen.
 #' @param matched_fraction The weight given to the matched control as a fraction of 1, where
 #'   all non-matched controls receive a total weight equal to 1 - matched_fraction (default 0.75).
+#' @param sd_mean Mean to normalize SDs against for scaling. If NULL, the mean is computed across
+#'   guide-level residuals, otherwise the given scalar is used instead (default NULL).
 #' @param fdr_method Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default
 #'   "BY")
 #' @param fdr_threshold Threshold below which to call gene effects as significant 
@@ -861,11 +870,12 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
                               loess = TRUE, ma_transform = TRUE,
                               control_genes = c("None", ""), n_components = 0, 
                               chromosomal_correction = FALSE, weight_method = "exp",
-                              matched_fraction = 0.75, fdr_method = "BY", 
-                              fdr_threshold = 0.1, differential_threshold = 0.5, 
-                              neg_type = "Negative", pos_type = "Positive", 
-                              save_residuals = FALSE, plot_residuals = TRUE, 
-                              plot_type = "png", verbose = FALSE) {
+                              matched_fraction = 0.75, sd_mean = NULL,
+                              fdr_method = "BY", fdr_threshold = 0.1, 
+                              differential_threshold = 0.5, neg_type = "Negative", 
+                              pos_type = "Positive", save_residuals = FALSE, 
+                              plot_residuals = TRUE, plot_type = "png", 
+                              verbose = FALSE) {
   
   # Creates output folder if nonexistent
   if (!dir.exists(output_folder)) { dir.create(output_folder, recursive = TRUE) }
@@ -983,6 +993,7 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
                                         fdr_method = fdr_method,
                                         weight_method = weight_method,
                                         matched_fraction = matched_fraction,
+                                        sd_mean = sd_mean,
                                         n_components = components,
                                         chromosomal_correction = chromosomal_correction,
                                         return_residuals = FALSE,
