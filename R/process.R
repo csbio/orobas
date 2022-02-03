@@ -25,10 +25,14 @@
 #' @param nonessential_norm Whether or not to normalize each screen against its
 #'   population of core non-essential genes, as defined by Traver et al. 2015 
 #'   (default FALSE).
+#' @param replace_NA Whether or not to replace NA and NULL values in non-T0 screens 
+#'   with 0's after filtering out T0 guides with too few or NA readcounts 
+#'   (default TRUE).
 #' @return Normalized dataframe.
 #' @export 
 normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 = 1, 
-                              min_reads = 30, max_reads = 10000, nonessential_norm = TRUE) {
+                              min_reads = 30, max_reads = 10000, nonessential_norm = TRUE,
+                              replace_NA = TRUE) {
   
   # Checks for input errors
   check_screen_params(df, screens)
@@ -48,6 +52,21 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
       }
     }
     filter_names <- filter_names[names_to_keep] 
+  }
+  
+  # Replaces NAs in screens to normalize against with 0s since those are equivalent for filtering.
+  # Also reduces the potential for normalization to give unexpected results (as X - NA gives NA).
+  # Note that this step will also affect NULL values
+  normalize_screens <- sapply(screens, "[[", "normalize_name")
+  normalize_screens <- unique(unlist(normalize_screens))
+  normalize_screens <- normalize_screens[complete.cases(normalize_screens)]
+  if (length(normalize_screens) > 0) {
+    for (screen in normalize_screens) {
+      for (col in screens[[screen]][["replicates"]]) {
+        na_ind <- !complete.cases(df[,col])
+        df[na_ind, col] <- 0
+      } 
+    }
   }
   
   # Flags guides with too few or too many read counts if there are valid names to filter by
@@ -122,6 +141,18 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
   } else {
     cat(paste("Filtering skipped because no valid screens were specified\n"))
   }
+  
+  # Replaces NAs in non-T0 screens with 0 values if specified. Also affects NULL values
+  if (replace_NA) {
+    for (screen in screens) {
+      for (col in screen[["replicates"]]) {
+        na_ind <- !complete.cases(new_df[,col])
+        new_df[na_ind, col] <- 0
+      }
+    }
+  }
+  
+  # Explicitly returns filtered, processed data
   return(new_df)
 }
 
