@@ -91,6 +91,16 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
     removed_guides_ind <- which(to_remove) 
   }
   
+  # Replaces NAs in non-T0 screens with 0 values if specified. Also affects NULL values
+  if (replace_NA) {
+    for (screen in screens) {
+      for (col in screen[["replicates"]]) {
+        na_ind <- !complete.cases(df[,col])
+        df[na_ind, col] <- 0
+      }
+    }
+  }
+  
   # Log2 and depth-normalizes every screen
   for (screen in screens) {
     for (col in screen[["replicates"]]) {
@@ -140,16 +150,6 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
     cat(paste("Excluded a total of", sum_na, "guides with NA t0 values\n"))
   } else {
     cat(paste("Filtering skipped because no valid screens were specified\n"))
-  }
-  
-  # Replaces NAs in non-T0 screens with 0 values if specified. Also affects NULL values
-  if (replace_NA) {
-    for (screen in screens) {
-      for (col in screen[["replicates"]]) {
-        na_ind <- !complete.cases(new_df[,col])
-        new_df[na_ind, col] <- 0
-      }
-    }
   }
   
   # Explicitly returns filtered, processed data

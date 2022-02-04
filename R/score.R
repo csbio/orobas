@@ -29,6 +29,8 @@ scale_values <- function(x) {
 #' @param ma_transform If true, M-A transforms data before running loess normalization. Only
 #'   has an effect when loess = TRUE (default TRUE).
 #' @param fdr_method Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default "BY").
+#' @param sd_scale_factor Factor to normalize SDs against for scaling. If NULL, this operation
+#'   is not performed - this behavior is different for group scoring! (default NULL).
 #' @param return_residuals If FALSE, returns NA instead of residuals dataframe (default TRUE).
 #'   This is recommend if scoring large datasets and memory is a limitation.  
 #' @param verbose If true, prints verbose output (default FALSE). 
@@ -187,7 +189,6 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
         } 
         condition_residuals[[name]][i,1:max_guides] <- resid
         scores[[paste0("differential_", name, "_vs_", control_name)]][i] <- mean(resid, na.rm = TRUE)
-        # scores[[paste0("loess_predicted_", name)]][i] <- mean(predicted)
       }
     }
   } else if (loess) {
@@ -201,6 +202,18 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
       p_val <- ebayes_fit$p.value[,1]
       scores[[paste0("pval_", name, "_vs_", control_name)]] <- p_val
     }   
+  }
+  
+  # Scales moderate effects in top and bottom 10% of data to de-emphasize those. 
+  # The mean to divide SD values by is a pre-computed scalar
+  if (!is.null(sd_scale_factor)) {
+    for (name in condition_names) {
+      resid <- condition_residuals[[name]]
+      lfc_range <- quantile(resid, probs = c(0.1, 0.9), na.rm = TRUE)
+      target_sd <- sd(resid[resid > lfc_range[1] & resid < lfc_range[2]], na.rm = TRUE)
+      target_sd <- target_sd / sd_scale_factor
+      condition_residuals[[name]] <- resid / target_sd
+    } 
   }
   
   # Computes FDRs
@@ -265,8 +278,8 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 #'   based on the similarity of control screens to the given condition screen.
 #' @param matched_fraction The weight given to the matched control as a fraction of 1, where
 #'   all non-matched controls receive a total weight equal to 1 - matched_fraction (default 0.75).
-#' @param sd_mean Mean to normalize SDs against for scaling. If NULL, the mean is computed across
-#'   guide-level residuals, otherwise the given scalar is used instead (default NULL).
+#' @param sd_scale_factor Factor to normalize SDs against for scaling. If NULL, the mean is computed 
+#'   across guide-level residuals, otherwise the given scalar is used instead (default NULL).
 #' @param n_components Number of principal components to remove from data. 
 #' @param chromosomal_correction If TRUE, corrects chromosomal shifts by down-weighting qGI
 #'   scores for shifted regions (default FALSE).
@@ -286,7 +299,7 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 score_drugs_vs_controls <- function(df, screens, control_screen_names, condition_screen_names, 
                                     matched_controls, output_folder, control_genes = c("None", ""), 
                                     min_guides = 2, loess = TRUE, ma_transform = TRUE, fdr_method = "BY", 
-                                    weight_method = "exp", matched_fraction = 0.75, sd_mean = NULL,
+                                    weight_method = "exp", matched_fraction = 0.75, sd_scale_factor = NULL,
                                     n_components = 0, chromosomal_correction = FALSE, return_residuals = TRUE, 
                                     intermediate_file = NULL, load_intermediate = FALSE, plot_type = "png", 
                                     verbose = FALSE) {
@@ -549,15 +562,15 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
   # merges pre- and post-scaling SDs into a single dataframe to be returned. The mean
   # to divide SD values by is either the mean of all SDs or a pre-computed scalar
   pre_scaling_sd <- apply(qGI[,2:ncol(qGI)], 2, sd)
-  sd_range <- apply(qGI[,2:ncol(qGI)], 2, quantile, probs = c(0.1, 0.9), na.rm = TRUE)
+  lfc_range <- apply(qGI[,2:ncol(qGI)], 2, quantile, probs = c(0.1, 0.9), na.rm = TRUE)
   target_sd <- rep(NA, ncol(qGI))
   for (i in 2:ncol(qGI)) {
-    target_sd[i] <- sd(qGI[qGI[,i] > sd_range[1,i-1] & qGI[,i] < sd_range[2,i-1], i], na.rm = TRUE)
+    target_sd[i] <- sd(qGI[qGI[,i] > lfc_range[1,i-1] & qGI[,i] < lfc_range[2,i-1], i], na.rm = TRUE)
   }
-  if (is.null(sd_mean)) {
-    sd_mean <- mean(target_sd[2:length(target_sd)])
+  if (is.null(sd_scale_factor)) {
+    sd_scale_factor <- mean(target_sd[2:length(target_sd)])
   }
-  target_sd <- target_sd / sd_mean
+  target_sd <- target_sd / sd_scale_factor
   for (i in 2:ncol(qGI)) {
     qGI[,i] <- qGI[,i] / target_sd[i]
   }
@@ -847,8 +860,9 @@ call_drug_hits <- function(scores, control_screen_name = NULL, condition_screen_
 #'   based on the similarity of control screens to the given condition screen.
 #' @param matched_fraction The weight given to the matched control as a fraction of 1, where
 #'   all non-matched controls receive a total weight equal to 1 - matched_fraction (default 0.75).
-#' @param sd_mean Mean to normalize SDs against for scaling. If NULL, the mean is computed across
-#'   guide-level residuals, otherwise the given scalar is used instead (default NULL).
+#' @param sd_scale_factor Factor to normalize SDs against for scaling. If NULL for group scoring,
+#'   the mean is computed across guide-level residuals, otherwise the given scalar is used instead.
+#'   If NULL for one-off scoring, this operation is not performed (default NULL).
 #' @param fdr_method Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default
 #'   "BY")
 #' @param fdr_threshold Threshold below which to call gene effects as significant 
@@ -870,7 +884,7 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
                               loess = TRUE, ma_transform = TRUE,
                               control_genes = c("None", ""), n_components = 0, 
                               chromosomal_correction = FALSE, weight_method = "exp",
-                              matched_fraction = 0.75, sd_mean = NULL,
+                              matched_fraction = 0.75, sd_scale_factor = NULL,
                               fdr_method = "BY", fdr_threshold = 0.1, 
                               differential_threshold = 0.5, neg_type = "Negative", 
                               pos_type = "Positive", save_residuals = FALSE, 
@@ -914,6 +928,7 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
                                      ma_transform = ma_transform, 
                                      control_genes = control_genes, 
                                      fdr_method = fdr_method, 
+                                     sd_scale_factor = sd_scale_factor,
                                      verbose = verbose)
       scores <- temp[["scored_data"]]
       residuals <- temp[["residuals"]]
@@ -993,7 +1008,7 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
                                         fdr_method = fdr_method,
                                         weight_method = weight_method,
                                         matched_fraction = matched_fraction,
-                                        sd_mean = sd_mean,
+                                        sd_scale_factor = sd_scale_factor,
                                         n_components = components,
                                         chromosomal_correction = chromosomal_correction,
                                         return_residuals = FALSE,
