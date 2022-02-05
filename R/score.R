@@ -42,7 +42,7 @@ scale_values <- function(x) {
 score_drugs_vs_control <- function(df, screens, control_screen_name, condition_screen_names, 
                                    control_genes = c("None", ""), min_guides = 3, test = "moderated-t", 
                                    loess = TRUE, ma_transform = TRUE, fdr_method = "BY",
-                                   return_residuals = TRUE, verbose = FALSE) {
+                                   sd_scale_factor = NULL, return_residuals = TRUE, verbose = FALSE) {
   
   # Gets condition names and columns for any number of conditions
   if (verbose) {
@@ -240,14 +240,6 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
   }
   return(output)
 }
-
-# For weighting function, compare each screen against each wildtype. For each
-# comparison, compare the middling effects (not the most extreme effects, which are
-# presumably meaningful GIs) and compute their magnitude. Higher magnitudes indicate 
-# poorer fits. Consider raising fraction floor with more DMSO screens.
-
-# Consider scaling 10-90 quantile genes by dividing GIs by SDs, ensuring that the 
-# SDs have a mean value of 1
 
 #' Scores conditions against multiple controls.
 #' 

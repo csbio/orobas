@@ -54,21 +54,6 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
     filter_names <- filter_names[names_to_keep] 
   }
   
-  # Replaces NAs in screens to normalize against with 0s since those are equivalent for filtering.
-  # Also reduces the potential for normalization to give unexpected results (as X - NA gives NA).
-  # Note that this step will also affect NULL values
-  normalize_screens <- sapply(screens, "[[", "normalize_name")
-  normalize_screens <- unique(unlist(normalize_screens))
-  normalize_screens <- normalize_screens[complete.cases(normalize_screens)]
-  if (length(normalize_screens) > 0) {
-    for (screen in normalize_screens) {
-      for (col in screens[[screen]][["replicates"]]) {
-        na_ind <- !complete.cases(df[,col])
-        df[na_ind, col] <- 0
-      } 
-    }
-  }
-  
   # Flags guides with too few or too many read counts if there are valid names to filter by
   to_remove <- rep(FALSE, nrow(df))
   sum_low <- 0
@@ -91,6 +76,13 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
     removed_guides_ind <- which(to_remove) 
   }
   
+  # Log2 and depth-normalizes every screen
+  for (screen in screens) {
+    for (col in screen[["replicates"]]) {
+      df[,col] <- normalize_reads(df[,col], cf1, cf2)
+    }
+  }
+  
   # Replaces NAs in non-T0 screens with 0 values if specified. Also affects NULL values
   if (replace_NA) {
     for (screen in screens) {
@@ -98,13 +90,6 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
         na_ind <- !complete.cases(df[,col])
         df[na_ind, col] <- 0
       }
-    }
-  }
-  
-  # Log2 and depth-normalizes every screen
-  for (screen in screens) {
-    for (col in screen[["replicates"]]) {
-      df[,col] <- normalize_reads(df[,col], cf1, cf2)
     }
   }
   
