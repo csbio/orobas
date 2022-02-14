@@ -150,7 +150,7 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
 #' 
 #' @param df LFC dataframe.
 #' @param cols Numerical column names to normalize with PCA. 
-#' @param n_components Number of principal components to remove from data. 
+#' @param n_components Vector containing indices of principal components to remove from data. 
 #' @param scale Whether or not to scale replicates before extracting principal 
 #'   components (default FALSE).
 #' @param na_behavior Whether to replace NAs with row (per-guide) mean values or to
@@ -163,11 +163,11 @@ pca_screens <- function(df, cols, n_components, scale = FALSE, na_behavior = "me
                         exclude_screens = NULL) {
   
   # Checks number of components to remove
-  if (n_components > length(cols)) {
-    cat("Specified too many PCs relative to number of columns in data\n")
-    cat(paste("Defaulting to removing number of PCs", length(cols), 
-              "equal to the number of columns - 1\n"))
-    n_components <- length(cols) - 1
+  valid_ind <- 1:length(cols)
+  if (length(n_components) > length(cols)) {
+    stop("ERROR: Specified too many PCs relative to number of columns in data\n")
+  } else if (!(all(n_components %in% valid_ind))) {
+    stop("ERROR: Specified invalid PCs to remove from data \n")
   }
   
   # Replaces NAs with row means
@@ -192,7 +192,7 @@ pca_screens <- function(df, cols, n_components, scale = FALSE, na_behavior = "me
   
   # PCA-normalizes data
   pca <- stats::prcomp(temp, center = TRUE, scale. = scale)
-  real_v <- pca$rotation[,1:n_components]
+  real_v <- pca$rotation[,n_components]
   projected <- temp %*% real_v %*% t(real_v)
   df[,cols] <- temp - projected
   df[,cols][na_mask] <- NA
