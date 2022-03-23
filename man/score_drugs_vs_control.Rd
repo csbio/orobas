@@ -15,6 +15,7 @@ score_drugs_vs_control(
   loess = TRUE,
   ma_transform = TRUE,
   fdr_method = "BY",
+  sd_scale_factor = NULL,
   return_residuals = TRUE,
   verbose = FALSE
 )
@@ -44,6 +45,9 @@ Only works when test = "moderated-t" (default TRUE).}
 has an effect when loess = TRUE (default TRUE).}
 
 \item{fdr_method}{Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default "BY").}
+
+\item{sd_scale_factor}{Factor to normalize SDs against for scaling. If NULL, this operation
+is not performed - this behavior is different for group scoring! (default NULL).}
 
 \item{return_residuals}{If FALSE, returns NA instead of residuals dataframe (default TRUE).
 This is recommend if scoring large datasets and memory is a limitation.}

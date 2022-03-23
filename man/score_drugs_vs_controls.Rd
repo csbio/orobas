@@ -14,7 +14,11 @@ score_drugs_vs_controls(
   control_genes = c("None", ""),
   min_guides = 2,
   loess = TRUE,
+  ma_transform = TRUE,
   fdr_method = "BY",
+  weight_method = "exp",
+  matched_fraction = 0.75,
+  sd_scale_factor = NULL,
   n_components = 0,
   chromosomal_correction = FALSE,
   return_residuals = TRUE,
@@ -48,9 +52,22 @@ to the condition at the same position in condition_screen_names.}
 \item{loess}{If true, loess-normalizes residuals before running hypothesis testing.
 Only works when test = "moderated-t" (default TRUE).}
 
+\item{ma_transform}{If true, M-A transforms data before running loess normalization. Only
+has an effect when loess = TRUE (default TRUE).}
+
 \item{fdr_method}{Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default "BY").}
 
-\item{n_components}{Number of principal components to remove from data.}
+\item{weight_method}{If "linear" weights non-matched control screens equally. If exponential,
+instead weights non-matched control screens according to a decreasing exponential function
+based on the similarity of control screens to the given condition screen.}
+
+\item{matched_fraction}{The weight given to the matched control as a fraction of 1, where
+all non-matched controls receive a total weight equal to 1 - matched_fraction (default 0.75).}
+
+\item{sd_scale_factor}{Factor to normalize SDs against for scaling. If NULL, the mean is computed 
+across guide-level residuals, otherwise the given scalar is used instead (default NULL).}
+
+\item{n_components}{Vector containing indices of principal components to remove from data.}
 
 \item{chromosomal_correction}{If TRUE, corrects chromosomal shifts by down-weighting qGI
 scores for shifted regions (default FALSE).}

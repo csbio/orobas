@@ -11,7 +11,9 @@ normalize_screens(
   cf1 = 1e+06,
   cf2 = 1,
   min_reads = 30,
-  max_reads = 10000
+  max_reads = 10000,
+  nonessential_norm = TRUE,
+  replace_NA = TRUE
 )
 }
 \arguments{
@@ -30,6 +32,14 @@ below this value will be filtered out).}
 
 \item{max_reads}{Maximum number of reads to keep (default 10000, anything
 above this value will be filtered out).}
+
+\item{nonessential_norm}{Whether or not to normalize each screen against its
+population of core non-essential genes, as defined by Traver et al. 2015 
+(default FALSE).}
+
+\item{replace_NA}{Whether or not to replace NA and NULL values in non-T0 screens 
+with 0's after filtering out T0 guides with too few or NA readcounts 
+(default TRUE).}
 }
 \value{
 Normalized dataframe.

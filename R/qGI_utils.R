@@ -5,9 +5,24 @@
 ### All utility functions directly ported from the qGI scoring pipeline,
 ### written by Maximilian Billmann and Henry Ward, are located here.
 
-# Computes control screen effects against all other control screens as if they
-# were condition screens, setting the matched control contribution from the 
-# closest control screen to 0
+
+#' Computes effect sizes for control screens.
+#' 
+#' Computes rough estimates of effect sizes for control screens, scored against
+#' all other control screens with equal weights given to each.  
+#' 
+#' @param control_df LFC dataframe for control screens.
+#' @param control_names List of screen names for control screens to compute effect
+#'   sizes for.
+#' @param method Either "linear" to give equal weight to all other control screens
+#'   or "exp" to give exponentially-decreasing weight to all other control screens,
+#'   based on those with the most similar LFCs (default "linear"). 
+#' @param loess If true, loess-normalizes residuals before running hypothesis testing.
+#'   Only works when test = "moderated-t" (default TRUE).
+#' @param ma_transform If true, M-A transforms data before running loess normalization. Only
+#'   has an effect when loess = TRUE (default TRUE).
+#' @return Dataframe of effect sizes for control screens.
+#' @export
 compute_control_effects <- function(control_df, control_names, method = "linear",
                                     loess = TRUE, ma_transform = TRUE) {
   weights <- compute_control_weights(control_df, control_df, control_names, control_names,
@@ -29,11 +44,29 @@ compute_control_effects <- function(control_df, control_names, method = "linear"
   return(control_scores)
 }
 
-# Weights control screens for \code{score_drugs_vs_controls} depending on the 
-# mode specified by the user.
-# matched_controls: if NULL, no matching is performed, otherwise takes a vector
-#   of control screen names corresponding to all condition names
-# method: "linear" or "exp"
+#' Computes weights for control screens.
+#' 
+#' Computes weights for control screens based on matching condition screens
+#' for \code{score_drugs_vs_controls}.
+#' 
+#' @param control_df LFC dataframe for control screens.
+#' @param condition_df LFC dataframe for condition screens.
+#' @param control_names List of screen names for control screens to compute effect
+#'   sizes for.
+#' @param condition_names List of screen names for control screens to compute effect
+#'   sizes for.
+#' @param matched_controls A vector of control screen names corresponding to all 
+#'   condition names, which must be the same length as condition_names. 
+#' @param method Either "linear" to give equal weight to all other control screens
+#'   or "exp" to give exponentially-decreasing weight to all other control screens,
+#'   based on those with the most similar LFCs (default "linear"). 
+#' @param matched_fraction A value between 0 and 1 specifying the weight to give
+#'   the matched control for each condition, where weights for all other control
+#'   screens will sum to 1 - matched_fraction (default 0.75). 
+#' @return Dataframe of weights for each condition and control with the number of 
+#'   rows equal to length(condition_names) and the number of columns equal to 
+#'   length(control_names).
+#' @export
 compute_control_weights <- function(control_df, condition_df, control_names, condition_names,
                                     matched_controls, method = "exp", matched_fraction = 0.75) {
   
@@ -89,15 +122,14 @@ compute_control_weights <- function(control_df, condition_df, control_names, con
 
 # Find wildtype (control) weights
 #
-#' @param x: genetic interaction data array
-#' @param y: wildtype (control) foldchange data
-#' @param fraction_floor: ?
-#
+# x: genetic interaction data array
+# y: wildtype (control) foldchange data
+# fraction_floor: ?
 wt_weightID_func <- function(x, y, fraction_floor = 0.05) {
   
   x <- apply((x)^2, 2:3, sum, na.rm = TRUE) #compute square sum of guide-level gi scores for each query-wt pair
   x[x == 0] <- NA #self-gi gets 0 sum, because na.rm = TRUE, set to NA
-  y <- apply(y, 2, var, na.rm = TRUE)
+  y <- apply(y, 2, stats::var, na.rm = TRUE)
   
   for (i in 1:dim(x)[1] ) {
     x[i,] <- x[i,] / y #if wt screens have higher log2FC variance, they tend to also have more gi signal (not linear)
@@ -280,9 +312,10 @@ fragment_transition <- function(x, x_ref, th1, th2, tb,
   }
 }
 
-define_fragments <- function(chrShift_genes_temp, x_max = x_maxima, x_min = x_minima,
-                             th3, th4, chromOI = chrom, Qoi = qoi, x_ref = rmean,
-                             pi = y, b = rollwindow, chrAnno = names(y)) {
+define_fragments <- function(chrShift_genes_temp, x_max, x_min,
+                             th3, th4, chromOI, 
+                             condition, x_ref, pi, 
+                             b, chrAnno) {
   
   sIndex <- 1
   
@@ -296,10 +329,10 @@ define_fragments <- function(chrShift_genes_temp, x_max = x_maxima, x_min = x_mi
         # add second b, because indices on pi (not x_ref) are of interest
         if (mean(pi[x_min[i]:a1], na.rm = TRUE) < -th3) {
           if (sIndex == 1) {
-            chrShift_genes_temp[[Qoi]][[chromOI]] <- list()
+            chrShift_genes_temp[[condition]][[chromOI]] <- list()
           }
           x <- x_min[i] : a1#save negative shift indices x_min[i]:a1
-          chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno[x]) #get gene names for saved guide indices
+          chrShift_genes_temp[[condition]][[chromOI]][[sIndex]] <- unique(chrAnno[x]) #get gene names for saved guide indices
           sIndex <- sIndex + 1
         }
       }
@@ -308,10 +341,10 @@ define_fragments <- function(chrShift_genes_temp, x_max = x_maxima, x_min = x_mi
         a2 <- x_max[which(a == min(abs(a[a > 0]), na.rm = TRUE))]
         if (mean(pi[x_min[i]:a2 + b], na.rm = TRUE) > th3) {
           if (sIndex == 1) {
-            chrShift_genes_temp[[Qoi]][[chromOI]] <- list()
+            chrShift_genes_temp[[condition]][[chromOI]] <- list()
           }
           x <- x_min[i] : a2 + b #save positive shift indices x_min[i]:a2 + b
-          chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno[x]) #get gene names for saved guide indices
+          chrShift_genes_temp[[condition]][[chromOI]][[sIndex]] <- unique(chrAnno[x]) #get gene names for saved guide indices
           sIndex <- sIndex + 1
         }
       }
@@ -324,19 +357,19 @@ define_fragments <- function(chrShift_genes_temp, x_max = x_maxima, x_min = x_mi
     if (min(x_m) %in% x_min) { #define as first stretch
       if (mean(pi[1:(min(x_m)+b)], na.rm = TRUE) < -th3) {
         if (sIndex == 1) {
-          chrShift_genes_temp[[Qoi]][[chromOI]] <- list()
+          chrShift_genes_temp[[condition]][[chromOI]] <- list()
         }
         x <- 1:(min(x_m) + b)
-        chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno[x])
+        chrShift_genes_temp[[condition]][[chromOI]][[sIndex]] <- unique(chrAnno[x])
         sIndex <- sIndex + 1
       }
     } else if (min(x_m) %in% x_max) {
       if (mean(pi[1:(min(x_m)+b)], na.rm = TRUE) > th3) {
         if (sIndex == 1) {
-          chrShift_genes_temp[[Qoi]][[chromOI]] <- list()
+          chrShift_genes_temp[[condition]][[chromOI]] <- list()
         }
         x <- 1:(min(x_m) + b)
-        chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno[x])
+        chrShift_genes_temp[[condition]][[chromOI]][[sIndex]] <- unique(chrAnno[x])
         sIndex <- sIndex + 1
       }
     }
@@ -344,25 +377,25 @@ define_fragments <- function(chrShift_genes_temp, x_max = x_maxima, x_min = x_mi
     if (max(x_m) %in% x_min) { #define as last stretch
       if (mean(pi[b + max(x_m):length(x_ref)], na.rm = TRUE) > th3) {
         if (sIndex == 1) {
-          chrShift_genes_temp[[Qoi]][[chromOI]] <- list()
+          chrShift_genes_temp[[condition]][[chromOI]] <- list()
         }
         x <- b + max(x_m):length(x_ref)
-        chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno[x])
+        chrShift_genes_temp[[condition]][[chromOI]][[sIndex]] <- unique(chrAnno[x])
         sIndex <- sIndex + 1
       }
     } else if (max(x_m) %in% x_max) {
       if (mean(pi[b + max(x_m):length(x_ref)], na.rm = TRUE) < -th3) {
         if (sIndex == 1) {
-          chrShift_genes_temp[[Qoi]][[chromOI]] <- list()
+          chrShift_genes_temp[[condition]][[chromOI]] <- list()
         }
         x <- b + max(x_m):length(x_ref)
-        chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno[x])
+        chrShift_genes_temp[[condition]][[chromOI]][[sIndex]] <- unique(chrAnno[x])
         sIndex <- sIndex + 1
       }
     }
   }
   if (length(x_m) == 0 & abs(mean(pi, na.rm = TRUE)) > th4) {
-    chrShift_genes_temp[[Qoi]][[chromOI]][[sIndex]] <- unique(chrAnno)
+    chrShift_genes_temp[[condition]][[chromOI]][[sIndex]] <- unique(chrAnno)
   }
   return(chrShift_genes_temp) #return list
 }

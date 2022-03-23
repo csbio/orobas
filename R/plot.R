@@ -230,7 +230,7 @@ plot_samples <- function(df, xcol, ycol, xlab, ylab,
   # Computes correlations and optionally prints Pearson correlation
   pcc <- NA
   scc <- NA
-  if (sum(complete.cases(df[,colnames(df) %in% c(xcol, ycol)])) > 10) {
+  if (sum(stats::complete.cases(df[,colnames(df) %in% c(xcol, ycol)])) > 10) {
     pcc <- stats::cor(df[[xcol]], df[[ycol]], use = "complete.obs")
     scc <- stats::cor(df[[xcol]], df[[ycol]], method = "spearman", use = "complete.obs")
     if (print_cor) {
@@ -280,7 +280,7 @@ plot_heatmap <- function(df, col_groups, filename, display_numbers = TRUE,
                          show_rownames = TRUE, show_colnames = TRUE) {
   
   # Returns warning if not enough complete observations
-  if (sum(complete.cases(df)) <= 10) {
+  if (sum(stats::complete.cases(df)) <= 10) {
     warning(paste("too few complete observations to construct heatmap"))
     return()
   }
@@ -346,34 +346,37 @@ plot_chromosome <- function(df, guide_df, output_folder, plot_type = "png") {
     chr_features[i,"n_genes"] <- length(which(df$chr == chrom[i]))
   }
   chr_features$length_per <- chr_features$n_genes / chr_features$length
-  chr_features$roll_window <- ceiling(log2(chr_features$length_per / median(chr_features$length_per) + 2) * 150)
+  chr_features$roll_window <- ceiling(log2(chr_features$length_per / stats::median(chr_features$length_per) + 2) * 150)
   chr_features$labels <- chrom
   
   # Plots chromosomal features information
   file_name <- paste0("chromosome_genes.", plot_type)
-  p <- ggplot2::ggplot(chr_features, aes(x = length, y = n_genes)) +
+  p <- ggplot2::ggplot(chr_features, ggplot2::aes_string(x = "length", y = "n_genes")) +
     ggplot2::geom_point() +
     ggplot2::xlab("Chromosome length") +
     ggplot2::ylab("Number of genes") +
-    ggplot2::geom_text(aes(label = labels), hjust = -0.1, vjust = -0.1) +
+    ggplot2::geom_text(ggplot2::aes_string(label = "labels"), hjust = -0.1, vjust = -0.1) +
     ggthemes::theme_tufte(base_size = 20)
-  suppressWarnings(ggplot2::ggsave(file.path(output_folder, file_name), plot = p, width = 10, height = 7, dpi = 300))
+  suppressWarnings(ggplot2::ggsave(file.path(output_folder, file_name), 
+                                   plot = p, width = 10, height = 7, dpi = 300))
   file_name <- paste0("chromosome_adjusted_genes.", plot_type)
-  p <- ggplot2::ggplot(chr_features, aes(x = length, y = length_per)) +
+  p <- ggplot2::ggplot(chr_features, ggplot2::aes_string(x = "length", y = "length_per")) +
     ggplot2::geom_point() +
     ggplot2::xlab("Chromosome length") +
     ggplot2::ylab("Number of guides adjusted by chromosomal length") +
-    ggplot2::geom_text(aes(label = labels), hjust = -0.1, vjust = -0.1) +
+    ggplot2::geom_text(ggplot2::aes_string(label = "labels"), hjust = -0.1, vjust = -0.1) +
     ggthemes::theme_tufte(base_size = 20)
-  suppressWarnings(ggplot2::ggsave(file.path(output_folder, file_name), plot = p, width = 10, height = 7, dpi = 300))
+  suppressWarnings(ggplot2::ggsave(file.path(output_folder, file_name), 
+                                   plot = p, width = 10, height = 7, dpi = 300))
   file_name <- paste0("chromosome_rolling_window.", plot_type)
-  p <- ggplot2::ggplot(chr_features, aes(x = length, y = roll_window)) +
+  p <- ggplot2::ggplot(chr_features, ggplot2::aes_string(x = "length", y = "roll_window")) +
     ggplot2::geom_point() +
     ggplot2::xlab("Chromosome length") +
     ggplot2::ylab("Width of rolling window") +
-    ggplot2::geom_text(aes(label = labels), hjust = -0.1, vjust = -0.1) +
+    ggplot2::geom_text(ggplot2::aes_string(label = "labels"), hjust = -0.1, vjust = -0.1) +
     ggthemes::theme_tufte(base_size = 20)
-  suppressWarnings(ggplot2::ggsave(file.path(output_folder, file_name), plot = p, width = 10, height = 7, dpi = 300))
+  suppressWarnings(ggplot2::ggsave(file.path(output_folder, file_name), 
+                                   plot = p, width = 10, height = 7, dpi = 300))
   
   # Ignores chromosomes with too few genes for the rolling window
   to_keep <- rep(TRUE, nrow(chr_features))
@@ -385,7 +388,7 @@ plot_chromosome <- function(df, guide_df, output_folder, plot_type = "png") {
   chr_features <- chr_features[to_keep,]
   
   # Identifies windows where chromosomal shifts occur
-  noise_factor <- apply(guide_df[,2:ncol(guide_df)], 2, sd, na.rm = TRUE)
+  noise_factor <- apply(guide_df[,2:ncol(guide_df)], 2, stats::sd, na.rm = TRUE)
   chr_shifted_genes <- list()
   for (i in 1:nrow(chr_features)) {
     chrom <- row.names(chr_features)[i]
@@ -409,7 +412,7 @@ plot_chromosome <- function(df, guide_df, output_folder, plot_type = "png") {
       rmean <- rep(NA, (length(x) - rollwindow))
       for (k in 1:length(rmean)) {
         y_rw <- y[k:(rollwindow + k - 1)]
-        y_q <- quantile(y_rw, probs = c(.05, .95), na.rm = TRUE)
+        y_q <- stats::quantile(y_rw, probs = c(.05, .95), na.rm = TRUE)
         y_rw <- y_rw[y_rw > y_q[[1]] & y_rw < y_q[[2]]]
         rmean[k] <- mean(y_rw, na.rm = TRUE)
       }
@@ -449,7 +452,7 @@ plot_chromosome <- function(df, guide_df, output_folder, plot_type = "png") {
       chr_shifted_genes <- define_fragments(chr_shifted_genes, 
                                             x_max = x_maxima, x_min = x_minima,
                                             th3 = th3_match, th4 = th4_match,
-                                            chromOI = chrom, Qoi = condition, 
+                                            chromOI = chrom, condition = condition, 
                                             x_ref = rmean, pi = y,
                                             b = rollwindow, chrAnno = names(y))
       
@@ -490,12 +493,12 @@ plot_chromosome <- function(df, guide_df, output_folder, plot_type = "png") {
   # Applies chromosomal correction to shifted genes if any exist
   if (length(unlist(chr_shifted_genes)) > 0) {
     for (condition in colnames(guide_df)[2:dim(guide_df)]) {
-      for (chrom in names(chrShift_genes[[condition]])) {
+      for (chrom in names(chr_shifted_genes[[condition]])) {
         if (length(unlist(chrom)) > 0) {
-          for (gene in chrShift_genes[[condition]][[chrom]]) {
-            goi <- chrShift_genes[[condition]][[chrom]][[gene]]
+          for (gene in chr_shifted_genes[[condition]][[chrom]]) {
+            goi <- chr_shifted_genes[[condition]][[chrom]][[gene]]
             goi <- which(guide_df$gene %in% goi) 
-            guide_df[goi, condition] <- gi[goi, condition] - mean(gi[goi, condition], na.rm = TRUE)
+            guide_df[goi, condition] <- df[goi, condition] - mean(df[goi, condition], na.rm = TRUE)
           }
         }
       }
@@ -525,30 +528,52 @@ plot_chromosome <- function(df, guide_df, output_folder, plot_type = "png") {
 #'   passed to \code{call_drug_hits} (default "Negative").
 #' @param pos_type Label for significant effects with a positive differential effect
 #'   passed to \code{call_drug_hits} (default "Positive").
+#' @param label_fdr_threshold Threshold below which to plot gene labels for significant
+#'   hits, or NULL to plot without labels (default NULL).
 #' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
 #' @export
 plot_drug_response <- function(scores, control_name = NULL, 
                                condition_name = NULL, output_folder = NULL,
                                loess = TRUE, neg_type = "Negative", 
-                               pos_type = "Positive", plot_type = "png") {
+                               pos_type = "Positive", label_fdr_threshold = NULL,
+                               plot_type = "png") {
   
   # Gets variables depending on scoring type
   plot_file <- paste0(condition_name, "_vs_", control_name, "_scatter.", plot_type)
   control_mean_col <- paste0("mean_", control_name)
+  condition_mean_col <- paste0("mean_", condition_name)
   response_col <- paste0("effect_type_", condition_name)
   diff_col <- paste0("differential_", condition_name, "_vs_", control_name) 
+  fdr_col <- paste0("fdr_", condition_name, "_vs_", control_name) 
   control_label <- paste0(control_name, " LFC")
   if (is.null(control_name)) {
     plot_file <- paste0(condition_name, "_vs_controls_scatter.", plot_type)
     control_mean_col <- paste0("mean_controls_", condition_name)
     diff_col <- paste0("differential_", condition_name, "_vs_controls") 
+    fdr_col <- paste0("fdr_", condition_name, "_vs_controls")
     control_label <- paste0("Weighted control LFC")
   }
   
+  # Adds backticks to column names if they contain special characters
+  control_mean_col_aes <- paste0("`", control_mean_col, "`")
+  condition_mean_col_aes <- paste0("`", condition_mean_col, "`")
+  response_col_aes <- paste0("`", response_col, "`")
+  diff_col_aes <- paste0("`", diff_col, "`")
+  fdr_col_aes <- paste0("`", fdr_col, "`")
+  response_col_aes <- paste0("`", response_col, "`")
+  control_label_aes <- paste0("`", control_label, "`")
+  
   # Sets factors to plot significant effects last
   scores$sort_col <- abs(scores[[diff_col]])
-  scores <- dplyr::arrange(scores, sort_col)
+  scores <- dplyr::arrange(scores, "sort_col")
   scores[[response_col]] <- forcats::fct_inorder(scores[[response_col]])
+  
+  # Gets subset dataframe for plotting labels
+  subset_scores <- NULL
+  if (!is.null(label_fdr_threshold)) {
+    subset_scores <- scores[scores[[fdr_col]] < label_fdr_threshold &
+                              scores[[response_col]] != "None",] 
+  }
   
   # Manually sets colors for plot
   colors <- c("None" = "Gray", neg_type = "Black", pos_type = "Black")
@@ -559,7 +584,8 @@ plot_drug_response <- function(scores, control_name = NULL,
   names(fill)[3] <- pos_type
 
   # Builds basic plot
-  p <- ggplot2::ggplot(scores, ggplot2::aes_string(x = control_mean_col, y = paste0("mean_", condition_name))) +
+  p <- ggplot2::ggplot(scores, ggplot2::aes_string(x = control_mean_col_aes, 
+                                                   y = condition_mean_col_aes)) +
     ggplot2::geom_hline(yintercept = 0, linetype = 2, size = 1, alpha = 1, color = "Gray") +
     ggplot2::geom_vline(xintercept = 0, linetype = 2, size = 1, alpha = 1, color = "Gray")
   
@@ -576,10 +602,26 @@ plot_drug_response <- function(scores, control_name = NULL,
   layer2 <- scores[scores[[response_col]] == point_levels[2],]
   layer3 <- scores[scores[[response_col]] == point_levels[3],]
   p <- p +
-    ggplot2::geom_point(data = layer1, ggplot2::aes_string(color = response_col, fill = response_col), shape = 21, alpha = 0.7) +
-    ggplot2::geom_point(data = layer2, ggplot2::aes_string(color = response_col, fill = response_col), shape = 21, alpha = 0.7) +
-    ggplot2::geom_point(data = layer3, ggplot2::aes_string(color = response_col, fill = response_col), shape = 21, alpha = 0.7)
+    ggplot2::geom_point(data = layer1, 
+                        ggplot2::aes_string(color = response_col_aes, fill = response_col_aes), 
+                        shape = 21, alpha = 0.7) +
+    ggplot2::geom_point(data = layer2, 
+                        ggplot2::aes_string(color = response_col_aes, fill = response_col_aes), 
+                        shape = 21, alpha = 0.7) +
+    ggplot2::geom_point(data = layer3, 
+                        ggplot2::aes_string(color = response_col_aes, fill = response_col_aes), 
+                        shape = 21, alpha = 0.7)
   
+  # Appends labels to plot
+  if (!is.null(label_fdr_threshold)) {
+    p <- p +
+      ggrepel::geom_text_repel(data = subset_scores,
+                               ggplot2::aes_string(x = control_mean_col_aes, 
+                                                   y = condition_mean_col_aes,
+                                                   label = "gene"),
+                               color = "black")
+  }
+
   # Finishes plot
   p <- p + 
     ggplot2::scale_color_manual(values = colors) +
@@ -594,7 +636,8 @@ plot_drug_response <- function(scores, control_name = NULL,
                    legend.text = ggplot2::element_text(size = 16))
   
   # Saves to file
-  suppressWarnings(ggplot2::ggsave(file.path(output_folder, plot_file), width = 10, height = 7, dpi = 300))
+  suppressWarnings(ggplot2::ggsave(file.path(output_folder, plot_file), 
+                                   width = 10, height = 7, dpi = 300))
 }
 
 #' Plot guide-level residuals for all hits
@@ -821,7 +864,7 @@ plot_scree <- function(df, cols, scale = FALSE, na_behavior = "mean_replace",
       }
     }
   } else if (na_behavior == "omit") {
-    temp <- na.omit(temp)
+    temp <- stats::na.omit(temp)
   } else {
     stop("na_behavior must be either 'mean_replace' or 'omit'")
   }
@@ -832,7 +875,7 @@ plot_scree <- function(df, cols, scale = FALSE, na_behavior = "mean_replace",
   var_df <- data.frame(PC = paste0("PC", 1:length(pca$sdev)),
                        var = 100 * (pca$sdev ^ 2) / sum(pca$sdev ^ 2))
   var_df$PC <- factor(var_df$PC, levels = var_df$PC)
-  p <- ggplot2::ggplot(var_df, aes(x = PC, y = var))+
+  p <- ggplot2::ggplot(var_df, ggplot2::aes_string(x = "PC", y = "var"))+
     ggplot2::geom_bar(stat = "identity") +
     ggplot2::xlab("Principal component") +
     ggplot2::ylab("% variance explained") +

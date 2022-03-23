@@ -18,7 +18,7 @@ pca_screens(
 
 \item{cols}{Numerical column names to normalize with PCA.}
 
-\item{n_components}{Number of principal components to remove from data.}
+\item{n_components}{Vector containing indices of principal components to remove from data.}
 
 \item{scale}{Whether or not to scale replicates before extracting principal 
 components (default FALSE).}

@@ -2,6 +2,8 @@
 # SCORING CODE
 ######
 
+#' @importFrom magrittr "%>%"
+
 # Inner function to scale values between 0 and 1
 scale_values <- function(x) {
   val <- (x-min(x, na.rm=T)) / (max(x, na.rm=T) - min(x, na.rm=T))
@@ -209,10 +211,12 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
   if (!is.null(sd_scale_factor)) {
     for (name in condition_names) {
       resid <- condition_residuals[[name]]
-      lfc_range <- quantile(resid, probs = c(0.1, 0.9), na.rm = TRUE)
-      target_sd <- sd(resid[resid > lfc_range[1] & resid < lfc_range[2]], na.rm = TRUE)
+      lfc_range <- stats::quantile(resid, probs = c(0.1, 0.9), na.rm = TRUE)
+      target_sd <- stats::sd(resid[resid > lfc_range[1] & resid < lfc_range[2]], na.rm = TRUE)
       target_sd <- target_sd / sd_scale_factor
       condition_residuals[[name]] <- resid / target_sd
+      mean_residuals <- rowMeans(condition_residuals[[name]])
+      scores[[paste0("differential_", name, "_vs_", control_name)]][i] <- mean(diff, na.rm = TRUE)
     } 
   }
   
@@ -426,7 +430,7 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
         dplyr::group_by(gene) %>%
         stats::na.omit() %>%
         dplyr::summarise(mean = mean(lfc, na.rm = TRUE),
-                         var = var(lfc, na.rm = TRUE),
+                         var = stats::var(lfc, na.rm = TRUE),
                          n = dplyr::n())
       
       # Ensures that all genes are represented before appending to scores,
@@ -447,7 +451,7 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
       temp <- temp %>%
         dplyr::group_by(gene) %>%
         dplyr::summarise(mean = mean(lfc, na.rm = TRUE),
-                         var = var(lfc, na.rm = TRUE),
+                         var = stats::var(lfc, na.rm = TRUE),
                          n = dplyr::n())
       scores[[paste0("n_", condition)]] <- temp$n
       scores[[paste0("mean_", condition)]] <- temp$mean
@@ -495,7 +499,7 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
       ebayes_fit <- limma::eBayes(fit)
       condition_residuals[[condition]]$mean <- fit$Amean
       condition_residuals[[condition]]$pval <- ebayes_fit$p.value
-      condition_residuals[[condition]]$fdr <- p.adjust(ebayes_fit$p.value, method = fdr_method)
+      condition_residuals[[condition]]$fdr <- stats::p.adjust(ebayes_fit$p.value, method = fdr_method)
       scores[[paste0("pval_", condition, "_vs_controls")]] <- condition_residuals[[condition]]$pval
       scores[[paste0("fdr_", condition, "_vs_controls")]] <- condition_residuals[[condition]]$fdr
     }
@@ -553,11 +557,11 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
   # Scales moderate effects in top and bottom 10% of data to de-emphasize those and 
   # merges pre- and post-scaling SDs into a single dataframe to be returned. The mean
   # to divide SD values by is either the mean of all SDs or a pre-computed scalar
-  pre_scaling_sd <- apply(qGI[,2:ncol(qGI)], 2, sd)
-  lfc_range <- apply(qGI[,2:ncol(qGI)], 2, quantile, probs = c(0.1, 0.9), na.rm = TRUE)
+  pre_scaling_sd <- apply(qGI[,2:ncol(qGI)], 2, stats::sd)
+  lfc_range <- apply(qGI[,2:ncol(qGI)], 2, stats::quantile, probs = c(0.1, 0.9), na.rm = TRUE)
   target_sd <- rep(NA, ncol(qGI))
   for (i in 2:ncol(qGI)) {
-    target_sd[i] <- sd(qGI[qGI[,i] > lfc_range[1,i-1] & qGI[,i] < lfc_range[2,i-1], i], na.rm = TRUE)
+    target_sd[i] <- stats::sd(qGI[qGI[,i] > lfc_range[1,i-1] & qGI[,i] < lfc_range[2,i-1], i], na.rm = TRUE)
   }
   if (is.null(sd_scale_factor)) {
     sd_scale_factor <- mean(target_sd[2:length(target_sd)])
@@ -566,7 +570,7 @@ score_drugs_vs_controls <- function(df, screens, control_screen_names, condition
   for (i in 2:ncol(qGI)) {
     qGI[,i] <- qGI[,i] / target_sd[i]
   }
-  post_scaling_sd <- apply(qGI[,2:ncol(qGI)], 2, sd)
+  post_scaling_sd <- apply(qGI[,2:ncol(qGI)], 2, stats::sd)
   sd_table <- data.frame(rbind(pre_scaling_sd, post_scaling_sd))
   sd_table$source[1] <- "pre_scaling"
   sd_table$source[2] <- "post_scaling"
@@ -645,7 +649,7 @@ correct_chromosomal_effects <- function(df, guide_df) {
     chr_features[i,"n_genes"] <- length(which(df$chr == chrom[i]))
   }
   chr_features[,3] <- chr_features[,2] / chr_features[,1]
-  chr_features[,4] <- ceiling(log2(chr_features[,3] / median(chr_features[,3]) + 2) * 150)
+  chr_features[,4] <- ceiling(log2(chr_features[,3] / stats::median(chr_features[,3]) + 2) * 150)
   
   # Ignores chromosomes with too few genes for the rolling window
   to_keep <- rep(TRUE, nrow(chr_features))
@@ -657,7 +661,7 @@ correct_chromosomal_effects <- function(df, guide_df) {
   chr_features <- chr_features[to_keep,]
   
   # Identifies windows where chromosomal shifts occur
-  noise_factor <- apply(guide_df[,2:ncol(guide_df)], 2, sd, na.rm = TRUE)
+  noise_factor <- apply(guide_df[,2:ncol(guide_df)], 2, stats::sd, na.rm = TRUE)
   chr_shifted_genes <- list()
   for (i in 1:nrow(chr_features)) {
     chrom <- row.names(chr_features)[i]
@@ -681,7 +685,7 @@ correct_chromosomal_effects <- function(df, guide_df) {
       rmean <- rep(NA, (length(x) - rollwindow))
       for (k in 1:length(rmean)) {
         y_rw <- y[k:(rollwindow + k - 1)]
-        y_q <- quantile(y_rw, probs = c(.05, .95), na.rm = TRUE)
+        y_q <- stats::quantile(y_rw, probs = c(.05, .95), na.rm = TRUE)
         y_rw <- y_rw[y_rw > y_q[[1]] & y_rw < y_q[[2]]]
         rmean[k] <- mean(y_rw, na.rm = TRUE)
       }
@@ -721,7 +725,7 @@ correct_chromosomal_effects <- function(df, guide_df) {
       chr_shifted_genes <- define_fragments(chr_shifted_genes, 
                                             x_max = x_maxima, x_min = x_minima,
                                             th3 = th3_match, th4 = th4_match,
-                                            chromOI = chrom, Qoi = condition, 
+                                            chromOI = chrom, condition = condition, 
                                             x_ref = rmean, pi = y,
                                             b = rollwindow, chrAnno = names(y))
     }
@@ -730,12 +734,12 @@ correct_chromosomal_effects <- function(df, guide_df) {
   # Applies chromosomal correction to shifted genes if any exist
   if (length(unlist(chr_shifted_genes)) > 0) {
     for (condition in colnames(guide_df)[2:dim(guide_df)]) {
-      for (chrom in names(chrShift_genes[[condition]])) {
+      for (chrom in names(chr_shifted_genes[[condition]])) {
         if (length(unlist(chrom)) > 0) {
-          for (gene in chrShift_genes[[condition]][[chrom]]) {
-            goi <- chrShift_genes[[condition]][[chrom]][[gene]]
+          for (gene in chr_shifted_genes[[condition]][[chrom]]) {
+            goi <- chr_shifted_genes[[condition]][[chrom]][[gene]]
             goi <- which(guide_df$gene %in% goi) 
-            guide_df[goi, condition] <- gi[goi, condition] - mean(gi[goi, condition], na.rm = TRUE)
+            guide_df[goi, condition] <- df[goi, condition] - mean(df[goi, condition], na.rm = TRUE)
           }
         }
       }
@@ -865,6 +869,8 @@ call_drug_hits <- function(scores, control_screen_name = NULL, condition_screen_
 #'   (default "Negative").
 #' @param pos_type Label for significant effects with a positive differential effect
 #'   (default "Positive").
+#' @param label_fdr_threshold Threshold below which to plot gene labels for significant
+#'   hits, or NULL to plot without labels (default NULL).
 #' @param save_residuals If true, saves residuals for each screen to the output folder
 #'   (default FALSE).
 #' @param plot_residuals If true, plots residual effects for all top hits (default TRUE).
@@ -879,9 +885,9 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
                               matched_fraction = 0.75, sd_scale_factor = NULL,
                               fdr_method = "BY", fdr_threshold = 0.1, 
                               differential_threshold = 0.5, neg_type = "Negative", 
-                              pos_type = "Positive", save_residuals = FALSE, 
-                              plot_residuals = TRUE, plot_type = "png", 
-                              verbose = FALSE) {
+                              pos_type = "Positive", label_fdr_threshold = NULL,
+                              save_residuals = FALSE, plot_residuals = TRUE, 
+                              plot_type = "png", verbose = FALSE) {
   
   # Creates output folder if nonexistent
   if (!dir.exists(output_folder)) { dir.create(output_folder, recursive = TRUE) }
@@ -928,9 +934,14 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
                                neg_type = neg_type, pos_type = pos_type,
                                fdr_threshold = fdr_threshold, 
                                differential_threshold = differential_threshold)
-      plot_drug_response(scores, control, condition, plot_folder,
-                         neg_type = neg_type, pos_type = pos_type,
-                         plot_type = plot_type)
+      plot_drug_response(scores, 
+                         control_name = control, 
+                         condition_name = condition, 
+                         output_folder = plot_folder,
+                         neg_type = neg_type, 
+                         pos_type = pos_type,
+                         plot_type = plot_type, 
+                         label_fdr_threshold = label_fdr_threshold)
       if (plot_residuals) {
         if (!is.na(residuals)) {
           plot_drug_residuals(scores, residuals, control, condition, lfc_folder, 
@@ -1015,9 +1026,14 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
                                  fdr_threshold = fdr_threshold, 
                                  differential_threshold = differential_threshold)
         for (condition in conditions) {
-          plot_drug_response(scores, control = NULL, condition = condition,
-                             output_folder = plot_folder, neg_type = neg_type, 
-                             pos_type = pos_type, plot_type = plot_type) 
+          plot_drug_response(scores, 
+                             control_name = NULL, 
+                             condition_name = condition, 
+                             output_folder = plot_folder, 
+                             neg_type = neg_type, 
+                             pos_type = pos_type, 
+                             plot_type = plot_type,
+                             label_fdr_threshold = label_fdr_threshold) 
         }
         utils::write.table(scores, file.path(group_folder, "gene_calls.tsv"), sep = "\t",
                            row.names = FALSE, col.names = TRUE, quote = FALSE) 

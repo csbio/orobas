@@ -16,11 +16,15 @@ score_drugs_batch(
   control_genes = c("None", ""),
   n_components = 0,
   chromosomal_correction = FALSE,
+  weight_method = "exp",
+  matched_fraction = 0.75,
+  sd_scale_factor = NULL,
   fdr_method = "BY",
   fdr_threshold = 0.1,
   differential_threshold = 0.5,
   neg_type = "Negative",
   pos_type = "Positive",
+  label_fdr_threshold = NULL,
   save_residuals = FALSE,
   plot_residuals = TRUE,
   plot_type = "png",
@@ -52,10 +56,21 @@ has an effect when loess = TRUE (default TRUE).}
 
 \item{control_genes}{List of control genes to remove, e.g. "luciferase" (default c("None", "")).}
 
-\item{n_components}{Number of principal components to remove from data.}
+\item{n_components}{Vector containing indices of principal components to remove from data.}
 
 \item{chromosomal_correction}{If TRUE, corrects chromosomal shifts by down-weighting qGI
 scores for shifted regions (default FALSE).}
+
+\item{weight_method}{If "linear" weights non-matched control screens equally. If exponential,
+instead weights non-matched control screens according to a decreasing exponential function
+based on the similarity of control screens to the given condition screen.}
+
+\item{matched_fraction}{The weight given to the matched control as a fraction of 1, where
+all non-matched controls receive a total weight equal to 1 - matched_fraction (default 0.75).}
+
+\item{sd_scale_factor}{Factor to normalize SDs against for scaling. If NULL for group scoring,
+the mean is computed across guide-level residuals, otherwise the given scalar is used instead.
+If NULL for one-off scoring, this operation is not performed (default NULL).}
 
 \item{fdr_method}{Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default
 "BY")}
@@ -71,6 +86,9 @@ below which gene effects are not called as significant (default 0.5).}
 
 \item{pos_type}{Label for significant effects with a positive differential effect
 (default "Positive").}
+
+\item{label_fdr_threshold}{Threshold below which to plot gene labels for significant
+hits, or NULL to plot without labels (default NULL).}
 
 \item{save_residuals}{If true, saves residuals for each screen to the output folder
 (default FALSE).}

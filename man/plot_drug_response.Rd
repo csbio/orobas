@@ -12,6 +12,7 @@ plot_drug_response(
   loess = TRUE,
   neg_type = "Negative",
   pos_type = "Positive",
+  label_fdr_threshold = NULL,
   plot_type = "png"
 )
 }
@@ -33,6 +34,9 @@ passed to \code{call_drug_hits} (default "Negative").}
 
 \item{pos_type}{Label for significant effects with a positive differential effect
 passed to \code{call_drug_hits} (default "Positive").}
+
+\item{label_fdr_threshold}{Threshold below which to plot gene labels for significant
+hits, or NULL to plot without labels (default NULL).}
 
 \item{plot_type}{Type of plot to output, one of "png" or "pdf" (default "png").}
 }

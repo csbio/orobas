@@ -87,7 +87,7 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
   if (replace_NA) {
     for (screen in screens) {
       for (col in screen[["replicates"]]) {
-        na_ind <- !complete.cases(df[,col])
+        na_ind <- !stats::complete.cases(df[,col])
         df[na_ind, col] <- 0
       }
     }
@@ -119,7 +119,7 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
     for (screen in screens) {
       for (col in screen[["replicates"]]) {
         nonessential_vals <- as.numeric(unlist(new_df[nonessential_ind, col]))
-        nonessential_median <- median(nonessential_vals, na.rm = TRUE)
+        nonessential_median <- stats::median(nonessential_vals, na.rm = TRUE)
         new_df[,col] <- new_df[,col] - nonessential_median
       }
     }
@@ -185,7 +185,7 @@ pca_screens <- function(df, cols, n_components, scale = FALSE, na_behavior = "me
       }
     }
   } else if (na_behavior == "omit") {
-    temp <- na.omit(temp)
+    temp <- stats::na.omit(temp)
   } else {
     stop("na_behavior must be either 'mean_replace' or 'omit'")
   }

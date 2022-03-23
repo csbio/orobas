@@ -12,16 +12,16 @@ check_replicates(df, screens)
 \item{screens}{List of screens created with \code{add_screens}.}
 }
 \value{
-List of up to three vectors, where "missing_from_screens" contains all screens 
+List of up to four vectors, where "missing_from_screens" contains all screens 
  in df but not screens, "missing_from_df" contains all screens in screens but not df,
- and "dupe_reps" contains names of all technical replicates mapped to multiple screens
- in screens.
+ "dupe_reps" contains names of all technical replicates mapped to multiple screens
+ in screens, and "dupe_screens" contains duplicated screen names.
 }
 \description{
 Checks to make sure that all replicates contained in a screens object returned from 
 \code{add_screens_from_table} or \code{add_screen} are contained in a given dataframe.
-Returns three vectors in a list, where the first contains columns missing from the 
+Returns four vectors in a list, where the first contains columns missing from the 
 screens but contained in the dataframe, the second contains columns contained in the
-screens but missing from the dataframe, and the third contains replicates duplicated
-in multiple screens.
+screens but missing from the dataframe, the third contains replicates duplicated
+in multiple screens, and the last contains duplicated screen names.
 }
