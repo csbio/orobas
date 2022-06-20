@@ -6,20 +6,20 @@
 \usage{
 call_drug_hits(
   scores,
-  control_screen_name,
-  condition_screen_names,
+  control_screen_name = NULL,
+  condition_screen_names = NULL,
   fdr_threshold = 0.1,
   differential_threshold = 0,
   neg_type = "Negative",
-  pos_type = "Positive",
-  fdr_method = "BH",
-  expected_guides = 6
+  pos_type = "Positive"
 )
 }
 \arguments{
-\item{scores}{Dataframe returned from \code{score_drugs_vs_control}.}
+\item{scores}{Dataframe returned from \code{score_drugs_vs_control} or 
+\code{score_drugs_vs_controls}.}
 
-\item{control_screen_name}{Name of a control screen to test condition screens against.}
+\item{control_screen_name}{Name of a control screen to test condition screens against, 
+or NULL to score data returned from \code{score_drugs_vs_controls}.}
 
 \item{condition_screen_names}{A list of condition screen names to score against the 
 control screen.}
@@ -35,12 +35,6 @@ below which gene effects are not called as significant (default 0).}
 
 \item{pos_type}{Label for significant effects with a positive differential effect
 (default "Positive").}
-
-\item{fdr_method}{Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default
-"BY")}
-
-\item{expected_guides}{Number of guides expected per gene-pair, to more accurately
-assign a hit quality metric (default 15).}
 }
 \value{
 Dataframe of scored data with differential effects called as significant
@@ -48,5 +42,5 @@ Dataframe of scored data with differential effects called as significant
 }
 \description{
 Run this to call significant responses for data returned from 
-\code{score_drugs_vs_control}.
+\code{score_drugs_vs_control} or \code{score_drugs_vs_controls}.
 }

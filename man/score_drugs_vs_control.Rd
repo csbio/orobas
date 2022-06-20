@@ -7,14 +7,15 @@
 score_drugs_vs_control(
   df,
   screens,
-  gene_col,
   control_screen_name,
   condition_screen_names,
   control_genes = c("None", ""),
   min_guides = 3,
   test = "moderated-t",
   loess = TRUE,
+  ma_transform = TRUE,
   fdr_method = "BY",
+  sd_scale_factor = NULL,
   return_residuals = TRUE,
   verbose = FALSE
 )
@@ -23,8 +24,6 @@ score_drugs_vs_control(
 \item{df}{LFC dataframe.}
 
 \item{screens}{List of screens generated with \code{add_screens}.}
-
-\item{gene_col}{A column containing gene names for all guides.}
 
 \item{control_screen_name}{Name of a control screen to test condition screens against.}
 
@@ -42,7 +41,13 @@ rank-sum testing or "moderated-t" for moderated t-testing (default "moderated-t"
 \item{loess}{If true, loess-normalizes residuals before running hypothesis testing.
 Only works when test = "moderated-t" (default TRUE).}
 
+\item{ma_transform}{If true, M-A transforms data before running loess normalization. Only
+has an effect when loess = TRUE (default TRUE).}
+
 \item{fdr_method}{Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default "BY").}
+
+\item{sd_scale_factor}{Factor to normalize SDs against for scaling. If NULL, this operation
+is not performed - this behavior is different for group scoring! (default NULL).}
 
 \item{return_residuals}{If FALSE, returns NA instead of residuals dataframe (default TRUE).
 This is recommend if scoring large datasets and memory is a limitation.}

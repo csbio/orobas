@@ -9,7 +9,7 @@ add_screens_from_table(table_file)
 \arguments{
 \item{table_file}{A tab-separated sample table with three columns, described above: 
 Screen, Replicates, and NormalizeTo. Screen is the name of the screen, replicates 
-are each technical replicate separated by semi-colons, and NormalizeTo is either 
+are each technical replicate separated by semicolons, and NormalizeTo is either 
 the screen to normalize against or NA if unnecessary (e.g. for T0 screens).}
 }
 \value{
