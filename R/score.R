@@ -9,11 +9,43 @@ scale_values <- function(x) {
   val <- (x-min(x, na.rm=T)) / (max(x, na.rm=T) - min(x, na.rm=T))
 }
 
-# Revised one-off score function with individual replicate-level loess fitting
-score_drugs_vs_control_rev <- function(df, screens, control_screen_name, condition_screen_names, 
-                                       control_genes = c("None", ""), min_guides = 3, test = "moderated-t", 
-                                       loess = TRUE, ma_transform = TRUE, fdr_method = "BY",
-                                       sd_scale_factor = NULL, return_residuals = TRUE, verbose = FALSE) {
+#' Scores conditions against a single control.
+#' Revised one-off score function with individual replicate-level loess fitting (loess smoothing Drug A vs DMSO A, B vs B, C vs C per guide)
+#' 
+#' Scores guides for any number of drug screens against a control screen
+#' (e.g. for directly comparing drug response to DMSO response). After running 
+#' this function, pass the resulting dataframe to \code{call_drug_hits} to 
+#' call significant effects.
+#' 
+#' @param df LFC dataframe.
+#' @param screens List of screens generated with \code{add_screens}.
+#' @param control_screen_name Name of a control screen to test condition screens against.
+#' @param condition_screen_names A list of condition screen names to score against the 
+#'   control screen.
+#' @param control_genes List of control genes to remove, e.g. "luciferase" (default c("None", "")).
+#' @param min_guides The minimum number of guides per gene pair required to score data 
+#'   (default 3).
+#' @param test Type of hypothesis testing to run. Must be one of "rank-sum" for Wilcoxon
+#'   rank-sum testing or "moderated-t" for moderated t-testing (default "moderated-t").
+#' @param loess If true, loess-normalizes residuals before running hypothesis testing.
+#'   Only works when test = "moderated-t" (default TRUE).
+#' @param ma_transform If true, M-A transforms data before running loess normalization. Only
+#'   has an effect when loess = TRUE (default TRUE).
+#' @param fdr_method Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default "BY").
+#' @param sd_scale_factor Factor to normalize SDs against for scaling. If NULL, this operation
+#'   is not performed - this behavior is different for group scoring! (default NULL).
+#' @param return_residuals If FALSE, returns NA instead of residuals dataframe (default TRUE).
+#'   This is recommend if scoring large datasets and memory is a limitation.  
+#' @param verbose If true, prints verbose output (default FALSE). 
+#' @return A list containing two dataframes. The first entry, named "scored_data" in the list,
+#'   contains scored data with separate columns given by the specified control and condition
+#'   names. The second entry, named "residuals" in the list, is a dataframe containing control,
+#'   condition and loess-normalized residuals for all guides.
+#' @export
+score_drugs_vs_control <- function(df, screens, control_screen_name, condition_screen_names, 
+                                   control_genes = c("None", ""), min_guides = 3, test = "moderated-t", 
+                                   loess = TRUE, ma_transform = TRUE, fdr_method = "BY",
+                                   sd_scale_factor = NULL, return_residuals = TRUE, verbose = FALSE) {
   
   # Gets condition names and columns for any number of conditions
   if (verbose) {
@@ -198,412 +230,6 @@ score_drugs_vs_control_rev <- function(df, screens, control_screen_name, conditi
   # if (loess) {
   #   loess_residuals <- loess_residuals[1:(nrow(loess_residuals) - 1),]
   # }
-  
-  # Explicitly returns scored data
-  output <- list()
-  output[["scored_data"]] <- scores
-  if (return_residuals & loess) {
-    output[["residuals"]] <- loess_residuals
-  } else if (return_residuals) {
-    cat("WARNING: returning residuals is currently only supported with loess-normalization enabled\n")
-    output[["residuals"]] <- NA
-  } else {
-    output[["residuals"]] <- NA
-  }
-  return(output)
-}
-
-
-score_drugs_batch_rev <- function(df, screens, batch_file, output_folder, 
-                                  min_guides = 3, test = "moderated-t", 
-                                  loess = TRUE, ma_transform = TRUE,
-                                  control_genes = c("None", ""), n_components = 0, 
-                                  chromosomal_correction = FALSE, weight_method = "exp",
-                                  matched_fraction = 0.75, sd_scale_factor = NULL,
-                                  fdr_method = "BY", fdr_threshold = 0.1, 
-                                  differential_threshold = 0.5, neg_type = "Negative", 
-                                  pos_type = "Positive", label_fdr_threshold = NULL,
-                                  save_residuals = FALSE, plot_residuals = TRUE, 
-                                  plot_type = "png", verbose = FALSE) {
-  
-  # Creates output folder if nonexistent
-  if (!dir.exists(output_folder)) { dir.create(output_folder, recursive = TRUE) }
-  
-  # Checks format of batch file, decides which version of scoring to run, and loads it
-  scoring_type <- "Group"
-  first_file <- utils::read.table(file = batch_file, header = F, nrows = 1, sep = "\t", encoding = "UTF-8")
-  batch <- NULL
-  if (ncol(first_file) == 4) {
-    check_group_file(batch_file, screens)
-  } else if (ncol(first_file) == 2) {
-    check_batch_file(batch_file, screens)
-    scoring_type <- "Single"
-  } else {
-    stop(paste("file", batch_file, "must contain exactly 2 or 4 columns (see score_drugs_batch documentation)"))
-  }
-  batch <- utils::read.csv(batch_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
-  
-  # Scores guides for each batch
-  if (scoring_type == "Single") {
-    all_scores <- NULL
-    for (i in 1:nrow(batch)) {
-      
-      # Makes output folders if nonexistent
-      lfc_folder <- file.path(output_folder, "lfc")
-      plot_folder <- file.path(output_folder, "plots")
-      if (!dir.exists(lfc_folder)) { dir.create(lfc_folder) }
-      if (!dir.exists(plot_folder)) { dir.create(plot_folder) }
-      
-      # Scores each screen separately
-      condition <- batch[i,1]
-      control <- batch[i,2]
-      temp <- score_drugs_vs_control_rev(df, screens, control, condition, test = test, 
-                                         min_guides = min_guides, 
-                                         loess = loess, 
-                                         ma_transform = ma_transform, 
-                                         control_genes = control_genes, 
-                                         fdr_method = fdr_method, 
-                                         sd_scale_factor = sd_scale_factor,
-                                         verbose = verbose)
-      scores <- temp[["scored_data"]]
-      residuals <- temp[["residuals"]]
-      scores <- call_drug_hits(scores, control, condition,
-                               neg_type = neg_type, pos_type = pos_type,
-                               fdr_threshold = fdr_threshold, 
-                               differential_threshold = differential_threshold)
-      plot_drug_response(scores, 
-                         control_name = control, 
-                         condition_name = condition, 
-                         output_folder = plot_folder,
-                         neg_type = neg_type, 
-                         pos_type = pos_type,
-                         plot_type = plot_type, 
-                         label_fdr_threshold = label_fdr_threshold)
-      if (plot_residuals) {
-        if (!is.na(residuals)) {
-          plot_drug_residuals(scores, residuals, control, condition, lfc_folder, 
-                              neg_type = neg_type, pos_type = pos_type,
-                              plot_type = plot_type) 
-        } else {
-          cat("WARNING: residuals are set to NA, skipping residual plots\n")
-        }
-      }
-      if (save_residuals) {
-        if (!is.na(residuals)) {
-          residuals_file <- paste0(condition, "_vs_", control, "_residuals.tsv")
-          utils::write.table(residuals, file.path(output_folder, residuals_file), sep = "\t",
-                             row.names = FALSE, col.names = TRUE, quote = FALSE) 
-        } else {
-          cat("WARNING: residuals are set to NA, skipping writing residuals to file\n")
-        }
-      }
-      if (is.null(all_scores)) {
-        all_scores <- scores
-      } else {
-        all_scores <- cbind(all_scores, scores[,3:ncol(scores)])
-      }
-    }
-    if (!is.null(all_scores)) {
-      utils::write.table(all_scores, file.path(output_folder, "condition_gene_calls.tsv"), sep = "\t",
-                         row.names = FALSE, col.names = TRUE, quote = FALSE) 
-    } 
-  } else if (scoring_type == "Group") {
-    
-    # Gets unique groups from batch file and scores each group separately
-    groups <- unique(batch$Group)
-    for (group in groups) {
-      
-      # Sets path to intermediate file for current group
-      intermediate_file <- file.path(output_folder, group, "intermediate.rda")
-      
-      # Scores dataset separately depending on number of PCs to remove
-      for (i in 1:length(n_components)) {
-        components <- n_components[i]
-        
-        # Makes output folders if nonexistent for each principal component to remove
-        group_folder <- file.path(output_folder, group, paste0("PC_", components))
-        lfc_folder <- file.path(group_folder, "lfc")
-        plot_folder <- file.path(group_folder, "plots")
-        if (!dir.exists(group_folder)) { dir.create(group_folder, recursive = TRUE) }
-        if (!dir.exists(lfc_folder)) { dir.create(lfc_folder) }
-        if (!dir.exists(plot_folder)) { dir.create(plot_folder) }
-        
-        # Stores intermediate output for first run and loads for subsequent runs
-        load_intermediate <- TRUE
-        if (i == 1) {
-          load_intermediate <- FALSE
-        }
-        
-        # Scores data for the current group
-        group_ind <- batch$Group %in% group
-        controls <- batch$Screen[group_ind & batch$Type == "control"]
-        conditions <- batch$Screen[group_ind & batch$Type == "condition"]
-        matched_controls <- batch$Control[group_ind & batch$Type == "condition"]
-        temp <- score_drugs_vs_controls(df, screens, controls, conditions, matched_controls,
-                                        plot_folder, 
-                                        min_guides = min_guides, 
-                                        loess = loess, 
-                                        ma_transform = ma_transform, 
-                                        control_genes = control_genes, 
-                                        fdr_method = fdr_method,
-                                        weight_method = weight_method,
-                                        matched_fraction = matched_fraction,
-                                        sd_scale_factor = sd_scale_factor,
-                                        n_components = components,
-                                        chromosomal_correction = chromosomal_correction,
-                                        return_residuals = FALSE,
-                                        intermediate_file = intermediate_file,
-                                        load_intermediate = load_intermediate,
-                                        verbose = verbose)
-        scores <- temp[["scored_data"]]
-        control_scores <- temp[["scored_controls"]]
-        sd_table <- temp[["sd_table"]]
-        scores <- call_drug_hits(scores, NULL, conditions,
-                                 neg_type = neg_type, pos_type = pos_type,
-                                 fdr_threshold = fdr_threshold, 
-                                 differential_threshold = differential_threshold)
-        for (condition in conditions) {
-          plot_drug_response(scores, 
-                             control_name = NULL, 
-                             condition_name = condition, 
-                             output_folder = plot_folder, 
-                             neg_type = neg_type, 
-                             pos_type = pos_type, 
-                             plot_type = plot_type,
-                             label_fdr_threshold = label_fdr_threshold) 
-        }
-        utils::write.table(scores, file.path(group_folder, "gene_calls.tsv"), sep = "\t",
-                           row.names = FALSE, col.names = TRUE, quote = FALSE) 
-        utils::write.table(control_scores, file.path(group_folder, "control_guide_effects.tsv"), sep = "\t",
-                           row.names = FALSE, col.names = TRUE, quote = FALSE) 
-        utils::write.table(sd_table, file.path(group_folder, "sd_table.tsv"), sep = "\t",
-                           row.names = FALSE, col.names = TRUE, quote = FALSE) 
-      }
-    }
-  }
-}
-
-#' Scores conditions against a single control.
-#' 
-#' Scores guides for any number of drug screens against a control screen
-#' (e.g. for directly comparing drug response to DMSO response). After running 
-#' this function, pass the resulting dataframe to \code{call_drug_hits} to 
-#' call significant effects.
-#' 
-#' @param df LFC dataframe.
-#' @param screens List of screens generated with \code{add_screens}.
-#' @param control_screen_name Name of a control screen to test condition screens against.
-#' @param condition_screen_names A list of condition screen names to score against the 
-#'   control screen.
-#' @param control_genes List of control genes to remove, e.g. "luciferase" (default c("None", "")).
-#' @param min_guides The minimum number of guides per gene pair required to score data 
-#'   (default 3).
-#' @param test Type of hypothesis testing to run. Must be one of "rank-sum" for Wilcoxon
-#'   rank-sum testing or "moderated-t" for moderated t-testing (default "moderated-t").
-#' @param loess If true, loess-normalizes residuals before running hypothesis testing.
-#'   Only works when test = "moderated-t" (default TRUE).
-#' @param ma_transform If true, M-A transforms data before running loess normalization. Only
-#'   has an effect when loess = TRUE (default TRUE).
-#' @param fdr_method Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default "BY").
-#' @param sd_scale_factor Factor to normalize SDs against for scaling. If NULL, this operation
-#'   is not performed - this behavior is different for group scoring! (default NULL).
-#' @param return_residuals If FALSE, returns NA instead of residuals dataframe (default TRUE).
-#'   This is recommend if scoring large datasets and memory is a limitation.  
-#' @param verbose If true, prints verbose output (default FALSE). 
-#' @return A list containing two dataframes. The first entry, named "scored_data" in the list,
-#'   contains scored data with separate columns given by the specified control and condition
-#'   names. The second entry, named "residuals" in the list, is a dataframe containing control,
-#'   condition and loess-normalized residuals for all guides.
-#' @export
-score_drugs_vs_control <- function(df, screens, control_screen_name, condition_screen_names, 
-                                   control_genes = c("None", ""), min_guides = 3, test = "moderated-t", 
-                                   loess = TRUE, ma_transform = TRUE, fdr_method = "BY",
-                                   sd_scale_factor = NULL, return_residuals = TRUE, verbose = FALSE) {
-  
-  # Gets condition names and columns for any number of conditions
-  if (verbose) {
-    cat(paste("Preparing to score...\n"))
-  }
-  control_name <- control_screen_name
-  control_cols <- screens[[control_name]][["replicates"]]
-  condition_names <- c()
-  condition_cols <- list()
-  for (condition in condition_screen_names) {
-    condition_names <- c(condition_names, condition)
-    condition_cols[[condition]] <- screens[[condition]][["replicates"]]
-  }
-  
-  # Removes control genes
-  df <- df[!(df$gene %in% control_genes),]
-  
-  # Makes output dataframe
-  unique_genes <- unique(df$gene)
-  n_genes <- length(unique_genes)
-  scores <- data.frame(gene = rep(NA, n_genes))
-  
-  # Makes residual dataframes if necessary
-  max_guides <- -1
-  condition_residuals <- list()
-  if (test == "moderated-t") {
-    
-    # Gets max number of guides first
-    max_guides <- max(table(df$gene))
-    
-    # Makes residual dataframes with columns equal to the max number of guides
-    for (name in condition_names) {
-      residual_df <- data.frame(matrix(nrow = n_genes, ncol = max_guides))
-      colnames(residual_df) <- paste0("guide_residual_", 1:max_guides)
-      condition_residuals[[name]] <- residual_df
-    }
-  }
-  
-  # Makes loess residual dataframe if specified
-  loess_residuals <- NULL
-  if (loess & test == "moderated-t") {
-    loess_residuals <- data.frame(n = rep(0, max_guides*n_genes))
-    loess_residuals[[paste0("mean_", control_name)]] <- rep(0, nrow(loess_residuals))
-    for (name in condition_names) {
-      loess_residuals[[paste0("mean_", name)]] <- rep(0, nrow(loess_residuals))
-    }
-  }
-  
-  # Appends additional columns for each condition
-  new_cols <- c(paste0("n_", control_name), 
-                paste0("mean_", control_name),
-                paste0("variance_", control_name))
-  for (name in condition_names) {
-    new_cols <- c(new_cols, c(
-      paste0("n_", name), 
-      paste0("mean_", name),
-      paste0("variance_", name),
-      paste0("differential_", name, "_vs_", control_name),
-      paste0("pval_", name, "_vs_", control_name),
-      paste0("fdr_", name, "_vs_", control_name),
-      paste0("significant_", name, "_vs_", control_name)
-    ))
-  }
-  scores[new_cols] <- NA
-  
-  # Scores guides for each condition
-  counter <- 1
-  for (i in 1:n_genes) {
-    
-    # Gets gene names and control guide values across replicates and removes 
-    # NaNs introduced by missing guides
-    gene <- unique_genes[i]
-    guide_vals <- df[df$gene == gene,]
-    scores$gene[i] <- gene
-    rep_mean_control <- rowMeans(data.frame(guide_vals[control_cols]), na.rm = TRUE)
-    keep_ind <- !is.nan(rep_mean_control)
-    rep_mean_control <- rep_mean_control[keep_ind]
-    
-    # Skips if too few guides
-    if (length(rep_mean_control) < min_guides) {
-      next
-    }
-    
-    # Makes loess-normalized residual dataframe if necessary
-    ind <- counter:(counter + length(rep_mean_control) - 1)
-    if (loess) {
-      loess_residuals$n[ind] <- i
-      loess_residuals[[paste0("mean_", control_name)]][ind] <- rep_mean_control
-    }
-    
-    # Takes the mean across replicates for all conditions
-    for (name in condition_names) {
-      
-      # Gets residual LFCs across replicates after removing NaNs
-      rep_mean_condition <- rowMeans(data.frame(guide_vals[condition_cols[[name]]]), na.rm = TRUE)
-      rep_mean_condition <- rep_mean_condition[keep_ind]
-      rep_mean_condition[is.nan(rep_mean_condition)] <- NA
-      diff <- rep_mean_condition - rep_mean_control
-      
-      # Stores gene-level stats
-      scores[[paste0("n_", control_name)]][i] <- length(rep_mean_control)
-      scores[[paste0("n_", name)]][i] <- length(rep_mean_condition)
-      scores[[paste0("mean_", control_name)]][i] <- mean(rep_mean_control, na.rm = TRUE)
-      scores[[paste0("mean_", name)]][i] <- mean(rep_mean_condition, na.rm = TRUE)
-      scores[[paste0("variance_", control_name)]][i] <- stats::var(rep_mean_control, na.rm = TRUE)
-      scores[[paste0("variance_", name)]][i] <- stats::var(rep_mean_condition, na.rm = TRUE)
-      scores[[paste0("differential_", name, "_vs_", control_name)]][i] <- mean(diff, na.rm = TRUE)
-      
-      # Appends mean LFCs for loess-normalization if specified
-      if (loess) {
-        loess_residuals[[paste0("mean_", name)]][ind] <- rep_mean_condition
-      }
-      
-      # Performs the specified type of testing or stores residuals for later testing
-      if (test == "rank-sum") {
-        scores[[paste0("pval_", name, "_vs_", control_name)]][i] <- 
-          suppressWarnings(stats::wilcox.test(rep_mean_condition, rep_mean_control))$p.value
-      } else if (test == "moderated-t") {
-        if (length(diff) < max_guides) { diff <- c(diff, rep(NA, max_guides - length(diff))) } 
-        condition_residuals[[name]][i,1:max_guides] <- diff 
-      }
-    }
-    counter <- counter + length(rep_mean_control)
-  }
-  
-  # Computes loess-normalized residuals if specified
-  if (loess & test == "moderated-t") {
-    loess_residuals <- loess_residuals[1:counter,]
-    control_values <- loess_residuals[[paste0("mean_", control_name)]]
-    for (name in condition_names) {
-      condition_values <- loess_residuals[[paste0("mean_", name)]]
-      temp <- loess_MA(control_values, condition_values, ma_transform = ma_transform)
-      loess_residuals[[paste0("loess_residual_", name)]] <- temp[["residual"]]
-      loess_residuals[[paste0("loess_predicted_", name)]] <- temp[["predicted"]]
-    }
-    
-    # Replaces residuals with loess-normalized residuals
-    for (i in 1:n_genes) {
-      for (name in condition_names) {
-        resid <- loess_residuals[[paste0("loess_residual_", name)]][loess_residuals$n == i]
-        predicted <- loess_residuals[[paste0("loess_predicted_", name)]][loess_residuals$n == i]
-        if (length(resid) < max_guides) { 
-          resid <- c(resid, rep(NA, max_guides - length(resid))) 
-        } 
-        condition_residuals[[name]][i,1:max_guides] <- resid
-        scores[[paste0("differential_", name, "_vs_", control_name)]][i] <- mean(resid, na.rm = TRUE)
-      }
-    }
-  } else if (loess) {
-    cat("Warning: loess-normalization is only enabled for the test=\"moderated-t\" option\n")
-  }
-  
-  # Scores condition response with moderated t-test
-  if (test == "moderated-t") {
-    for (name in condition_names) {
-      ebayes_fit <- limma::eBayes(limma::lmFit(condition_residuals[[name]]))
-      p_val <- ebayes_fit$p.value[,1]
-      scores[[paste0("pval_", name, "_vs_", control_name)]] <- p_val
-    }   
-  }
-  
-  # Scales moderate effects in top and bottom 10% of data to de-emphasize those. 
-  # The mean to divide SD values by is a pre-computed scalar
-  if (!is.null(sd_scale_factor)) {
-    for (name in condition_names) {
-      resid <- condition_residuals[[name]]
-      lfc_range <- stats::quantile(resid, probs = c(0.1, 0.9), na.rm = TRUE)
-      target_sd <- stats::sd(resid[resid > lfc_range[1] & resid < lfc_range[2]], na.rm = TRUE)
-      target_sd <- target_sd / sd_scale_factor
-      condition_residuals[[name]] <- resid / target_sd
-      mean_residuals <- rowMeans(condition_residuals[[name]])
-      scores[[paste0("differential_", name, "_vs_", control_name)]][i] <- mean(diff, na.rm = TRUE)
-    } 
-  }
-  
-  # Computes FDRs
-  for (name in condition_names) {
-    scores[[paste0("fdr_", name, "_vs_", control_name)]] <- 
-      stats::p.adjust(scores[[paste0("pval_", name, "_vs_", control_name)]], method = fdr_method)
-  }
-  
-  # Removes extra zero row from loess-normalized residuals
-  if (loess) {
-    loess_residuals <- loess_residuals[1:(nrow(loess_residuals) - 1),]
-  }
   
   # Explicitly returns scored data
   output <- list()
