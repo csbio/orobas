@@ -9,6 +9,33 @@ scale_values <- function(x) {
   val <- (x-min(x, na.rm=T)) / (max(x, na.rm=T) - min(x, na.rm=T))
 }
 
+#' Finds and removes (set to NA) outlier guides from the conditional residual (differential scores) for each gene
+#'
+#' @param cond_res	dataframe of condition residuals (differential scores); rows: genes, column: replicate-guide pair 
+#' @param threshold	jack-knife threshold to decide if a guide is an outlier (default value 2)
+#' @return	dataframe of updated condition residuals (differential scores); rows: genes, column: replicate-guide pair 
+jackknife_outliers<-function(cond_res, threshold=2)
+{  
+	#Find and remove (set to NA) outlier for each gene
+  for(i in c(1:nrow(cond_res))){
+    x = as.numeric(as.vector(cond_res[i,])) #get differential scores for a gene for all replicate-guide pairs
+    var_all = var(x,na.rm = T) #calculate variance of differential scores across all replicate-guide pairs
+    
+	n <- length(x)
+    var_jk <- rep(0, n)
+	#For each replicate-guide pair, calculate variance excluding the differential score for that pair
+    for(j in 1:n) {
+      var_jk[j] <- var(x[ - j],na.rm = T)
+    }
+	#Find the replicate-guide pairs removing which decreses the variance a certain amount (threshold is applied here) 
+    rel = (var_all/var_jk) > threshold 
+    x[rel] <- NA #set values for the outliers to NA
+    cond_res[i,] <-x #update replicate-guide pair values for gene
+  }
+  return (cond_res)
+}
+
+
 #' Scores conditions against a single control.
 #' Revised one-off score function with individual replicate-level loess fitting (loess smoothing Drug A vs DMSO A, B vs B, C vs C per guide)
 #' 
@@ -67,6 +94,22 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
   unique_genes <- unique(df$gene)
   n_genes <- length(unique_genes)
   scores <- data.frame(gene = rep(NA, n_genes))
+  # Appends additional columns for each condition
+  new_cols <- c(paste0("n_", control_name), 
+                paste0("mean_", control_name),
+                paste0("variance_", control_name))
+  for (name in condition_names) {
+    new_cols <- c(new_cols, c(
+      paste0("n_", name), 
+      paste0("mean_", name),
+      paste0("variance_", name),
+      paste0("differential_", name, "_vs_", control_name),
+      paste0("pval_", name, "_vs_", control_name),
+      paste0("fdr_", name, "_vs_", control_name),
+      paste0("significant_", name, "_vs_", control_name)
+    ))
+  }
+  scores[new_cols] <- NA
   
   #^^^^^^^^^^^^^^^^^^^^^^^^^changed^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   # Makes condition residual dataframes if necessary  ^^^^^^^^^^^^^^^^^^^ 
@@ -109,25 +152,10 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
     }
   }
   
-  # Appends additional columns for each condition
-  new_cols <- c(paste0("n_", control_name), 
-                paste0("mean_", control_name),
-                paste0("variance_", control_name))
-  for (name in condition_names) {
-    new_cols <- c(new_cols, c(
-      paste0("n_", name), 
-      paste0("mean_", name),
-      paste0("variance_", name),
-      paste0("differential_", name, "_vs_", control_name),
-      paste0("pval_", name, "_vs_", control_name),
-      paste0("fdr_", name, "_vs_", control_name),
-      paste0("significant_", name, "_vs_", control_name)
-    ))
-  }
-  scores[new_cols] <- NA
+  
   
   # Scores guides for each condition
-  counter <- 1
+
   for (i in 1:n_genes) {
     # Gets gene names and control guide values across replicates and removes 
     # NaNs introduced by missing guides
@@ -179,19 +207,28 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
             loess_residual_rep <- c(loess_residual_rep, mean(resid, na.rm = TRUE))
           }else{
             resid <- guide_vals[condition_reps[rep_index]] - guide_vals[control_cols[rep_index]]
-            resid=resid[[condition_reps[rep_index]]] 
+            resid <- resid[[condition_reps[rep_index]]] 
             if (length(resid) < max_guides) { resid <- c(resid, rep(NA, max_guides - length(resid))) } 
             condition_residuals[[name]][i, paste0("guide_residual_", 1:max_guides,'_', rep(condition_reps[rep_index], max_guides))] <- resid 
           }
         }
         if (loess) {
-          # Update differential LFC values
+          # Update differential LFC values with Loess differential values
           scores[[paste0("differential_", name, "_vs_", control_name)]][i] <- mean(loess_residual_rep, na.rm = TRUE)
         }
       }
     }
-    counter <- counter + length(rep_mean_control)
+	#move outlier removal here - rewrite function to take a vector instead of a dataframe
+
   }
+  
+  #remove (set to NA) outlier guides per-gene using jack-knife method for each condition
+  if(test == "moderated-t"){
+		for (name in condition_names) {
+			condition_residuals[[name]] = jackknife_outliers(condition_residuals[[name]])
+			scores[[paste0("differential_", name, "_vs_", control_name)]] <- rowMeans(condition_residuals[[name]],na.rm = TRUE)
+		}
+	}
   
   # Scores condition response with moderated t-test
   if (test == "moderated-t") {
