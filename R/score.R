@@ -252,8 +252,7 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
       target_sd <- stats::sd(resid[resid > lfc_range[1] & resid < lfc_range[2]], na.rm = TRUE)
       target_sd <- target_sd / sd_scale_factor
       condition_residuals[[name]] <- resid / target_sd
-      mean_residuals <- rowMeans(condition_residuals[[name]])
-      scores[[paste0("differential_", name, "_vs_", control_name)]][i] <- mean(diff, na.rm = TRUE)
+      scores[[paste0("differential_", name, "_vs_", control_name)]] <- rowMeans(condition_residuals[[name]],na.rm = TRUE)
     } 
   }
   
