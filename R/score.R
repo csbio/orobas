@@ -408,10 +408,14 @@ correct_chromosomal_effects <- function(df, guide_df) {
 #'   or NULL to score data returned from \code{score_drugs_vs_controls}.
 #' @param condition_screen_names A list of condition screen names to score against the 
 #'   control screen.
-#' @param fdr_threshold Threshold below which to call gene effects as significant 
+#' @param fdr_threshold_positive Threshold below which to call gene effects as significant positive hits
 #'   (default 0.1).
-#' @param differential_threshold Absolute value threshold on differential effects, 
-#'   below which gene effects are not called as significant (default 0).
+#' @param fdr_threshold_negative Threshold below which to call gene effects as significant negative hits
+#'   (default 0.1).
+#' @param differential_threshold_positive Threshold on differential effects, 
+#'   over which to call gene effects as significant positive hits (default 0).
+#' @param differential_threshold_negative Threshold on differential effects, 
+#'   below which gene effects are called as significant negative hits (default 0).
 #' @param neg_type Label for significant effects with a negative differential effect
 #'   (default "Negative").
 #' @param pos_type Label for significant effects with a positive differential effect
@@ -420,7 +424,8 @@ correct_chromosomal_effects <- function(df, guide_df) {
 #'   for the specified conditions. 
 #' @export
 call_drug_hits <- function(scores, control_screen_name = NULL, condition_screen_names = NULL,
-                           fdr_threshold = 0.1, differential_threshold = 0,
+                           fdr_threshold_positive  = 0.1, fdr_threshold_negative = 0.1,
+			   differential_threshold_positive = 0, differential_threshold_negative = 0,
                            neg_type = "Negative", pos_type = "Positive") {
   
   # Gets condition names and columns for any number of conditions
@@ -433,7 +438,8 @@ call_drug_hits <- function(scores, control_screen_name = NULL, condition_screen_
 	# Calls significant differences for each condition against the control
 	for (name in condition_names) {
 		scores[[paste0("significant_", name, "_vs_", control_name)]] <- 
-		scores[[paste0("fdr_", name, "_vs_", control_name)]] < fdr_threshold
+		(scores[[paste0("fdr_", name, "_vs_", control_name)]] < fdr_threshold_positive) |
+		(scores[[paste0("fdr_", name, "_vs_", control_name)]] < fdr_threshold_negative) 
 		}
 	
 	# Makes thresholded calls for significant negative and positive effects
@@ -442,8 +448,8 @@ call_drug_hits <- function(scores, control_screen_name = NULL, condition_screen_
 		scores[[response_col]] <- "None"
 		diffs <- scores[[paste0("differential_", name, "_vs_", control_name)]]
 		sig <- scores[[paste0("significant_", name, "_vs_", control_name)]]
-		scores[[response_col]][sig & diffs < 0 & abs(diffs) > differential_threshold] <- neg_type
-		scores[[response_col]][sig & diffs > 0 & abs(diffs) > differential_threshold] <- pos_type
+		scores[[response_col]][sig & diffs < differential_threshold_negative] <- neg_type
+		scores[[response_col]][sig & diffs > differential_threshold_positive] <- pos_type
 		}
   
   # Explicitly returns scored data
@@ -484,10 +490,14 @@ call_drug_hits <- function(scores, control_screen_name = NULL, condition_screen_
 #'   If NULL for one-off scoring, this operation is not performed (default NULL).
 #' @param fdr_method Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default
 #'   "BY")
-#' @param fdr_threshold Threshold below which to call gene effects as significant 
+#' @param fdr_threshold_positive Threshold below which to call gene effects as significant positive hits
 #'   (default 0.1).
-#' @param differential_threshold Absolute value threshold on differential effects, 
-#'   below which gene effects are not called as significant (default 0.5).
+#' @param fdr_threshold_negative Threshold below which to call gene effects as significant negative hits
+#'   (default 0.1).
+#' @param differential_threshold_positive Threshold on differential effects, 
+#'   over which to call gene effects as significant positive hits (default 0).
+#' @param differential_threshold_negative Threshold on differential effects, 
+#'   below which gene effects are called as significant negative hits (default 0).
 #' @param neg_type Label for significant effects with a negative differential effect
 #'   (default "Negative").
 #' @param pos_type Label for significant effects with a positive differential effect
@@ -506,8 +516,10 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
                               control_genes = c("None", ""), n_components = 0, 
                               chromosomal_correction = FALSE, weight_method = "exp",
                               matched_fraction = 0.75, sd_scale_factor = NULL,
-                              fdr_method = "BY", fdr_threshold = 0.1, 
-                              differential_threshold = 0.5, neg_type = "Negative", 
+                              fdr_method = "BY", 
+			      fdr_threshold_positive  = 0.1, fdr_threshold_negative = 0.1,
+			      differential_threshold_positive = 0, differential_threshold_negative = 0,
+			      neg_type = "Negative", 
                               pos_type = "Positive", label_fdr_threshold = NULL,
                               save_residuals = FALSE, plot_residuals = TRUE, 
                               plot_type = "png", verbose = FALSE) {
@@ -551,8 +563,11 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 	residuals <- temp[["residuals"]]
 	scores <- call_drug_hits(scores, control, condition,
 			       neg_type = neg_type, pos_type = pos_type,
-			       fdr_threshold = fdr_threshold, 
-			       differential_threshold = differential_threshold)
+			       fdr_threshold_positive = fdr_threshold_positive, 
+				 fdr_threshold_negative = fdr_threshold_negative, 
+			       differential_threshold_positive = differential_threshold_positive,
+				 differential_threshold_negative = differential_threshold_negative
+				)
 	plot_drug_response(scores, 
 			 control_name = control, 
 			 condition_name = condition, 
