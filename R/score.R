@@ -111,8 +111,7 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
   }
   scores[new_cols] <- NA
   
-  #^^^^^^^^^^^^^^^^^^^^^^^^^changed^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  # Makes condition residual dataframes if necessary  ^^^^^^^^^^^^^^^^^^^ 
+  # Makes condition residual dataframes if necessary
   max_guides <- -1
   condition_residuals <- list()
   if (test == "moderated-t") {
@@ -128,10 +127,7 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
       condition_residuals[[name]] <- residual_df
     }
   }
-  #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   
-  
-  #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^changed^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   # Pairwise LOESS smoothing
   # Computes loess-normalized residuals if specified
   loess_residuals <- NULL
@@ -151,8 +147,6 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
       }
     }
   }
-  
-  
   
   # Scores guides for each condition
 
@@ -188,7 +182,6 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
       scores[[paste0("variance_", name)]][i] <- stats::var(rep_mean_condition, na.rm = TRUE)
       scores[[paste0("differential_", name, "_vs_", control_name)]][i] <- mean(diff, na.rm = TRUE)      
       
-      #^^^^^^^^^^^^^^^^^^^^^^^^^changed^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
       # Performs the specified type of testing or stores residuals for later testing
       if (test == "rank-sum") {
         scores[[paste0("pval_", name, "_vs_", control_name)]][i] <- 
