@@ -281,388 +281,6 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
   return(output)
 }
 
-#' Scores conditions against multiple controls.
-#' 
-#' Scores guides for any number of drug screens against multiple control screens
-#' (e.g. for directly comparing drug response to DMSO response). After running 
-#' this function, pass the resulting dataframe to \code{call_drug_hits} to 
-#' call significant effects.
-#' 
-#' @param df LFC dataframe.
-#' @param screens List of screens generated with \code{add_screens}.
-#' @param control_screen_names A list of control screen names to test the condition
-#'   screens against.
-#' @param condition_screen_names A list of condition screen names to score against the 
-#'   control screen.
-#' @param matched_controls A list of control screen names with each screen corresponding
-#'   to the condition at the same position in condition_screen_names. 
-#' @param output_folder Folder to output scree plot to.
-#' @param control_genes List of control genes to remove, e.g. "luciferase" (default c("None", "")).
-#' @param min_guides The minimum number of guides per gene pair required to score data 
-#'   (default 3).
-#' @param loess If true, loess-normalizes residuals before running hypothesis testing.
-#'   Only works when test = "moderated-t" (default TRUE).
-#' @param ma_transform If true, M-A transforms data before running loess normalization. Only
-#'   has an effect when loess = TRUE (default TRUE).
-#' @param fdr_method Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default "BY").
-#' @param weight_method If "linear" weights non-matched control screens equally. If exponential,
-#'   instead weights non-matched control screens according to a decreasing exponential function
-#'   based on the similarity of control screens to the given condition screen.
-#' @param matched_fraction The weight given to the matched control as a fraction of 1, where
-#'   all non-matched controls receive a total weight equal to 1 - matched_fraction (default 0.75).
-#' @param sd_scale_factor Factor to normalize SDs against for scaling. If NULL, the mean is computed 
-#'   across guide-level residuals, otherwise the given scalar is used instead (default NULL).
-#' @param n_components Vector containing indices of principal components to remove from data. 
-#' @param chromosomal_correction If TRUE, corrects chromosomal shifts by down-weighting qGI
-#'   scores for shifted regions (default FALSE).
-#' @param return_residuals If FALSE, returns NA instead of residuals dataframe (default TRUE).
-#'   This is recommend if scoring large datasets and memory is a limitation.  
-#' @param intermediate_file Path to file to save intermediate output to, or NULL to not write
-#'   any intermediate output (default NULL).
-#' @param load_intermediate If TRUE, loads data from intermediate file instead of running 
-#'   earlier steps in the scoring pipeline (default FALSE).
-#' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
-#' @param verbose If true, prints verbose output (default FALSE). 
-#' @return A list containing two dataframes. The first entry, named "scored_data" in the list,
-#'   contains scored data with separate columns given by the specified control and condition
-#'   names. The second entry, named "residuals" in the list, is a dataframe containing control,
-#'   condition and loess-normalized residuals for all guides.
-#' @export
-score_drugs_vs_controls <- function(df, screens, control_screen_names, condition_screen_names, 
-                                    matched_controls, output_folder, control_genes = c("None", ""), 
-                                    min_guides = 2, loess = TRUE, ma_transform = TRUE, fdr_method = "BY", 
-                                    weight_method = "exp", matched_fraction = 0.75, sd_scale_factor = NULL,
-                                    n_components = 0, chromosomal_correction = FALSE, return_residuals = TRUE, 
-                                    intermediate_file = NULL, load_intermediate = FALSE, plot_type = "png", 
-                                    verbose = FALSE) {
-  
-  # Disables dplyr warnings
-  options(dplyr.summarise.inform = FALSE)
-  
-  # Gets condition names and columns for all specified conditions and controls
-  if (verbose) {
-    cat(paste("Preparing to score...\n"))
-  }
-  control_names <- c()
-  control_cols <- list()
-  condition_names <- c()
-  condition_cols <- list()
-  all_condition_cols <- c()
-  for (control in control_screen_names) {
-    control_names <- c(control_names, control)
-    control_cols[[control]] <- screens[[control]][["replicates"]]
-  }
-  for (condition in condition_screen_names) {
-    condition_names <- c(condition_names, condition)
-    condition_cols[[condition]] <- screens[[condition]][["replicates"]]
-    all_condition_cols <- c(all_condition_cols, screens[[condition]][["replicates"]])
-  }
-  
-  # Removes control genes
-  df <- df[!(df$gene %in% control_genes),]
-  
-  # Sorts dataframe by alphabetical order of genes
-  unique_genes <- sort(unique(df$gene))
-  df <- df[order(match(df$gene, unique_genes)),]
-  
-  # Makes output dataframe
-  n_genes <- length(unique_genes)
-  n_control <- length(control_names)
-  max_guides <- max(table(df$gene))
-  scores <- data.frame(gene = unique_genes)
-  
-  # Makes residual dataframes with columns equal to the max number of guides
-  condition_residuals <- list()
-  for (name in condition_names) {
-    residual_df <- data.frame(matrix(nrow = n_genes, ncol = max_guides*n_control))
-    for (i in 1:max_guides)  {
-      label <- paste0("guide_", i, "_residual_", 1:n_control)
-      col_start <- 1 + ((i - 1) * n_control)
-      col_end <- i * n_control
-      colnames(residual_df)[col_start:col_end] <- label
-    }
-    condition_residuals[[name]] <- residual_df
-  }
-  
-  # Takes replicate averages for all controls and conditions
-  control_df <- data.frame(gene = df$gene)
-  condition_df <- data.frame(gene = df$gene)
-  for (control in names(control_cols)) {
-    reps <- df[,control_cols[[control]]]
-    control_df[[control]] <- rowMeans(reps, na.rm = TRUE)
-  }
-  for (condition in names(condition_cols)) {
-    reps <- df[,condition_cols[[condition]]]
-    condition_df[[condition]] <- rowMeans(reps, na.rm = TRUE)
-  }
-  
-  # Ensures that NaNs are converted to NAs
-  control_df[is.na(control_df)] <- NA
-  condition_df[is.na(condition_df)] <- NA
-  
-  # Takes residuals between each control and each condition
-  if (verbose & !load_intermediate) {
-    cat(paste("Taking residuals between all condition-control LFC pairs...\n"))
-  } else if (verbose & load_intermediate) {
-    cat(paste("Skipping residual computation to load saved residuals...\n"))
-  }
-  residual_df <- data.frame(gene = control_df$gene)
-  if (!load_intermediate) {
-    for (condition in names(condition_cols)) {
-      for (control in names(control_cols)) {
-        col <- paste0(condition, "_vs_", control)
-        if (!loess) {
-          residual_df[[col]] <- condition_df[[condition]] - control_df[[control]]
-        } else {
-          
-          # Performs loess-normalization if specified
-          temp <- loess_MA(control_df[[control]], condition_df[[condition]], ma_transform = ma_transform)
-          residual_df[[col]] <- temp[["residual"]]
-        }
-      }
-    } 
-  }
-  
-  # Weights matched controls to contribute 75% of the effect size, and all other controls
-  # to contribute the other 25% of the effect size
-  if (verbose & !load_intermediate) {
-    cat(paste("Weighting controls for computing qGI scores...\n"))
-  } else if (verbose & load_intermediate) {
-    cat(paste("Skipping weighting to load saved weights...\n"))
-  }
-  
-  # # Optionally loads weights if intermediate files are not loaded
-  # save(control_df, condition_df, control_names, condition_names, matched_controls, weight_method, 
-  #      matched_fraction, file = intermediate_file)
-  control_scores <- NULL
-  if (!load_intermediate) {
-    control_scores <- compute_control_effects(control_df, control_names, method = "linear",
-                                              loess = loess, ma_transform = ma_transform)
-    weights <- compute_control_weights(control_scores, condition_df, control_names, condition_names,
-                                       matched_controls, method = weight_method,
-                                       matched_fraction = matched_fraction)
-  }
-  
-  # Stores basic stats and fills residual dataframes for moderated t-testing
-  if (!load_intermediate) {
-    for (i in 1:length(condition_names)) {
-      
-      # Gets number of guides for each condition
-      condition <- condition_names[i]
-      if (verbose) {
-        cat(paste("Storing gene-level stats for", condition, "\n"))
-      }
-      n_guides <- as.integer(ncol(condition_residuals[[name]]) / n_control)
-      
-      # Gets weighted control LFCs - importantly, we prevent rows of all NAs from
-      # being returned as 0 and instead return them as NA with another call to
-      # rowSums. See akrun's SO answer for more information: 
-      # https://stackoverflow.com/questions/38544325/rowsums-na-na-gives-0
-      temp <- as.matrix(control_df[,2:ncol(control_df)])
-      temp <- temp %*% diag(weights[i,])
-      temp <- rowSums(temp, na.rm = TRUE) * NA^!rowSums(!is.na(temp))
-      temp <- data.frame(gene = control_df$gene, lfc = temp)
-      temp <- temp %>%
-        dplyr::group_by(gene) %>%
-        stats::na.omit() %>%
-        dplyr::summarise(mean = mean(lfc, na.rm = TRUE),
-                         var = stats::var(lfc, na.rm = TRUE),
-                         n = dplyr::n())
-      
-      # Ensures that all genes are represented before appending to scores,
-      # with scores that didn't make it through instead given NA values
-      if (!all(scores$gene %in% temp$gene)) {
-        to_append <- scores$gene[!(scores$gene %in% temp$gene)]
-        for (gene in to_append) {
-          temp[nrow(temp) + 1,] <- list(gene, NA, NA, 0)
-        }
-        temp <- temp[order(temp$gene),]
-      }
-      scores[[paste0("n_controls_", condition)]] <- temp$n
-      scores[[paste0("mean_controls_", condition)]] <- temp$mean
-      scores[[paste0("variance_controls_", condition)]] <- temp$var
-      
-      # Gets un-normalized condition LFCs
-      temp <- data.frame(gene = condition_df$gene, lfc = condition_df[,condition])
-      temp <- temp %>%
-        dplyr::group_by(gene) %>%
-        dplyr::summarise(mean = mean(lfc, na.rm = TRUE),
-                         var = stats::var(lfc, na.rm = TRUE),
-                         n = dplyr::n())
-      scores[[paste0("n_", condition)]] <- temp$n
-      scores[[paste0("mean_", condition)]] <- temp$mean
-      scores[[paste0("variance_", condition)]] <- temp$var
-      
-      # Fills residual dataframe for all genes individually
-      for (j in 1:length(unique_genes)) {
-        
-        # Gets indices of corresponding residual columns
-        col_start <- 2 + ((i - 1) * n_control)
-        col_end <- 1 + i * n_control
-        
-        # Fills residual dataframe
-        gene <- unique_genes[j]
-        gene_residual <- residual_df[residual_df$gene == gene, col_start:col_end]
-        if (nrow(gene_residual) >= min_guides) {
-          for (guide_ind in 1:nrow(gene_residual)) {
-            residuals <- rep(NA, n_control)
-            diff <- gene_residual[guide_ind,]
-            residuals[1:length(diff)] <- diff
-            residual_start <- 1 + ((guide_ind - 1) * n_control)
-            residual_end <- guide_ind * n_control
-            condition_residuals[[condition]][j, residual_start:residual_end] <- residuals
-          }
-        } 
-      }
-    }
-  } else if (verbose) {
-    cat(paste("Skipping storing gene-level stats to load saved stats...\n"))
-  }
-  
-  # Scores each condition and scores corresponding p-values and FDRs
-  block <- rep(1:max_guides, each = n_control)
-  if (!load_intermediate) {
-    for (condition in condition_names) {
-      if (verbose) {
-        cat(paste("Computing FDRs for", condition, "...\n"))
-      }
-      corfit <- limma::duplicateCorrelation(condition_residuals[[condition]], ndups = 1, block = block)
-      consensus_cor <- corfit$consensus.correlation
-      if (consensus_cor <= 0) {
-        warning(paste("consensus correlation for", condition, "is negative"))
-      }
-      fit <- limma::lmFit(condition_residuals[[condition]], block = block, correlation = consensus_cor)
-      ebayes_fit <- limma::eBayes(fit)
-      condition_residuals[[condition]]$mean <- fit$Amean
-      condition_residuals[[condition]]$pval <- ebayes_fit$p.value
-      condition_residuals[[condition]]$fdr <- stats::p.adjust(ebayes_fit$p.value, method = fdr_method)
-      scores[[paste0("pval_", condition, "_vs_controls")]] <- condition_residuals[[condition]]$pval
-      scores[[paste0("fdr_", condition, "_vs_controls")]] <- condition_residuals[[condition]]$fdr
-    }
-  } else if (verbose) {
-    cat(paste("Skipping computing FDRs to load saved FDRs...\n"))
-  }
-  
-  # Loads intermediate files if specified 
-  if (load_intermediate) {
-    if (file.exists(intermediate_file)) {
-      cat(paste("Loading intermediate output...\n"))
-      load(intermediate_file)
-    } else {
-      cat(paste("ERROR: If load_intermediate is TRUE, intermediate_file must specify path to existing intermediate output\n"))
-    }
-  }
-  
-  # Writes intermediate output to file if specified
-  if (!is.null(intermediate_file) & !load_intermediate) {
-    if (verbose) {
-      cat(paste0("Saving intermediate output to ", intermediate_file, "...\n"))
-    }
-    save(scores, residual_df, control_df, weights, condition_residuals, control_scores, file = intermediate_file)
-  }
-  
-  ## The remaining sections of code compute qGI scores, which are more heavily processed than FDRs
-  
-  # Multiplies guide-level differential LFCs by weights
-  # save(scores, control_df, condition_df, control_names, condition_names, matched_controls, weight_method, 
-  #      residual_df, weights, matched_fraction, n_control, n_components, file = intermediate_file)
-  for (i in 1:nrow(weights)) {
-    condition <- rownames(weights)[i]
-    for (j in 1:ncol(weights)) {
-      control <- colnames(weights)[j]
-      col <- paste0(condition, "_vs_", control)
-      if (col %in% colnames(residual_df)) {
-        residual_df[[col]] <- residual_df[[col]] * weights[condition, control]
-      } else {
-        if (verbose) {
-          cat(paste("Comparison", col, "not valid\n"))
-        }
-      }
-    }
-  }
-  
-  # Sums weighted LFCs
-  qGI <- data.frame(gene = control_df$gene)
-  for (i in 1:length(condition_names)) {
-    condition <- condition_names[i]
-    col_start <- 2 + ((i - 1) * n_control)
-    col_end <- 1 + i * n_control
-    qGI[[condition]] <- rowSums(residual_df[,col_start:col_end], na.rm = TRUE)
-  }
-  
-  # Scales moderate effects in top and bottom 10% of data to de-emphasize those and 
-  # merges pre- and post-scaling SDs into a single dataframe to be returned. The mean
-  # to divide SD values by is either the mean of all SDs or a pre-computed scalar
-  pre_scaling_sd <- apply(qGI[,2:ncol(qGI)], 2, stats::sd)
-  lfc_range <- apply(qGI[,2:ncol(qGI)], 2, stats::quantile, probs = c(0.1, 0.9), na.rm = TRUE)
-  target_sd <- rep(NA, ncol(qGI))
-  for (i in 2:ncol(qGI)) {
-    target_sd[i] <- stats::sd(qGI[qGI[,i] > lfc_range[1,i-1] & qGI[,i] < lfc_range[2,i-1], i], na.rm = TRUE)
-  }
-  if (is.null(sd_scale_factor)) {
-    sd_scale_factor <- mean(target_sd[2:length(target_sd)])
-  }
-  target_sd <- target_sd / sd_scale_factor
-  for (i in 2:ncol(qGI)) {
-    qGI[,i] <- qGI[,i] / target_sd[i]
-  }
-  post_scaling_sd <- apply(qGI[,2:ncol(qGI)], 2, stats::sd)
-  sd_table <- data.frame(rbind(pre_scaling_sd, post_scaling_sd))
-  sd_table$source[1] <- "pre_scaling"
-  sd_table$source[2] <- "post_scaling"
-  
-  # Removes principal components from data if specified
-  if (n_components > 0) {
-    if (verbose) {
-      cat(paste("Removing principal components...\n"))
-    }
-    numerical_cols <- colnames(qGI)[2:ncol(qGI)]
-    p <- plot_scree(qGI, numerical_cols)
-    plot_file <- file.path(output_folder, paste0("scree_plot.", plot_type))
-    suppressWarnings(ggplot2::ggsave(plot_file, p, dpi = 300, width = 10, height = 7))
-    qGI <- pca_screens(qGI, numerical_cols, n_components)
-  }
-  
-  # Runs chromosomal correction if possible and enabled
-  if (chromosomal_correction) {
-    if (all(c("chr", "start_loc", "stop_loc")  %in% colnames(df))) {
-      qGI <- correct_chromosomal_effects(df, qGI)
-    }
-  }
-  
-  # Summarizes guide-level scores to gene-level scores
-  if (verbose) {
-    cat(paste("Storing qGI scores...\n"))
-  }
-  for (i in 1:length(condition_names)) {
-    condition <- condition_names[i]
-    temp <- data.frame(gene = residual_df$gene, resid = qGI[[condition]])
-    temp <- temp %>%
-      dplyr::group_by(gene) %>%
-      dplyr::summarise(val = mean(resid, na.rm = TRUE))
-    scores[[paste0("differential_", condition, "_vs_controls")]] <- temp$val
-  }
-  
-  # Removes genes with too few control observations
-  ind <- which(grepl("n_controls", colnames(scores)))[1]
-  scores <- scores[scores[,ind] >= min_guides,]
-  
-  # Explicitly returns scored data
-  if (verbose) {
-    cat(paste("Scoring finished!\n"))
-  }
-  output <- list()
-  output[["scored_data"]] <- scores
-  if (return_residuals) {
-    output[["residuals"]] <- condition_residuals
-  } else {
-    output[["residuals"]] <- NA
-  }
-  output[["scored_controls"]] <- control_scores
-  output[["sd_table"]] <- sd_table
-  return(output)
-}
-
 #' Corrects for GIs shifted in specific chromosomes.
 #' 
 #' Run this within \code{score_drugs_vs_controls} to implement qGI chromosomal correction 
@@ -819,45 +437,21 @@ call_drug_hits <- function(scores, control_screen_name = NULL, condition_screen_
     condition_names <- c(condition_names, condition)
   }
   
-  # Checks type of scoring
-  if (!(is.null(control_name))) {
-    
-    # Calls significant differences for each condition against the control
-    for (name in condition_names) {
-      scores[[paste0("significant_", name, "_vs_", control_name)]] <- 
-        scores[[paste0("fdr_", name, "_vs_", control_name)]] < fdr_threshold
-    }
-    
-    # Makes thresholded calls for significant negative and positive effects
-    for (name in condition_names) {
-      response_col <- paste0("effect_type_", name)
-      scores[[response_col]] <- "None"
-      diffs <- scores[[paste0("differential_", name, "_vs_", control_name)]]
-      sig <- scores[[paste0("significant_", name, "_vs_", control_name)]]
-      scores[[response_col]][sig & diffs < 0 & abs(diffs) > differential_threshold] <- neg_type
-      scores[[response_col]][sig & diffs > 0 & abs(diffs) > differential_threshold] <- pos_type
-    }
-    
-  } else {
-    
-    # Calls significant differences for each condition against the control
-    for (name in condition_names) {
-      scores[[paste0("significant_", name, "_vs_controls")]] <- 
-        scores[[paste0("fdr_", name, "_vs_controls")]] < fdr_threshold
-    }
-    
-    # Makes thresholded calls for significant negative and positive effects
-    for (name in condition_names) {
-      response_col <- paste0("effect_type_", name)
-      scores[[response_col]] <- "None"
-      diffs <- scores[[paste0("differential_", name, "_vs_controls")]]
-      sig <- scores[[paste0("significant_", name, "_vs_controls")]]
-      scores[[response_col]][sig & diffs < 0 & abs(diffs) > differential_threshold] <- neg_type
-      scores[[response_col]][sig & diffs > 0 & abs(diffs) > differential_threshold] <- pos_type
-    }
-  }
-  
-  # Look into chromosomal correction by removing interactions on the X chromosome
+	# Calls significant differences for each condition against the control
+	for (name in condition_names) {
+		scores[[paste0("significant_", name, "_vs_", control_name)]] <- 
+		scores[[paste0("fdr_", name, "_vs_", control_name)]] < fdr_threshold
+		}
+	
+	# Makes thresholded calls for significant negative and positive effects
+	for (name in condition_names) {
+		response_col <- paste0("effect_type_", name)
+		scores[[response_col]] <- "None"
+		diffs <- scores[[paste0("differential_", name, "_vs_", control_name)]]
+		sig <- scores[[paste0("significant_", name, "_vs_", control_name)]]
+		scores[[response_col]][sig & diffs < 0 & abs(diffs) > differential_threshold] <- neg_type
+		scores[[response_col]][sig & diffs > 0 & abs(diffs) > differential_threshold] <- pos_type
+		}
   
   # Explicitly returns scored data
   return(scores)
@@ -928,156 +522,79 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
   # Creates output folder if nonexistent
   if (!dir.exists(output_folder)) { dir.create(output_folder, recursive = TRUE) }
   
-  # Checks format of batch file, decides which version of scoring to run, and loads it
-  scoring_type <- "Group"
+  # Checks format of batch file
+  
   first_file <- utils::read.table(file = batch_file, header = F, nrows = 1, sep = "\t", encoding = "UTF-8")
   batch <- NULL
-  if (ncol(first_file) == 4) {
-    check_group_file(batch_file, screens)
-  } else if (ncol(first_file) == 2) {
-    check_batch_file(batch_file, screens)
-    scoring_type <- "Single"
+  if (ncol(first_file) == 2) {
+    check_batch_file(batch_file, screens)  
   } else {
-    stop(paste("file", batch_file, "must contain exactly 2 or 4 columns (see score_drugs_batch documentation)"))
+    stop(paste("file", batch_file, "must contain exactly 2 columns (see score_drugs_batch documentation)"))
   }
   batch <- utils::read.csv(batch_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
   
   # Scores guides for each batch
-  if (scoring_type == "Single") {
-    all_scores <- NULL
-    for (i in 1:nrow(batch)) {
-      
-      # Makes output folders if nonexistent
-      lfc_folder <- file.path(output_folder, "lfc")
-      plot_folder <- file.path(output_folder, "plots")
-      if (!dir.exists(lfc_folder)) { dir.create(lfc_folder) }
-      if (!dir.exists(plot_folder)) { dir.create(plot_folder) }
-      
-      # Scores each screen separately
-      condition <- batch[i,1]
-      control <- batch[i,2]
-      temp <- score_drugs_vs_control(df, screens, control, condition, test = test, 
-                                     min_guides = min_guides, 
-                                     loess = loess, 
-                                     ma_transform = ma_transform, 
-                                     control_genes = control_genes, 
-                                     fdr_method = fdr_method, 
-                                     sd_scale_factor = sd_scale_factor,
-                                     verbose = verbose)
-      scores <- temp[["scored_data"]]
-      residuals <- temp[["residuals"]]
-      scores <- call_drug_hits(scores, control, condition,
-                               neg_type = neg_type, pos_type = pos_type,
-                               fdr_threshold = fdr_threshold, 
-                               differential_threshold = differential_threshold)
-      plot_drug_response(scores, 
-                         control_name = control, 
-                         condition_name = condition, 
-                         output_folder = plot_folder,
-                         neg_type = neg_type, 
-                         pos_type = pos_type,
-                         plot_type = plot_type, 
-                         label_fdr_threshold = label_fdr_threshold)
-      if (plot_residuals) {
-        if (!is.na(residuals)) {
-          plot_drug_residuals(scores, residuals, control, condition, lfc_folder, 
-                              neg_type = neg_type, pos_type = pos_type,
-                              plot_type = plot_type) 
-        } else {
-          cat("WARNING: residuals are set to NA, skipping residual plots\n")
-        }
-      }
-      if (save_residuals) {
-        if (!is.na(residuals)) {
-          residuals_file <- paste0(condition, "_vs_", control, "_residuals.tsv")
-          utils::write.table(residuals, file.path(output_folder, residuals_file), sep = "\t",
-                             row.names = FALSE, col.names = TRUE, quote = FALSE) 
-        } else {
-          cat("WARNING: residuals are set to NA, skipping writing residuals to file\n")
-        }
-      }
-      if (is.null(all_scores)) {
-        all_scores <- scores
-      } else {
-        all_scores <- cbind(all_scores, scores[,3:ncol(scores)])
-      }
-    }
-    if (!is.null(all_scores)) {
-      utils::write.table(all_scores, file.path(output_folder, "condition_gene_calls.tsv"), sep = "\t",
-                         row.names = FALSE, col.names = TRUE, quote = FALSE) 
-    } 
-  } else if (scoring_type == "Group") {
-    
-    # Gets unique groups from batch file and scores each group separately
-    groups <- unique(batch$Group)
-    for (group in groups) {
-      
-      # Sets path to intermediate file for current group
-      intermediate_file <- file.path(output_folder, group, "intermediate.rda")
-      
-      # Scores dataset separately depending on number of PCs to remove
-      for (i in 1:length(n_components)) {
-        components <- n_components[i]
-        
-        # Makes output folders if nonexistent for each principal component to remove
-        group_folder <- file.path(output_folder, group, paste0("PC_", components))
-        lfc_folder <- file.path(group_folder, "lfc")
-        plot_folder <- file.path(group_folder, "plots")
-        if (!dir.exists(group_folder)) { dir.create(group_folder, recursive = TRUE) }
-        if (!dir.exists(lfc_folder)) { dir.create(lfc_folder) }
-        if (!dir.exists(plot_folder)) { dir.create(plot_folder) }
-        
-        # Stores intermediate output for first run and loads for subsequent runs
-        load_intermediate <- TRUE
-        if (i == 1) {
-          load_intermediate <- FALSE
-        }
-        
-        # Scores data for the current group
-        group_ind <- batch$Group %in% group
-        controls <- batch$Screen[group_ind & batch$Type == "control"]
-        conditions <- batch$Screen[group_ind & batch$Type == "condition"]
-        matched_controls <- batch$Control[group_ind & batch$Type == "condition"]
-        temp <- score_drugs_vs_controls(df, screens, controls, conditions, matched_controls,
-                                        plot_folder, 
-                                        min_guides = min_guides, 
-                                        loess = loess, 
-                                        ma_transform = ma_transform, 
-                                        control_genes = control_genes, 
-                                        fdr_method = fdr_method,
-                                        weight_method = weight_method,
-                                        matched_fraction = matched_fraction,
-                                        sd_scale_factor = sd_scale_factor,
-                                        n_components = components,
-                                        chromosomal_correction = chromosomal_correction,
-                                        return_residuals = FALSE,
-                                        intermediate_file = intermediate_file,
-                                        load_intermediate = load_intermediate,
-                                        verbose = verbose)
-        scores <- temp[["scored_data"]]
-        control_scores <- temp[["scored_controls"]]
-        sd_table <- temp[["sd_table"]]
-        scores <- call_drug_hits(scores, NULL, conditions,
-                                 neg_type = neg_type, pos_type = pos_type,
-                                 fdr_threshold = fdr_threshold, 
-                                 differential_threshold = differential_threshold)
-        for (condition in conditions) {
-          plot_drug_response(scores, 
-                             control_name = NULL, 
-                             condition_name = condition, 
-                             output_folder = plot_folder, 
-                             neg_type = neg_type, 
-                             pos_type = pos_type, 
-                             plot_type = plot_type,
-                             label_fdr_threshold = label_fdr_threshold) 
-        }
-        utils::write.table(scores, file.path(group_folder, "gene_calls.tsv"), sep = "\t",
-                           row.names = FALSE, col.names = TRUE, quote = FALSE) 
-        utils::write.table(control_scores, file.path(group_folder, "control_guide_effects.tsv"), sep = "\t",
-                           row.names = FALSE, col.names = TRUE, quote = FALSE) 
-        utils::write.table(sd_table, file.path(group_folder, "sd_table.tsv"), sep = "\t",
-                           row.names = FALSE, col.names = TRUE, quote = FALSE) 
-      }
-    }
-  }
+	all_scores <- NULL
+	for (i in 1:nrow(batch)) {
+	
+	# Makes output folders if nonexistent
+	lfc_folder <- file.path(output_folder, "lfc")
+	plot_folder <- file.path(output_folder, "plots")
+	if (!dir.exists(lfc_folder)) { dir.create(lfc_folder) }
+	if (!dir.exists(plot_folder)) { dir.create(plot_folder) }
+	
+	# Scores each screen separately
+	condition <- batch[i,1]
+	control <- batch[i,2]
+	temp <- score_drugs_vs_control(df, screens, control, condition, test = test, 
+				     min_guides = min_guides, 
+				     loess = loess, 
+				     ma_transform = ma_transform, 
+				     control_genes = control_genes, 
+				     fdr_method = fdr_method, 
+				     sd_scale_factor = sd_scale_factor,
+				     verbose = verbose)
+	scores <- temp[["scored_data"]]
+	residuals <- temp[["residuals"]]
+	scores <- call_drug_hits(scores, control, condition,
+			       neg_type = neg_type, pos_type = pos_type,
+			       fdr_threshold = fdr_threshold, 
+			       differential_threshold = differential_threshold)
+	plot_drug_response(scores, 
+			 control_name = control, 
+			 condition_name = condition, 
+			 output_folder = plot_folder,
+			 neg_type = neg_type, 
+			 pos_type = pos_type,
+			 plot_type = plot_type, 
+			 label_fdr_threshold = label_fdr_threshold)
+	if (plot_residuals) {
+	if (!is.na(residuals)) {
+	  plot_drug_residuals(scores, residuals, control, condition, lfc_folder, 
+			      neg_type = neg_type, pos_type = pos_type,
+			      plot_type = plot_type) 
+	} else {
+	  cat("WARNING: residuals are set to NA, skipping residual plots\n")
+	}
+	}
+	if (save_residuals) {
+	if (!is.na(residuals)) {
+	  residuals_file <- paste0(condition, "_vs_", control, "_residuals.tsv")
+	  utils::write.table(residuals, file.path(output_folder, residuals_file), sep = "\t",
+			     row.names = FALSE, col.names = TRUE, quote = FALSE) 
+	} else {
+	  cat("WARNING: residuals are set to NA, skipping writing residuals to file\n")
+	}
+	}
+	if (is.null(all_scores)) {
+	all_scores <- scores
+	} else {
+	all_scores <- cbind(all_scores, scores[,3:ncol(scores)])
+	}
+	}
+	if (!is.null(all_scores)) {
+	utils::write.table(all_scores, file.path(output_folder, "condition_gene_calls.tsv"), sep = "\t",
+			 row.names = FALSE, col.names = TRUE, quote = FALSE) 
+	} 
+  
 }
