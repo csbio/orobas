@@ -5,12 +5,11 @@
 #' remove screens not to be included in the dLFC score data-frame
 #' 
 #' The scores matrix has library genes on the row side and compound screens on the column side.
-#' The first column is gene names.
 #' A list of screens can be provided to be excluded and those columns will be removed from the scores matrix.
 #' 
-#' @param scores  differential log fold change scores data-frame (library-genes X screens; The first column is gene names, each screen column contain dLFC scores)
+#' @param scores  differential log fold change scores data-frame (library-genes X screens; each screen column contain dLFC scores)
 #' @param exclude_screen_list a list of screens to be removed from the scores data-frame; default is empty list c().  
-#' @return  differential log fold change scores data-frame (library-genes X screens; The first column is gene names) after removing selected screens (columns)
+#' @return  differential log fold change scores data-frame (library-genes X screens) after removing selected screens (columns)
 #' 
 #' @export
 remove_screens<- function(scores, exclude_screen_list=c())
@@ -26,29 +25,29 @@ remove_screens<- function(scores, exclude_screen_list=c())
 #' Normalize target standard-deviations per screen by average of all target standard-deviations.
 #' Normalize each screen score with target standard-deviation.
 #' 
-#' @param scores  differential log fold change scores data-frame (library-genes X screens; The first column is gene names, each screen column contain dLFC scores)
-#' @return  differential log fold change scores data-frame (library-genes X screens; The first column is gene names) after applying SD scaling per screen (column)
+#' @param scores  differential log fold change scores data-frame (library-genes X screens; each screen column contain dLFC scores)
+#' @return  differential log fold change scores data-frame (library-genes X screens) after applying SD scaling per screen (column)
 #' 
 #' @export
 apply_SD_scaling<- function(scores)
 {
-	#calculate standard-deviation of each screen before scaling
-	pre_scaling_sd <- apply(scores[,2:ncol(scores)], 2, stats::sd, na.rm=TRUE)
-
-	#calculate target standard deviation per screen(SD of scores between 10%-90% percentiles)
-	lfc_range <- apply(scores[,2:ncol(scores)], 2, stats::quantile, probs = c(0.1, 0.9), na.rm = TRUE)
-	target_sd <- rep(NA, ncol(scores))
-	for (i in 2:ncol(scores)) {
-	  target_sd[i] <- stats::sd(scores[scores[,i] > lfc_range[1,i-1] & scores[,i] < lfc_range[2,i-1], i], na.rm = TRUE)
-	}
-	#normalize target standard deviation
-	sd_scale_factor <- mean(target_sd[2:length(target_sd)])
-	target_sd <- target_sd / sd_scale_factor
-
-	#normalize per-screen dlfc scores by target standard deviation 
-	for (i in 2:ncol(scores)) {
-	  scores[,i] <- scores[,i] / target_sd[i]
-	}
+  #calculate standard-deviation of each screen before scaling
+  pre_scaling_sd <- apply(scores, 2, stats::sd, na.rm=TRUE)
+  
+  #calculate target standard deviation per screen(SD of scores between 10%-90% percentiles)
+  lfc_range <- apply(scores, 2, stats::quantile, probs = c(0.1, 0.9), na.rm = TRUE)
+  target_sd <- rep(NA, ncol(scores))
+  for (i in 1:ncol(scores)) {
+    target_sd[i] <- stats::sd(scores[scores[,i] > lfc_range[1,i] & scores[,i] < lfc_range[2,i], i], na.rm = TRUE)
+  }
+  #normalize target standard deviation
+  sd_scale_factor <- mean(target_sd)
+  target_sd <- target_sd / sd_scale_factor
+  
+  #normalize per-screen dlfc scores by target standard deviation 
+  for (i in 1:ncol(scores)) {
+    scores[,i] <- scores[,i] / target_sd[i]
+  }
   
 	#sanity check
 	#calculate standard-deviation of each screen after scaling and write the scaling values to file
