@@ -122,3 +122,50 @@ remove_control_dlfc_signal<- function(scores,control_dlfc_filepath)
 	return(data.frame(scores))
 
 }
+
+#'generate wbc (within-between correlation) score of 4x4 screens
+#'
+#'Score representing how much the replicate screens are correlated compared to non-replicate screens
+#'Equation: wbc_per_screen = (average(within_correlation) - average(between_correlation))/sig_b
+#'          within_correlation = pearson correlation of screen with other chosen replicates
+#'          between_correlation = pearson_correlation of screen with all non-replicate screens
+#'          sig_b = sqrt(sum( square(between_correlation - average(between_correlation)) ))/(number of non-replicate screens - 1))
+#' <cite paper>         
+#' @param data  differential log fold change scores data-frame (library-genes X screens, each screen column contain dLFC scores)
+#' @param drug_list_4x4 A named nested list of 4x4 screens; used in the 'within correlation' calculation in wbc score
+#' example of one entry: "CHEM015_BORTEZOMIB_T14"=list("CHEM015_BORTEZOMIB_T14","CHEM050_BORTEZOMIB_T14","CHEM051_BORTEZOMIB_T14","CHEM052_BORTEZOMIB_T13") 
+#' @param null_drug_list  A named nested list of all screens that are replicates of the 4x4 screens; these should have no effect in the 'between correlation' calculation in wbc score
+#' Example of one entry: "CHEM029_NGI1_T16"=list("CHEM031_NGI1_T13","CHEM050_NGI1_T11","CHEM029_NGI1_T16","CHEM050_NGI1_T14","CHEM051_NGI1_T14","CHEM057_NGI1_T13")
+#' @return  data-frame with one wbc score for each 4x4 screens
+#' 
+#' @export
+score_wbc <- function(data, drug_list_4x4, null_drug_list) {
+ 
+  #generate pearson correlation matrix across all screens
+  sim_net <- cor(data, use = "complete.obs",method="pearson")
+  
+  all_drugs = colnames(sim_net) #get all screen names
+  drug_names = names(drug_list_4x4) #get the 4x4 screen names
+  
+  #create dataframe with 4x4 screen names and wbc score columns initialized to 0
+  drug_wbc = data.frame(drug_names) 
+  drug_wbc$wbc = 0
+  
+  #for each  4x4 screen
+  for (drug in drug_names){
+    #calculate 'within correlation' - with replicate screens
+    w = sim_net[drug,all_drugs %in% drug_list_4x4[[drug]]]
+    #calculate 'between correlation' - with non-replicate screens
+    b = sim_net[drug,!all_drugs %in% null_drug_list[[drug]]]
+    #calculate average of within correlation
+    mean_w = mean(w)
+    #calculate average of between correlation
+    mean_b = mean(b)
+    #calculate scaling factor: scaled root-sum-square of mean-centered between correlation
+    sig_b = sqrt(sum((b-mean_b)**2)/(length(b)-1))
+    #calculate wbc score and add to dataframe
+    wbc = (mean_w - mean_b)/sig_b
+    drug_wbc$wbc[drug_wbc$drug_names==drug]=wbc
+  }
+  return(drug_wbc)
+}
