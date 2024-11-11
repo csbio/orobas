@@ -66,15 +66,13 @@ apply_SD_scaling<- function(scores)
 #' apply principal component analysis on the dLFC score matrix.
 #' calculate projection of first mentioned number of principal component onto the score matrix.
 #' subtract the projection from dLFC score matrix to remove principal component signal.
-#' @param scores  differential log fold change scores data-frame (library-genes X screens; The first column is gene names, each screen column contain dLFC scores)
+#' @param scores  differential log fold change scores data-frame (library-genes X screens; each screen column contain dLFC scores)
 #' @param pc number of principal components to remove; default 1
 #' @return  differential log fold change scores data-frame (library-genes X screens) after removing principal components
 #' 
 #' @export
 remove_principal_component_signal<- function(scores,pc=1)
-{
-	rownames(scores) <- scores$gene #set matrix rownames to gene names ('gene' column (first column) contains gene names at this point)
-	scores <- scores[,-1] #remove first column ('gene' column)
+{	
 	scores <- data.matrix(scores) #convert to matrix format
 	scores <- scores[complete.cases(scores), ] #only keep rows with no 'NA' values
 
