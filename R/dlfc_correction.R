@@ -99,22 +99,32 @@ remove_principal_component_signal<- function(scores,pc=1)
 #' @export
 remove_control_dlfc_signal<- function(scores,control_dlfc_filepath)
 {	
-  #load dLFC score file from control_dlfc_filepath
-  #file format- tab delimited .tsv file with screens as columns and genes as rows. 
+  	#load dLFC score file from control_dlfc_filepath
+  	#file format- tab delimited .tsv file with screens as columns and genes as rows. 
 	cg_dmso = read.table(control_dlfc_filepath, header = TRUE, sep = "\t", stringsAsFactors = FALSE, row.names = 1)
 	cg_dmso <- data.matrix(cg_dmso) #convert to matrix format
 	cg_dmso <- cg_dmso[complete.cases(cg_dmso), ] #keep rows with no 'NA' values
-  
+	
+	#get common genes between control and condition score files and get those subset of rows
+	#control dlfc and condition dlfc gene sets may overlap completely
+	genes <- intersect(rownames(scores), rownames(cg_dmso))
+	scores_ <- scores[genes,]
+	cg_dmso <- cg_dmso[genes,]
+	
 	#apply principal component analysis to control dLFC scores
 	pca_cg_dmso_t <- prcomp(as.matrix(t(cg_dmso)), center = TRUE, scale. = T)
 
 	#create projection of all principal components from control-dLFCs onto the main(condition) dLFC score matrix
 	cg_dmso_loadings_t <- pca_cg_dmso_t$rotation
 	dmso_v_t <- cg_dmso_loadings_t[,1:ncol(cg_dmso_loadings_t)]
-	projected_t <- t(scores) %*% dmso_v_t %*% t(dmso_v_t) 
+	projected_t <- t(scores_) %*% dmso_v_t %*% t(dmso_v_t) 
 	
-	#subtract the the projection matrix from condition score matrix to remove dLFC signal of control screens 
-	scores <- scores - t(projected_t)
+	#subtract the projection matrix from condition score matrix subset to remove dLFC signal of control screens 
+	scores_ <- scores_ - data.frame(t(projected_t))
+	
+	#insert the corrected gene profiles into condition score matrix
+	#update the corrected gene profiles, and preserve the other gene profiles (with no control dlfc) instead of removing them	
+	scores[match(rownames(scores_), rownames(scores)), ] <- scores_
 
 	return(data.frame(scores))
 
