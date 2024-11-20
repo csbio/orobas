@@ -133,21 +133,17 @@ remove_control_dlfc_signal<- function(scores,control_dlfc_filepath)
 
 #' wrapper function to call python script screen_batch_correction_LDA.py
 #' 
-#'  @param python_dir path to python directory 
 #'  @param scores differential log fold change scores data-frame from condition screens (library-genes X screens, each screen column contain dLFC scores)
-#'  @param output_directory path to directory to save output files (roc plot file and dLFC score file)
-#'  @param output_file_name_prefix output file name without file type extension
+#'  @param output_directory path to directory to save output files (roc plot files)
 #'  @return differential log fold change scores data-frame (library-genes X screens) after batch correction by LDA
 #'  
 #'  @export
-screen_batch_correction_with_lda<- function(python_dir, scores, output_directory, output_file_name_prefix)
-{
-	#path to python 
-  use_python(python_dir)
-  #path to screen level batch correction by LDA python script 
+screen_batch_correction_with_lda<- function(scores, output_directory)
+{	
+  	#load screen level batch correction LDA python script 
 	source_python("screen_batch_correction_LDA.py")
 	#call function from python script that returns batch corrected dLFC score file
-	scores = run_batch_correction(scores, output_directory,output_file_name_prefix)	
+	scores = run_batch_correction(scores, output_directory)	
 	return(scores)
 }
 
