@@ -167,7 +167,7 @@ def run_batch_correction(data, output_file_directory):
     screen_list = data.columns.values # get all screen labels
     
     #extract screen and replicate batches
-    screen_labels_batch = filter_screen(screen_list, samples_in_batch = 1) # Extract batches with at least two screens  #updated
+    screen_labels_batch = filter_screen(screen_list, samples_in_batch = 2) # Extract batches with at least 3 screens  #updated
     screen_orphan_batch = list(set(data.columns).difference(screen_labels_batch)) # Rest of the screens make up Orphan batch
     
     #set up screen-label to batch mapping for screen batches
