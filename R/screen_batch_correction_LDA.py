@@ -151,15 +151,14 @@ Function:
     run_batch_correction()
 Arguments:
     input_file_path: Path to file to apply LDA batch correction
-    output_file_directory: Directory to create output file
-    output_file_name_no_extension: output file name prefix
+    output_file_directory: Directory to save roc plot files
 Return:
     Path of the output file
 Description:
     Applies LDA batch correction to data and removes LD components until the ROCAUC score drops below .51
    
 '''
-def run_batch_correction(data, output_file_directory, output_file_name_no_extension):
+def run_batch_correction(data, output_file_directory):
     print(str('Running batch correction'))
     
     if "gene" in data.index.values: 
@@ -234,17 +233,15 @@ def run_batch_correction(data, output_file_directory, output_file_name_no_extens
         roc_auc_score_screen_pcc_na = roc_auc_score(screen_binary_na, screen_pcc_na) # calculate ROCAUC
         print(str(components_reduced) + '\tscreen auc dc\t' + str(roc_auc_score_screen_pcc_na))
         
-        filepath = output_file_directory + '_bc_'+ str(components_reduced)
+        filepath = output_file_directory + 'bc_lda_'+ str(components_reduced)
         fpr, tpr, _ = roc_curve(screen_binary_na, screen_pcc_na)
         rpc_plot_generation(fpr,tpr,roc_auc_score_screen_pcc_na,filepath+'.png')
         
         #if roc_auc score drops below .51 save data file and plot, stop batch correction        
         if np.around(roc_auc_score_screen_pcc_na,decimals=2) < 0.51 or components_reduced > 20: 
-            print('Writing to file ...')
-            filepath = output_file_directory + output_file_name_no_extension + '_bc_'+ str(components_reduced)
-            pc_removed_matrix_df.to_csv(filepath +'.tsv', sep="\t")
-            fpr, tpr, _ = roc_curve(screen_binary_na, screen_pcc_na)
-            rpc_plot_generation(fpr,tpr,roc_auc_score_screen_pcc_na,filepath+'.png')
+            print('LDA correction complete.')
+            print('Removed components: ' + str(components_reduced))
+            
             break
         components_reduced = components_reduced + 1
     return pc_removed_matrix_df
