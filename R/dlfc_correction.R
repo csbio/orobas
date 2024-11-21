@@ -141,7 +141,7 @@ remove_control_dlfc_signal<- function(scores,control_dlfc_filepath)
 screen_batch_correction_with_lda<- function(scores, output_directory)
 {	
   	#load screen level batch correction LDA python script 
-	source_python("screen_batch_correction_LDA.py")
+	source_python(system.file("python","screen_batch_correction_LDA.py", package = "orobas"))
 	#call function from python script that returns batch corrected dLFC score file
 	scores = run_batch_correction(scores, output_directory)	
 	return(scores)
