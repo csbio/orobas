@@ -11,6 +11,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import roc_curve
+from os import path
 
 '''
 Function:
@@ -233,9 +234,10 @@ def run_batch_correction(data, output_file_directory):
         roc_auc_score_screen_pcc_na = roc_auc_score(screen_binary_na, screen_pcc_na) # calculate ROCAUC
         print(str(components_reduced) + '\tscreen auc dc\t' + str(roc_auc_score_screen_pcc_na))
         
-        filepath = output_file_directory + 'bc_lda_'+ str(components_reduced)
         fpr, tpr, _ = roc_curve(screen_binary_na, screen_pcc_na)
-        rpc_plot_generation(fpr,tpr,roc_auc_score_screen_pcc_na,filepath+'.png')
+        roc_plot_file = 'bc_lda_'+ str(components_reduced) + '_roc.png'
+        filepath = path.join(output_file_directory,roc_plot_file)
+        rpc_plot_generation(fpr,tpr,roc_auc_score_screen_pcc_na,filepath)
         
         #if roc_auc score drops below .51 save data file and plot, stop batch correction        
         if np.around(roc_auc_score_screen_pcc_na,decimals=2) < 0.51 or components_reduced > 20: 
