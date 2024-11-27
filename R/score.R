@@ -477,14 +477,6 @@ call_drug_hits <- function(scores, control_screen_name = NULL, condition_screen_
 #' @param ma_transform If true, M-A transforms data before running loess normalization. Only
 #'   has an effect when loess = TRUE (default TRUE).
 #' @param control_genes List of control genes to remove, e.g. "luciferase" (default c("None", "")).
-#' @param n_components Vector containing indices of principal components to remove from data.  
-#' @param chromosomal_correction If TRUE, corrects chromosomal shifts by down-weighting qGI
-#'   scores for shifted regions (default FALSE).
-#' @param weight_method If "linear" weights non-matched control screens equally. If exponential,
-#'   instead weights non-matched control screens according to a decreasing exponential function
-#'   based on the similarity of control screens to the given condition screen.
-#' @param matched_fraction The weight given to the matched control as a fraction of 1, where
-#'   all non-matched controls receive a total weight equal to 1 - matched_fraction (default 0.75).
 #' @param sd_scale_factor Factor to normalize SDs against for scaling. If NULL for group scoring,
 #'   the mean is computed across guide-level residuals, otherwise the given scalar is used instead.
 #'   If NULL for one-off scoring, this operation is not performed (default NULL).
