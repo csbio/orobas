@@ -149,6 +149,132 @@ def rpc_plot_generation(fpr,tpr,roc_auc_score_,file_path):
 
 '''
 Function:
+    create_per_screen_binary_standard()
+Arguments:
+    screen_labels : list of screen labels (required)
+    batch_dictionary : Batch-screen and batch-label mapping (required)
+    curr_screen : label of screen being processed (required) format: screen_compound_time
+    set_na (type:binary): If True, same compunds in the same batch are set to NA - don't penalize them for being in the same screen-batch, because they should be in the same batch(default = True)
+Return: 
+    1D array with binary standard 
+Description:
+    Objective: Create binary standard for screen-label list wrt curr_screen
+    (1:if they belong to the same screen-batch , 0:if they do not belong to the same screen-batch )
+    - Needed to generate per screen ROC score
+    
+'''
+def create_per_screen_binary_standard(screen_labels, batch_dictionary,curr_screen, set_na = True):
+    screens_length = len(screen_labels) # get total number of screen labels
+    binary_matrix = np.zeros((screens_length)) # Initiate pair-wise binary label matrix to 0    
+    screen_1 = curr_screen # current screen label
+    screen_1_list = screen_1.split('_') # extract screen information 
+    for screen_index_2 in range(0,screens_length): # iterate over screen-label list
+        screen_2 = screen_labels[screen_index_2] # get screen label
+        screen_2_list = screen_2.split('_') # extract screen information 
+        if(batch_dictionary[screen_1]==batch_dictionary[screen_2]) : # if both screens are from the same batch as depicted in batch_dictionary               
+            if set_na and (screen_1_list[1] == screen_2_list[1]): # if both screens are from the same compound
+                binary_matrix[screen_index_2] = np.nan # set to NA (We don't want to penalize same compunds for batch effect)
+            else: # otherwise
+                binary_matrix[screen_index_2] = 1 # set to 1 (the screen-label is in the same screen batch with the curr_screen)
+    binary_1d = binary_matrix.flatten() # Transform matrix to 1D array
+    binary_1d = binary_1d[~np.isnan(binary_1d)] # remove NA entries    
+    return binary_1d
+
+'''
+Function:
+    create_per_screen_pcc_scores()
+Arguments:
+    correlation_profile : correlation profile of curr_screen across all screens (required)
+    screen_labels : list of screen labels (required)
+    batch_dictionary : Batch-screen and batch-label mapping (required)
+    curr_screen : label of screen being processed (required) format: screen_compound_time
+    set_na (type:binary): If True, same compunds in the same batch are set to NA - don't penalize them for being in the same screen-batch, because they should be in the same batch(default = True)
+Return: 
+    1D array with Pearson Correlation Co-efficient scores across all screens
+Description:
+    Objective: Remove PCC scores of screens that have the same compound as the curr_screen from the curr_screen PCC profile, if indicated
+    - Needed to generate per screen ROC score
+    
+'''
+def create_per_screen_pcc_scores(correlation_profile, screen_labels, batch_dictionary,curr_screen, set_na = True):    
+    screens_length = len(screen_labels) # number of screen labels 
+    if set_na:        
+        screen_1 = curr_screen # get screen label
+        screen_1_list = screen_1.split('_') # extract screen information
+        for screen_index_2 in range(0,screens_length): # iterate over screen-label list
+            screen_2 = screen_labels[screen_index_2] # get screen label
+            screen_2_list = screen_2.split('_') # extract screen information
+            if(batch_dictionary[screen_1]==batch_dictionary[screen_2]) : # if both screens are from the same batch as depicted in batch_dictionary
+                if(screen_1_list[1] == screen_2_list[1]): # if both screens are from the same compound
+                    correlation_profile[screen_index_2] = np.nan  # set to NA (We don't want to penalize same compunds for batch effect)                  
+    correlation_profile =correlation_profile[~np.isnan(correlation_profile)]  # remove NA entries 
+    return correlation_profile
+
+'''
+Function:
+    generate_per_screen_roc()
+Arguments:
+    screen_data : gene profiles across compounds (gene x screen)(required)
+    batch_dictionary : Batch-screen and batch-label mapping (required)
+Return: 
+    median_roc : median of per-screen ROC scores
+    roc_df : dataframe of all per-screen ('screen': list_of_screens, 'rocauc': roc_list)
+Description:
+    Objective: generate ROC score for each screen that indicates how similar each screen is to the other screens of the same batch
+    
+'''
+def generate_per_screen_roc(screen_data,batch_dictionary):
+    list_of_screens = screen_data.columns.values # Get screen labels 
+    data_t = screen_data.T # transpose data (screen x genes)
+    correlation_matrix = np.corrcoef(data_t)  # calculate Pearson Correlation Coefficient among screen profiles
+    roc_list = list()
+    for curr_screen_index in range(0,len(list_of_screens)): # iterate over screen-label list
+        curr_screen = list_of_screens[curr_screen_index] # get screen label
+        # get correlation profile of current screen
+        corr_single = create_per_screen_pcc_scores(correlation_matrix[curr_screen_index],list_of_screens, batch_dictionary, curr_screen, set_na = True)
+        # get binary standard for current profile
+        binary_single = create_per_screen_binary_standard(list_of_screens, batch_dictionary,curr_screen, set_na = True)
+        # calculate roc score
+        if np.count_nonzero(binary_single)==0:    
+            roc_auc_score_single = 'NA'
+        else:
+            roc_auc_score_single = roc_auc_score(binary_single, corr_single)         
+        roc_list.append(roc_auc_score_single)        
+    roc_dict = {'screen': list_of_screens, 'rocauc': roc_list} 
+    roc_df = pd.DataFrame(roc_dict)
+    #calculate median roc
+    median_roc = np.median(roc_df['rocauc'])
+    return median_roc, roc_df
+
+'''
+Function:
+    rpc_plot_generation()
+Arguments:
+    roc_list : List of per-screen ROC scores
+    median_roc : median of per-screen ROC scores
+    file_path : output plot file path
+Description:
+    Generate histogram of per-screen ROC scores
+'''
+def roc_histogram_generation(roc_list,median_roc,file_path):
+    plt.figure()
+    plt.hist(
+        roc_list,
+        color="lightblue",
+        label="ROC median = %0.5f" % median_roc,
+    )
+    plt.xlim([0.0, 1.0])
+    plt.xlabel("ROC")
+    plt.ylabel("Frequency")
+    plt.title("")
+    plt.legend(loc="upper left")
+    plt.savefig(file_path)
+    plt.close()
+    return    
+
+
+'''
+Function:
     run_batch_correction()
 Arguments:
     input_file_path: Path to file to apply LDA batch correction
@@ -238,6 +364,11 @@ def run_batch_correction(data, output_file_directory):
         roc_plot_file = 'bc_lda_'+ str(components_reduced) + '_roc.png'
         filepath = path.join(output_file_directory,roc_plot_file)
         rpc_plot_generation(fpr,tpr,roc_auc_score_screen_pcc_na,filepath)
+        
+        roc_auc_score_screen_pcc_na, roc_df_ = generate_per_screen_roc(pc_removed_matrix_df,screen_batch_dictionary)
+        roc_hist_plot_file = 'bc_lda_'+ str(components_reduced) + '_histogram.png'
+        filepath = path.join(output_file_directory,roc_hist_plot_file)
+        roc_histogram_generation(roc_df_['rocauc'],roc_auc_score_screen_pcc_na,filepath)
         
         #if roc_auc score drops below .51 save data file and plot, stop batch correction        
         if np.around(roc_auc_score_screen_pcc_na,decimals=2) < 0.51 or components_reduced > 20: 
