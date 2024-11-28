@@ -117,18 +117,20 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
   }
   scores[new_cols] <- NA
   
-  # Makes condition residual dataframes if significance test is moderated-t
+  # Make a condition residual dataframe for each condition screen if significance test is moderated-t
   max_guides <- -1
   condition_residuals <- list()
   if (test == "moderated-t") { # if significance test is moderated-t
-    # Gets max number of guides per gene (Gene names in LFC dataframe appear equal to the number of guides for that gene, so taking the frequency per gene will count guide per gene)
+    # Gets maximum number of guides per gene (Gene names in LFC dataframe appear equal to the number of guides for that gene, so taking the frequency per gene will count guide per gene)
     max_guides <- max(table(df$gene))
     # Makes residual dataframes with column number equal to the max number of guides
-    for (name in condition_names) {
-      # Extract replicate names (add to col name) and count from condition_cols for condition name
+    for (name in condition_names) { # iterate over condition screens
+      # Extract condition screen replicate names 
       condition_reps=condition_cols[[name]]
-      residual_df <- data.frame(matrix(nrow = n_genes, ncol = max_guides*length(condition_reps)))# ncol = max_guides*total_replicate
-      # 
+      # create a dataframe with total rows equal to # of genes and total column equal to (maximum # of guides * # of replicates)
+      residual_df <- data.frame(matrix(nrow = n_genes, ncol = max_guides*length(condition_reps))) # ncol = max_guides*total_replicate
+      # Set column names. "guide_residual_guide#_replicate-name". 
+      # colname distribution example for max_guide 4 and total replicate # 3: 1 1 1 2 2 2 3 3 3 4 4 4. biological replicates (guides) are gathered together
       colnames(residual_df) <- paste0("guide_residual_", rep(1:max_guides,each=length(condition_reps)),'_', condition_reps) # version2
       condition_residuals[[name]] <- residual_df
     }
