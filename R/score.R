@@ -96,10 +96,14 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
   unique_genes <- unique(df$gene)
   n_genes <- length(unique_genes)
   scores <- data.frame(gene = rep(NA, n_genes))
-  # Appends additional columns for each condition
+  # Appends additional columns for control screen (n_: # of guides, mean_: average LFC across replicates, variance_: variance of LFC across replicates)
   new_cols <- c(paste0("n_", control_name), 
                 paste0("mean_", control_name),
                 paste0("variance_", control_name))
+  # Appends additional columns for condition screens
+  # n_: # of guides, mean_: average LFC across replicates, variance_: variance of LFC across replicates
+  # differential_: differential LFC scores calculated against control screen
+  # pval_: significance of differential score, fdr_: pval corrected for multiple test, significant_: annotate if DLFC is significant or not
   for (name in condition_names) {
     new_cols <- c(new_cols, c(
       paste0("n_", name), 
