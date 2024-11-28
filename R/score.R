@@ -117,18 +117,18 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
   }
   scores[new_cols] <- NA
   
-  # Makes condition residual dataframes if necessary
+  # Makes condition residual dataframes if significance test is moderated-t
   max_guides <- -1
   condition_residuals <- list()
-  if (test == "moderated-t") {
-    # Gets max number of guides first
+  if (test == "moderated-t") { # if significance test is moderated-t
+    # Gets max number of guides per gene (Gene names in LFC dataframe appear equal to the number of guides for that gene, so taking the frequency per gene will count guide per gene)
     max_guides <- max(table(df$gene))
-    # Makes residual dataframes with columns equal to the max number of guides
+    # Makes residual dataframes with column number equal to the max number of guides
     for (name in condition_names) {
       # Extract replicate names (add to col name) and count from condition_cols for condition name
       condition_reps=condition_cols[[name]]
       residual_df <- data.frame(matrix(nrow = n_genes, ncol = max_guides*length(condition_reps)))# ncol = max_guides*total_replicate
-      #colnames(residual_df) <- paste0("guide_residual_", 1:max_guides,'_', rep(condition_reps,each=max_guides)) # version1
+      # 
       colnames(residual_df) <- paste0("guide_residual_", rep(1:max_guides,each=length(condition_reps)),'_', condition_reps) # version2
       condition_residuals[[name]] <- residual_df
     }
