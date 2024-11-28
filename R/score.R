@@ -117,7 +117,7 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
   }
   scores[new_cols] <- NA
   
-  # Make a condition residual dataframe for each condition screen if significance test is moderated-t
+  # Make a dataframe for each condition screen to store differential LFC scores(if the significance test is moderated-t)
   max_guides <- -1
   condition_residuals <- list()
   if (test == "moderated-t") { # if significance test is moderated-t
@@ -219,32 +219,31 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
         }
       }
     }
-	#move outlier removal here - rewrite function to take a vector instead of a dataframe
-
   }
   
-  #remove (set to NA) outlier guides per-gene using jack-knife method for each condition
+  #remove (set to NA) outlier guides per-gene using jack-knife method for each condition if the significance test is moderated-t 
   if(test == "moderated-t"){
-		for (name in condition_names) {
-			condition_residuals[[name]] = jackknife_outliers(condition_residuals[[name]])
-			scores[[paste0("differential_", name, "_vs_", control_name)]] <- rowMeans(condition_residuals[[name]],na.rm = TRUE)
-		}
+	for (name in condition_names) {
+		# remove outlier guides per-gene (set to NA) across replicates for a condition screen
+		condition_residuals[[name]] = jackknife_outliers(condition_residuals[[name]])
+		# mean-collapse differential LFC scores across guides and replicates for each gene
+		# update dLFC column for the condition screen in scores dataframe
+		scores[[paste0("differential_", name, "_vs_", control_name)]] <- rowMeans(condition_residuals[[name]],na.rm = TRUE)
 	}
+  }
   
-  # Scores condition response with moderated t-test
+  # calculate p-values indicating significance of differential LFC scores using moderated t-test
   if (test == "moderated-t") {
     for (name in condition_names) {
-      #block <- rep(1:length(condition_cols[[name]]),each=max_guides) #version1 #group same replicates together -- within block guides
-      #block <- rep(1:max_guides, length(condition_cols[[name]])) #version1_flipped #group same guides together -- within block replicates
-      block <- rep(1:max_guides, each=length(condition_cols[[name]])) #version2 #group same guides together -- within block replicates
-      dupcor <- limma::duplicateCorrelation(condition_residuals[[name]], block=block)
-      ebayes_fit <- limma::eBayes(limma::lmFit(condition_residuals[[name]], design=NULL, block=block, correlation=dupcor$consensus))
+      block <- rep(1:max_guides, each=length(condition_cols[[name]])) #group same guides together - all technical-replicates in each guide block
+      dupcor <- limma::duplicateCorrelation(condition_residuals[[name]], block=block) #Estimate the correlation between technical replicates from a series of arrays ( here calculating inter-biological replicate (guides) correlation)
+      ebayes_fit <- limma::eBayes(limma::lmFit(condition_residuals[[name]], design=NULL, block=block, correlation=dupcor$consensus)) # compute moderated t-statistics of dLFC by empirical Bayes moderation of the standard errors towards a common value
       p_val <- ebayes_fit$p.value[,1]
-      scores[[paste0("pval_", name, "_vs_", control_name)]] <- p_val
+      scores[[paste0("pval_", name, "_vs_", control_name)]] <- p_val # update pval column for control screen in scores dataframe
     }   
   }
   
-  # Scales moderate effects in top and bottom 10% of data to de-emphasize those. 
+  # Scales moderate effects in top and bottom 10% of data to de-emphasize those if a scaling factor is provided. 
   # The mean to divide SD values by is a pre-computed scalar
   if (!is.null(sd_scale_factor)) {
     for (name in condition_names) {
@@ -257,16 +256,12 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
     } 
   }
   
-  # Computes FDRs
+  # Correct p-values for multiple testing 
+  # update FDR column for control screen in scores dataframe
   for (name in condition_names) {
     scores[[paste0("fdr_", name, "_vs_", control_name)]] <- 
       stats::p.adjust(scores[[paste0("pval_", name, "_vs_", control_name)]], method = fdr_method)
   }
-  
-  # Removes extra zero row from loess-normalized residuals - no need for the new method
-  # if (loess) {
-  #   loess_residuals <- loess_residuals[1:(nrow(loess_residuals) - 1),]
-  # }
   
   # Explicitly returns scored data
   output <- list()
