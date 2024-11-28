@@ -74,12 +74,14 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
                                    loess = TRUE, ma_transform = TRUE, fdr_method = "BY",
                                    sd_scale_factor = NULL, return_residuals = TRUE, verbose = FALSE) {
   
-  # Gets condition names and columns for any number of conditions
+  
   if (verbose) {
     cat(paste("Preparing to score...\n"))
   }
-  control_name <- control_screen_name
-  control_cols <- screens[[control_name]][["replicates"]]
+  control_name <- control_screen_name # Get name of control screen
+  control_cols <- screens[[control_name]][["replicates"]] # Get control screen replicate names (data originally from sample table tsv file)
+
+# Get condition screen names and replicates (There can be multiple condition screens; data originally from sample table tsv file)	
   condition_names <- c()
   condition_cols <- list()
   for (condition in condition_screen_names) {
@@ -87,10 +89,10 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
     condition_cols[[condition]] <- screens[[condition]][["replicates"]]
   }
   
-  # Removes control genes
+  # Removes control genes from the raw-read datafreame
   df <- df[!(df$gene %in% control_genes),]
   
-  # Makes output dataframe
+  # Makes output dataframe (add a column with unique genes from raw-read dataframe)
   unique_genes <- unique(df$gene)
   n_genes <- length(unique_genes)
   scores <- data.frame(gene = rep(NA, n_genes))
