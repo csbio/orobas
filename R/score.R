@@ -89,10 +89,10 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
     condition_cols[[condition]] <- screens[[condition]][["replicates"]]
   }
   
-  # Removes control genes from the raw-read datafreame
+  # Removes control genes from the LFC dataframe
   df <- df[!(df$gene %in% control_genes),]
   
-  # Makes output dataframe (add a column with unique genes from raw-read dataframe)
+  # Makes output dataframe (add a column with unique genes from LFC dataframe)
   unique_genes <- unique(df$gene)
   n_genes <- length(unique_genes)
   scores <- data.frame(gene = rep(NA, n_genes))
