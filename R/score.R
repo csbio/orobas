@@ -247,13 +247,18 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
   # The mean to divide SD values by is a pre-computed scalar
 	if (test == "moderated-t") {
 	  if (sd_scale) {
-	    for (name in condition_names) {
-	      resid <- condition_residuals[[name]]
-	      lfc_range <- stats::quantile(resid, probs = c(0.1, 0.9), na.rm = TRUE)
+	    for (name in condition_names) { # iterate over condition screens
+	      resid <- condition_residuals[[name]] # get the differential LFC matrix for the current condition screen
+	      # calculate target standard deviation per screen(SD of scores between 10%-90% percentiles)
+	      lfc_range <- stats::quantile(resid, probs = c(0.1, 0.9), na.rm = TRUE) 
 	      target_sd <- stats::sd(resid[resid > lfc_range[1] & resid < lfc_range[2]], na.rm = TRUE)
+	      # normalize target standard deviation
 	      sd_scale_factor <- mean(target_sd)
 	      target_sd <- target_sd / sd_scale_factor
+	      # normalize per-screen dlfc scores by target standard deviation 
 	      condition_residuals[[name]] <- resid / target_sd
+	      # mean-collapse differential LFC scores across guides and replicates for each gene
+	      # update dLFC column for the condition screen in scores dataframe
 	      scores[[paste0("differential_", name, "_vs_", control_name)]] <- rowMeans(condition_residuals[[name]],na.rm = TRUE)
 	    } 
 	  }
