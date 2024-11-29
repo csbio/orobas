@@ -242,6 +242,13 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
       scores[[paste0("pval_", name, "_vs_", control_name)]] <- p_val # update pval column for control screen in scores dataframe
     }   
   }
+
+  # Correct p-values for multiple testing and add a new column with FDR values
+  # update FDR column for control screen in scores dataframe
+  for (name in condition_names) {
+    scores[[paste0("fdr_", name, "_vs_", control_name)]] <- 
+      stats::p.adjust(scores[[paste0("pval_", name, "_vs_", control_name)]], method = fdr_method)
+  }
   
   # Scales moderate effects in top and bottom 10% of data to de-emphasize those if a scaling factor is provided. 
   # The mean to divide SD values by is a pre-computed scalar
@@ -263,13 +270,6 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 	    } 
 	  }
 	}
-  
-  # Correct p-values for multiple testing 
-  # update FDR column for control screen in scores dataframe
-  for (name in condition_names) {
-    scores[[paste0("fdr_", name, "_vs_", control_name)]] <- 
-      stats::p.adjust(scores[[paste0("pval_", name, "_vs_", control_name)]], method = fdr_method)
-  }
   
   # Explicitly returns scored data
   output <- list()
