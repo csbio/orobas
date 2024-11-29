@@ -245,16 +245,18 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
   
   # Scales moderate effects in top and bottom 10% of data to de-emphasize those if a scaling factor is provided. 
   # The mean to divide SD values by is a pre-computed scalar
-  if (!is.null(sd_scale_factor)) {
-    for (name in condition_names) {
-      resid <- condition_residuals[[name]]
-      lfc_range <- stats::quantile(resid, probs = c(0.1, 0.9), na.rm = TRUE)
-      target_sd <- stats::sd(resid[resid > lfc_range[1] & resid < lfc_range[2]], na.rm = TRUE)
-      target_sd <- target_sd / sd_scale_factor
-      condition_residuals[[name]] <- resid / target_sd
-      scores[[paste0("differential_", name, "_vs_", control_name)]] <- rowMeans(condition_residuals[[name]],na.rm = TRUE)
-    } 
-  }
+	if (test == "moderated-t") {
+	  if (!is.null(sd_scale_factor)) {
+	    for (name in condition_names) {
+	      resid <- condition_residuals[[name]]
+	      lfc_range <- stats::quantile(resid, probs = c(0.1, 0.9), na.rm = TRUE)
+	      target_sd <- stats::sd(resid[resid > lfc_range[1] & resid < lfc_range[2]], na.rm = TRUE)
+	      target_sd <- target_sd / sd_scale_factor
+	      condition_residuals[[name]] <- resid / target_sd
+	      scores[[paste0("differential_", name, "_vs_", control_name)]] <- rowMeans(condition_residuals[[name]],na.rm = TRUE)
+	    } 
+	  }
+	}
   
   # Correct p-values for multiple testing 
   # update FDR column for control screen in scores dataframe
