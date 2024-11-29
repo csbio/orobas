@@ -105,15 +105,15 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
   # differential_: differential LFC scores calculated against control screen
   # pval_: significance of differential score, fdr_: pval corrected for multiple test, significant_: annotate if DLFC is significant or not
   for (name in condition_names) {
-    new_cols <- c(new_cols, c(
-      paste0("n_", name), 
-      paste0("mean_", name),
-      paste0("variance_", name),
-      paste0("differential_", name, "_vs_", control_name),
-      paste0("pval_", name, "_vs_", control_name),
-      paste0("fdr_", name, "_vs_", control_name),
-      paste0("significant_", name, "_vs_", control_name)
-    ))
+	    new_cols <- c(new_cols, c(
+	      paste0("n_", name), 
+	      paste0("mean_", name),
+	      paste0("variance_", name),
+	      paste0("differential_", name, "_vs_", control_name),
+	      paste0("pval_", name, "_vs_", control_name),
+	      paste0("fdr_", name, "_vs_", control_name),
+	      paste0("significant_", name, "_vs_", control_name)
+	    ))
   }
   scores[new_cols] <- NA
   
