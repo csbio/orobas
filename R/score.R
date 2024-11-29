@@ -86,8 +86,8 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 	condition_names <- c()
 	condition_cols <- list()
 	for (condition in condition_screen_names) {
-	condition_names <- c(condition_names, condition)
-	condition_cols[[condition]] <- screens[[condition]][["replicates"]]
+		condition_names <- c(condition_names, condition)
+		condition_cols[[condition]] <- screens[[condition]][["replicates"]]
 	}
 	
 	# Removes control genes from the LFC dataframe
@@ -297,18 +297,18 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 		}
 	}
   
-  # Explicitly returns scored data
-  output <- list()
-  output[["scored_data"]] <- scores
-  if (return_residuals & loess) {
-    output[["residuals"]] <- loess_residuals
-  } else if (return_residuals) {
-    cat("WARNING: returning residuals is currently only supported with loess-normalization enabled\n")
-    output[["residuals"]] <- NA
-  } else {
-    output[["residuals"]] <- NA
-  }
-  return(output)
+	# Explicitly returns scored data
+	output <- list()
+	output[["scored_data"]] <- scores
+	if (return_residuals & loess) {
+	output[["residuals"]] <- loess_residuals
+	} else if (return_residuals) {
+	cat("WARNING: returning residuals is currently only supported with loess-normalization enabled\n")
+	output[["residuals"]] <- NA
+	} else {
+	output[["residuals"]] <- NA
+	}
+	return(output)
 }
 
 #' Call significant responses for scored chemogenomic data.
@@ -435,58 +435,61 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
                               save_residuals = FALSE, plot_residuals = TRUE, 
                               plot_type = "png", verbose = FALSE) {
   
-  # Creates output folder if nonexistent
-  if (!dir.exists(output_folder)) { dir.create(output_folder, recursive = TRUE) }
-  
-  # Checks format of batch file
-  
-  first_file <- utils::read.table(file = batch_file, header = F, nrows = 1, sep = "\t", encoding = "UTF-8")
-  batch <- NULL
-  if (ncol(first_file) == 2) {
-    check_batch_file(batch_file, screens)  
-  } else {
-    stop(paste("file", batch_file, "must contain exactly 2 columns (see score_drugs_batch documentation)"))
-  }
-  batch <- utils::read.csv(batch_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
-  
-  # Scores guides for each batch
+	# Create output folder if nonexistent
+	if (!dir.exists(output_folder)) { dir.create(output_folder, recursive = TRUE) }
+	
+	# Check format of batch file
+	first_file <- utils::read.table(file = batch_file, header = F, nrows = 1, sep = "\t", encoding = "UTF-8")
+	batch <- NULL
+	if (ncol(first_file) == 2) {
+		check_batch_file(batch_file, screens)  
+	} else {
+		stop(paste("file", batch_file, "must contain exactly 2 columns (see score_drugs_batch documentation)"))
+	}
+	# read batch file
+	batch <- utils::read.csv(batch_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
+	
+	# Score each condition screen separately
 	all_scores <- NULL
-	for (i in 1:nrow(batch)) {
+	for (i in 1:nrow(batch)) { # iterate over the condition screens listed in the batch file
 	
-	# Makes output folders if nonexistent
-	lfc_folder <- file.path(output_folder, "lfc")
-	plot_folder <- file.path(output_folder, "plots")
-	if (!dir.exists(lfc_folder)) { dir.create(lfc_folder) }
-	if (!dir.exists(plot_folder)) { dir.create(plot_folder) }
+		# Make output folders if nonexistent
+		lfc_folder <- file.path(output_folder, "lfc")
+		plot_folder <- file.path(output_folder, "plots")
+		if (!dir.exists(lfc_folder)) { dir.create(lfc_folder) }
+		if (!dir.exists(plot_folder)) { dir.create(plot_folder) }
 	
-	# Scores each screen separately
-	condition <- batch[i,1]
-	control <- batch[i,2]
-	temp <- score_drugs_vs_control(df, screens, control, condition, test = test, 
-				     min_guides = min_guides, 
-				     loess = loess, 
-				     ma_transform = ma_transform, 
-				     control_genes = control_genes, 
-				     fdr_method = fdr_method, 
-				     sd_scale = sd_scale,
-				     verbose = verbose)
-	scores <- temp[["scored_data"]]
-	residuals <- temp[["residuals"]]
-	scores <- call_drug_hits(scores, control, condition,
-			       neg_type = neg_type, pos_type = pos_type,
-			       fdr_threshold_positive = fdr_threshold_positive, 
-				 fdr_threshold_negative = fdr_threshold_negative, 
-			       differential_threshold_positive = differential_threshold_positive,
-				 differential_threshold_negative = differential_threshold_negative
-				)
-	plot_drug_response(scores, 
-			 control_name = control, 
-			 condition_name = condition, 
-			 output_folder = plot_folder,
-			 neg_type = neg_type, 
-			 pos_type = pos_type,
-			 plot_type = plot_type, 
-			 label_fdr_threshold = label_fdr_threshold)
+		
+		condition <- batch[i,1] # get current condition screen name
+		control <- batch[i,2] # get associated control screen name
+		# call score_drugs_vs_control() to produce data frame of various scores (score condition screen against the control screen)
+		temp <- score_drugs_vs_control(df, screens, control, condition, test = test, 
+					     min_guides = min_guides, 
+					     loess = loess, 
+					     ma_transform = ma_transform, 
+					     control_genes = control_genes, 
+					     fdr_method = fdr_method, 
+					     sd_scale = sd_scale,
+					     verbose = verbose)
+		scores <- temp[["scored_data"]] # scored data returned by score_drugs_vs_control()
+		residuals <- temp[["residuals"]] 
+		# call call_drug_hits() to add information to significant and effect-type columns indicating significant positive and negative interactions that meet the provided cut-offs
+		scores <- call_drug_hits(scores, control, condition,
+				       neg_type = neg_type, pos_type = pos_type,
+				       fdr_threshold_positive = fdr_threshold_positive, 
+					 fdr_threshold_negative = fdr_threshold_negative, 
+				       differential_threshold_positive = differential_threshold_positive,
+					 differential_threshold_negative = differential_threshold_negative
+					)
+		# plot 
+		plot_drug_response(scores, 
+				 control_name = control, 
+				 condition_name = condition, 
+				 output_folder = plot_folder,
+				 neg_type = neg_type, 
+				 pos_type = pos_type,
+				 plot_type = plot_type, 
+				 label_fdr_threshold = label_fdr_threshold)
 	if (plot_residuals) {
 	if (!is.na(residuals)) {
 	  plot_drug_residuals(scores, residuals, control, condition, lfc_folder, 
@@ -515,5 +518,5 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 	utils::write.table(all_scores, file.path(output_folder, "condition_gene_calls.tsv"), sep = "\t",
 			 row.names = FALSE, col.names = TRUE, quote = FALSE) 
 	} 
-  
+	
 }
