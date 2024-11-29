@@ -208,7 +208,7 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 			
 			} else if (test == "moderated-t") { # If 'moderated-t' test is specified
 				#create temporary list to store loess-normalized differential LFC values of current condition screen replicates
-				loess_residual_rep = c() 
+				#loess_residual_rep = c() 
 				condition_reps = condition_cols[[name]] # get condition replicate names
 				for(rep_index in c(1:length(condition_reps))){ # iterate over condition replicates
 					
@@ -224,7 +224,7 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 						condition_residuals[[name]][i, paste0("guide_residual_", 1:max_guides,'_', rep(condition_reps[rep_index], max_guides))] <- resid
 						
 						# update temporary list with mean of guide-level loess-normalized differential LFC values of current condition screen replicate 
-						loess_residual_rep <- c(loess_residual_rep, mean(resid, na.rm = TRUE))
+						#loess_residual_rep <- c(loess_residual_rep, mean(resid, na.rm = TRUE))
 					
 					}else{ # if 'loess' parameter is FALSE
 						# calculate differential LFC by directly subtracting control replicate LFC score from condition replicate LFC score - replicates matched by index
