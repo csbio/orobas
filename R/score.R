@@ -347,15 +347,24 @@ call_drug_hits <- function(scores, control_screen_name, condition_screen_names,
 		condition_names <- c(condition_names, condition)
 	}
   
-	# Call significant differences for each condition against the control
-	# if the fdr score is less than the fdr_threshold_positive or fdr_threshold_negative parameters 
+	# Update 'significant' column for each condition against the control
+	# significance call for positive and negative dLFCs are handled differently
+	# if the fdr score < fdr_threshold_positive and differential score > 0  set significant to TRUE
+	# if the fdr score < fdr_threshold_negative and differential score < 0  set significant to TRUE
 	for (name in condition_names) {
 		scores[[paste0("significant_", name, "_vs_", control_name)]] <- 
-		(scores[[paste0("fdr_", name, "_vs_", control_name)]] < fdr_threshold_positive) |
-		(scores[[paste0("fdr_", name, "_vs_", control_name)]] < fdr_threshold_negative) 
-		}
+		(scores[[paste0("fdr_", name, "_vs_", control_name)]] < fdr_threshold_positive) & 
+		(scores[[paste0("differential_", name, "_vs_", control_name)]] > 0) 
+		
+		scores[[paste0("significant_", name, "_vs_", control_name)]] <- 
+		(scores[[paste0("significant_", name, "_vs_", control_name)]] == TRUE) |
+		((scores[[paste0("fdr_", name, "_vs_", control_name)]] < fdr_threshold_negative) & 
+		(scores[[paste0("differential_", name, "_vs_", control_name)]] < 0)) 
+	}
 	
-	# Makes thresholded calls for significant negative and positive effects
+	# update 'effect_type_' column based on 'significant_' column and differential score thresholds
+	# if signifinant = TRUE and differential score < differential_threshold_negative, then set type to negative
+	# if signifinant = TRUE and differential score > differential_threshold_positive, then set type to positive
 	for (name in condition_names) {
 		response_col <- paste0("effect_type_", name)
 		scores[[response_col]] <- "None"
@@ -363,10 +372,10 @@ call_drug_hits <- function(scores, control_screen_name, condition_screen_names,
 		sig <- scores[[paste0("significant_", name, "_vs_", control_name)]]
 		scores[[response_col]][sig & diffs < differential_threshold_negative] <- neg_type
 		scores[[response_col]][sig & diffs > differential_threshold_positive] <- pos_type
-		}
+	}
   
-  # Explicitly returns scored data
-  return(scores)
+	# return updated scores dataframe
+	return(scores)
 }
 
 #' Scores multiple drugs against multiple controls
