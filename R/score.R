@@ -168,39 +168,39 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 		gene <- unique_genes[i] # get the current gene
 		guide_vals <- df[df$gene == gene,] # get the rows associated with the current gene from the LFC dataframe, each row corresponds to a guide
 		scores$gene[i] <- gene # update output scores dataframe to add current gene name
-		rep_mean_control <- rowMeans(data.frame(guide_vals[control_cols]), na.rm = TRUE) # mean-collapse control screen replicate LFC scores - one value per guide
+		rep_mean_control <- rowMeans(data.frame(guide_vals[control_cols]), na.rm = TRUE) # mean-collapse control screen LFC scores across replicates - one value per guide
 		keep_ind <- !is.nan(rep_mean_control) # get indexes with non-nan mean values
 		rep_mean_control <- rep_mean_control[keep_ind] # keep guides with non-nan mean values - in this way guides with all nan values will not be selected
 		
 		# Skip adding scores for current gene - if total guides that have non-nan control-replicate LFC means are fewer than a cutoff. 
 		# If all control replicates for a guide have nan LFC values it will result in a nan control-replicate LFC mean for that guide. 
 		# The cut-off is defined by the parameter min_guides (default = 3).
-		# The gene will have nan values in the output scores dataframe in all columns
+		# The gene will have nan values in the output scores dataframe
 		if (length(rep_mean_control) < min_guides) {
 			next
 		}
 		
 		# Takes the mean across replicates for all conditions
-		for (name in condition_names) {
-			# Gets residual LFCs across replicates after removing NaNs
-			rep_mean_condition <- rowMeans(data.frame(guide_vals[condition_cols[[name]]]), na.rm = TRUE)
-			rep_mean_condition <- rep_mean_condition[keep_ind]
-			rep_mean_condition[is.nan(rep_mean_condition)] <- NA
-			diff <- rep_mean_condition - rep_mean_control
+		for (name in condition_names) { # iterate over condition screens
+			# mean-collapse condition screen LFC scores across replicates - one value per guide
+			rep_mean_condition <- rowMeans(data.frame(guide_vals[condition_cols[[name]]]), na.rm = TRUE) 
+			rep_mean_condition <- rep_mean_condition[keep_ind] # only keep guides where 'control-replicate LFC means' are non-nan
+			rep_mean_condition[is.nan(rep_mean_condition)] <- NA # set NA if condition-replicate LFC mean is nan
+			diff <- rep_mean_condition - rep_mean_control # Calculate guide-level differential LFC scores - one value per guide
 			
-			# Stores gene-level stats
-			scores[[paste0("n_", control_name)]][i] <- length(rep_mean_control)
-			scores[[paste0("n_", name)]][i] <- length(rep_mean_condition)
-			scores[[paste0("mean_", control_name)]][i] <- mean(rep_mean_control, na.rm = TRUE)
-			scores[[paste0("mean_", name)]][i] <- mean(rep_mean_condition, na.rm = TRUE)
-			scores[[paste0("variance_", control_name)]][i] <- stats::var(rep_mean_control, na.rm = TRUE)
-			scores[[paste0("variance_", name)]][i] <- stats::var(rep_mean_condition, na.rm = TRUE)
-			scores[[paste0("differential_", name, "_vs_", control_name)]][i] <- mean(diff, na.rm = TRUE)      
+			# Update output scores dataframe to gene-level values
+			scores[[paste0("n_", control_name)]][i] <- length(rep_mean_control) # Total number of control guides contributing to scores
+			scores[[paste0("n_", name)]][i] <- length(rep_mean_condition) # Total number of condition guides contributing to scores (should be same as Total number of control guides contributing to scores)
+			scores[[paste0("mean_", control_name)]][i] <- mean(rep_mean_control, na.rm = TRUE) # mean-collapse the guide-level control LFC scores
+			scores[[paste0("mean_", name)]][i] <- mean(rep_mean_condition, na.rm = TRUE) # mean-collapse the guide-level condition LFC scores
+			scores[[paste0("variance_", control_name)]][i] <- stats::var(rep_mean_control, na.rm = TRUE) # calculate variance of guide-level control LFC scores
+			scores[[paste0("variance_", name)]][i] <- stats::var(rep_mean_condition, na.rm = TRUE)  # calculate variance of guide-level condition LFC scores
+			scores[[paste0("differential_", name, "_vs_", control_name)]][i] <- mean(diff, na.rm = TRUE) # mean-collapse the guide-level differential LFC scores    
 			
-			# Performs the specified type of testing or stores residuals for later testing
-			if (test == "rank-sum") {
-			scores[[paste0("pval_", name, "_vs_", control_name)]][i] <- 
-			  suppressWarnings(stats::wilcox.test(rep_mean_condition, rep_mean_control))$p.value
+			# Perform the specified type of testing or stores residuals for later testing
+			if (test == "rank-sum") { #
+				scores[[paste0("pval_", name, "_vs_", control_name)]][i] <- 
+				  suppressWarnings(stats::wilcox.test(rep_mean_condition, rep_mean_control))$p.value
 			} else if (test == "moderated-t") {
 				loess_residual_rep = c()
 				condition_reps = condition_cols[[name]]
