@@ -227,20 +227,21 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 						loess_residual_rep <- c(loess_residual_rep, mean(resid, na.rm = TRUE))
 					
 					}else{ # if 'loess' parameter is FALSE
+						# calculate differential LFC by directly subtracting control replicate LFC score from condition replicate LFC score - replicates matched by index
 						resid <- guide_vals[condition_reps[rep_index]] - guide_vals[control_cols[rep_index]]
 						resid <- resid[[condition_reps[rep_index]]] 
 						
-						# update the condition_residuals matrix (that was created previously to store differential LFC scores)
+						# update the condition_residuals matrix (that was created previously to store differential LFC scores) with dLFC score
 						if (length(resid) < max_guides) { # Pad temporary vector that stores guide-level dLFC with NAs to make size equal to max-guides
 							resid <- c(resid, rep(NA, max_guides - length(resid))) 
 						} 
 						condition_residuals[[name]][i, paste0("guide_residual_", 1:max_guides,'_', rep(condition_reps[rep_index], max_guides))] <- resid 
 					}
 				}
-				if (loess) { # if 'loess' parameter is TRUE use the loess-normalized differential LFC scores calculated previously
-					# Update differential LFC values with mean-collapsed Loess-normalized differential LFC values across replicates
-					scores[[paste0("differential_", name, "_vs_", control_name)]][i] <- mean(loess_residual_rep, na.rm = TRUE)
-				}
+				#if (loess) { # if 'loess' parameter is TRUE use the loess-normalized differential LFC scores calculated previously
+					## Update differential LFC values with mean-collapsed Loess-normalized differential LFC values across replicates
+					#scores[[paste0("differential_", name, "_vs_", control_name)]][i] <- mean(loess_residual_rep, na.rm = TRUE)
+				#}
 			}
 		}
 	}
