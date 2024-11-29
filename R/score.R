@@ -78,8 +78,9 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 	if (verbose) {
 	cat(paste("Preparing to score...\n"))
 	}
-	control_name <- control_screen_name # Get name of control screen
-	control_cols <- screens[[control_name]][["replicates"]] # Get control screen replicate names (data originally from sample table tsv file)
+	# Get name of control screen and get control screen replicate names (data originally from sample table tsv file)
+	control_name <- control_screen_name 
+	control_cols <- screens[[control_name]][["replicates"]] 
 	
 	# Get condition screen names and replicates (There can be multiple condition screens; data originally from sample table tsv file)	
 	condition_names <- c()
@@ -341,14 +342,15 @@ call_drug_hits <- function(scores, control_screen_name = NULL, condition_screen_
 			   differential_threshold_positive = 0, differential_threshold_negative = 0,
                            neg_type = "Negative", pos_type = "Positive") {
   
-  # Gets condition names and columns for any number of conditions
-  control_name <- control_screen_name
-  condition_names <- c()
-  for (condition in condition_screen_names) {
-    condition_names <- c(condition_names, condition)
-  }
+	# Get name of control screen, condition screen, and condition screen replicate names (data originally from sample table tsv file)
+	control_name <- control_screen_name
+	condition_names <- c()
+	for (condition in condition_screen_names) {
+		condition_names <- c(condition_names, condition)
+	}
   
-	# Calls significant differences for each condition against the control
+	# Call significant differences for each condition against the control
+	# if the fdr score is less than the fdr_threshold_positive or fdr_threshold_negative parameters 
 	for (name in condition_names) {
 		scores[[paste0("significant_", name, "_vs_", control_name)]] <- 
 		(scores[[paste0("fdr_", name, "_vs_", control_name)]] < fdr_threshold_positive) |
