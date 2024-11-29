@@ -136,24 +136,28 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
     }
   }
   
-  # Pairwise LOESS smoothing
-  # Computes loess-normalized residuals if specified
+  # Pairwise LOESS smoothing - pair-wise control-condition replicates
+  # Compute loess-normalized differential LFC scores if specified and store them in a dataframe
   loess_residuals <- NULL
-  if (loess & test == "moderated-t") {
-    loess_residuals <- data.frame(gene = df$gene) # get gene names from main dataframe
-    for (name in condition_names) {
-      condition_reps=condition_cols[[name]]
-      for(rep_index in c(1:length(condition_reps))){ # pair-wise control-condition rep extracted with index
-        control_values <- df[,paste0(control_cols[rep_index])]  #get control replicate scores from main dataframe
-        rep = paste0(condition_reps[rep_index])
-        condition_values <- df[,rep] # get condition replicate scores from main dataframe
-        ##################loess qGI_utils.R#########################
-        temp <- loess_MA(control_values, condition_values, ma_transform = ma_transform)
-        #####################################################
-        loess_residuals[[paste0("loess_residual_", name,'_',rep)]] <- temp[["residual"]]
-        loess_residuals[[paste0("loess_predicted_", name,'_',rep)]] <- temp[["predicted"]]
-      }
-    }
+  if (loess & test == "moderated-t") {	  
+	  # Create dataframe to store loess normalized differential LFC scores
+	  loess_residuals <- data.frame(gene = df$gene) # get gene names from LFC dataframe
+	  for (name in condition_names) { # iterate over condition screens
+		# Extract condition screen replicate names 
+	  	condition_reps=condition_cols[[name]] 
+		for(rep_index in c(1:length(condition_reps))){ # pair-wise control-condition replicates are extracted using index
+			#get control replicate LFC scores from LFC dataframe
+			control_values <- df[,paste0(control_cols[rep_index])]  
+			# get condition replicate LFC scores from LFC dataframe
+			rep = paste0(condition_reps[rep_index])
+			condition_values <- df[,rep] 
+			# Apply loess normalization from qGI_utils.R
+			temp <- loess_MA(control_values, condition_values, ma_transform = ma_transform)
+			# store loess normalized scores
+			loess_residuals[[paste0("loess_residual_", name,'_',rep)]] <- temp[["residual"]]
+			loess_residuals[[paste0("loess_predicted_", name,'_',rep)]] <- temp[["predicted"]]
+		}
+	}
   }
   
   # Scores guides for each condition
