@@ -314,12 +314,10 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 #' Call significant responses for scored chemogenomic data.
 #' 
 #' Run this to call significant responses for data returned from 
-#' \code{score_drugs_vs_control} or \code{score_drugs_vs_controls}.
+#' \code{score_drugs_vs_control}.
 #' 
-#' @param scores Dataframe returned from \code{score_drugs_vs_control} or 
-#'   \code{score_drugs_vs_controls}.
-#' @param control_screen_name Name of a control screen to test condition screens against, 
-#'   or NULL to score data returned from \code{score_drugs_vs_controls}.
+#' @param scores Dataframe returned from \code{score_drugs_vs_control}
+#' @param control_screen_name Name of a control screen to test condition screens against
 #' @param condition_screen_names A list of condition screen names to score against the 
 #'   control screen.
 #' @param fdr_threshold_positive Threshold below which to call gene effects as significant positive hits
@@ -337,7 +335,7 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 #' @return Dataframe of scored data with differential effects called as significant
 #'   for the specified conditions. 
 #' @export
-call_drug_hits <- function(scores, control_screen_name = NULL, condition_screen_names = NULL,
+call_drug_hits <- function(scores, control_screen_name, condition_screen_names,
                            fdr_threshold_positive  = 0.1, fdr_threshold_negative = 0.1,
 			   differential_threshold_positive = 0, differential_threshold_negative = 0,
                            neg_type = "Negative", pos_type = "Positive") {
