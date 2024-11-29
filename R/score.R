@@ -117,7 +117,7 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 	}
 	scores[new_cols] <- NA
   
-	# Make a dataframe for each condition screen to store differential LFC scores(if the significance test is moderated-t)
+	# Make a dataframe for each condition screen to store differential LFC scores later (if the significance test is moderated-t)
 	max_guides <- -1
 	condition_residuals <- list()
 	if (test == "moderated-t") { # if significance test is moderated-t
@@ -131,7 +131,7 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 			  residual_df <- data.frame(matrix(nrow = n_genes, ncol = max_guides*length(condition_reps))) # ncol = max_guides*total_replicate
 			  # Set column names. "guide_residual_guide#_replicate-name". 
 			  # colname distribution example for max_guide 4 and total replicate # 3: 1 1 1 2 2 2 3 3 3 4 4 4. biological replicates (guides) are gathered together
-			  colnames(residual_df) <- paste0("guide_residual_", rep(1:max_guides,each=length(condition_reps)),'_', condition_reps) # version2
+			  colnames(residual_df) <- paste0("guide_residual_", rep(1:max_guides,each=length(condition_reps)),'_', condition_reps)
 			  condition_residuals[[name]] <- residual_df
 		  }
 	}
@@ -161,21 +161,23 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 		}
 	}
   
-	  # Scores guides for each condition
-
-	for (i in 1:n_genes) {
-		# Gets gene names and control guide values across replicates and removes 
-		# NaNs introduced by missing guides
-		gene <- unique_genes[i]
-		guide_vals <- df[df$gene == gene,]
-		scores$gene[i] <- gene
-		rep_mean_control <- rowMeans(data.frame(guide_vals[control_cols]), na.rm = TRUE)
-		keep_ind <- !is.nan(rep_mean_control)
-		rep_mean_control <- rep_mean_control[keep_ind]
+	# calculate various scores and update output scores per gene across condition screens
+	for (i in 1:n_genes) { # iterate over unique gene indexes
+		# Gets gene names and control guide values across replicates and removes NaNs introduced by missing guides
+		# 
+		gene <- unique_genes[i] # get the current gene
+		guide_vals <- df[df$gene == gene,] # get the rows associated with the current gene from the LFC dataframe, each row corresponds to a guide
+		scores$gene[i] <- gene # update output scores dataframe to add current gene name
+		rep_mean_control <- rowMeans(data.frame(guide_vals[control_cols]), na.rm = TRUE) # mean-collapse control screen replicate LFC scores - one value per guide
+		keep_ind <- !is.nan(rep_mean_control) # get indexes with non-nan mean values
+		rep_mean_control <- rep_mean_control[keep_ind] # keep guides with non-nan mean values - in this way guides with all nan values will not be selected
 		
-		# Skips if too few guides
+		# Skip adding scores for current gene - if total guides that have non-nan control-replicate LFC means are fewer than a cutoff. 
+		# If all control replicates for a guide have nan LFC values it will result in a nan control-replicate LFC mean for that guide. 
+		# The cut-off is defined by the parameter min_guides (default = 3).
+		# The gene will have nan values in the output scores dataframe in all columns
 		if (length(rep_mean_control) < min_guides) {
-		next
+			next
 		}
 		
 		# Takes the mean across replicates for all conditions
