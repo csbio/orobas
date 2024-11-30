@@ -419,7 +419,7 @@ call_drug_hits <- function(scores, control_screen_name, condition_screen_names,
 #'   hits, or NULL to plot without labels (default NULL).
 #' @param save_residuals If true, saves residuals for each screen to the output folder
 #'   (default FALSE).
-#' @param plot_residuals If true, plots residual effects for all top hits (default TRUE).
+#' @param plot_residuals If true, plots residual effects for all top hits (default FALSE).
 #' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
 #' @param verbose If true, prints verbose output (default FALSE). 
 #' @export
@@ -432,7 +432,7 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 			      differential_threshold_positive = 0, differential_threshold_negative = 0,
 			      neg_type = "Negative", 
                               pos_type = "Positive", label_fdr_threshold = NULL,
-                              save_residuals = FALSE, plot_residuals = TRUE, 
+                              save_residuals = FALSE, plot_residuals = FALSE, 
                               plot_type = "png", verbose = FALSE) {
   
 	# Create output folder if nonexistent
