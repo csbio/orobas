@@ -493,15 +493,15 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 				 plot_type = plot_type, 
 				 label_fdr_threshold = label_fdr_threshold)
 		
-		if (plot_residuals) {
-			if (!is.na(residuals)) {
-				plot_drug_residuals(scores, residuals, control, condition, lfc_folder, 
-						      neg_type = neg_type, pos_type = pos_type,
-						      plot_type = plot_type) 
-			} else {
-			  	cat("WARNING: residuals are set to NA, skipping residual plots\n")
-			}
-		}
+		#if (plot_residuals) {
+			#if (!is.na(residuals)) {
+				#plot_drug_residuals(scores, residuals, control, condition, lfc_folder, 
+						      #neg_type = neg_type, pos_type = pos_type,
+						      #plot_type = plot_type) 
+			#} else {
+			  	#cat("WARNING: residuals are set to NA, skipping residual plots\n")
+			#}
+		#}
 		if (save_residuals) {
 			if (!is.na(residuals)) {
 				residuals_file <- paste0(condition, "_vs_", control, "_residuals.tsv")
