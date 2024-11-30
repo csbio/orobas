@@ -473,6 +473,7 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 					     verbose = verbose)
 		scores <- temp[["scored_data"]] # scored data returned by score_drugs_vs_control()
 		residuals <- temp[["residuals"]] 
+		
 		# call call_drug_hits() to add information to significant and effect-type columns indicating significant positive and negative interactions that meet the provided cut-offs
 		scores <- call_drug_hits(scores, control, condition,
 				       neg_type = neg_type, pos_type = pos_type,
@@ -481,7 +482,8 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 				       differential_threshold_positive = differential_threshold_positive,
 					 differential_threshold_negative = differential_threshold_negative
 					)
-		# plot 
+		
+		# plot drug responses 
 		plot_drug_response(scores, 
 				 control_name = control, 
 				 condition_name = condition, 
@@ -490,30 +492,36 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 				 pos_type = pos_type,
 				 plot_type = plot_type, 
 				 label_fdr_threshold = label_fdr_threshold)
-	if (plot_residuals) {
-	if (!is.na(residuals)) {
-	  plot_drug_residuals(scores, residuals, control, condition, lfc_folder, 
-			      neg_type = neg_type, pos_type = pos_type,
-			      plot_type = plot_type) 
-	} else {
-	  cat("WARNING: residuals are set to NA, skipping residual plots\n")
+		
+		if (plot_residuals) {
+			if (!is.na(residuals)) {
+				plot_drug_residuals(scores, residuals, control, condition, lfc_folder, 
+						      neg_type = neg_type, pos_type = pos_type,
+						      plot_type = plot_type) 
+			} else {
+			  	cat("WARNING: residuals are set to NA, skipping residual plots\n")
+			}
+		}
+		if (save_residuals) {
+			if (!is.na(residuals)) {
+				residuals_file <- paste0(condition, "_vs_", control, "_residuals.tsv")
+				utils::write.table(residuals, file.path(output_folder, residuals_file), sep = "\t",
+						     row.names = FALSE, col.names = TRUE, quote = FALSE) 
+			} else {
+				cat("WARNING: residuals are set to NA, skipping writing residuals to file\n")
+			}
+		}
+
+		# Merge scores from all condition screens listed in the batch file
+		if (is.null(all_scores)) {
+			all_scores <- scores
+		} else {
+			# The first column is gene which is stored only from the first temporary score dataframe, the following dataframes are merged from column 2
+			all_scores <- cbind(all_scores, scores[,2:ncol(scores)]) 
+		}
 	}
-	}
-	if (save_residuals) {
-	if (!is.na(residuals)) {
-	  residuals_file <- paste0(condition, "_vs_", control, "_residuals.tsv")
-	  utils::write.table(residuals, file.path(output_folder, residuals_file), sep = "\t",
-			     row.names = FALSE, col.names = TRUE, quote = FALSE) 
-	} else {
-	  cat("WARNING: residuals are set to NA, skipping writing residuals to file\n")
-	}
-	}
-	if (is.null(all_scores)) {
-	all_scores <- scores
-	} else {
-	all_scores <- cbind(all_scores, scores[,3:ncol(scores)])
-	}
-	}
+	
+	# write final scores to file named "condition_gene_calls.tsv"
 	if (!is.null(all_scores)) {
 	utils::write.table(all_scores, file.path(output_folder, "condition_gene_calls.tsv"), sep = "\t",
 			 row.names = FALSE, col.names = TRUE, quote = FALSE) 
