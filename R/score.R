@@ -505,7 +505,7 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 		if (save_residuals) {
 			if (!is.null(residuals)) {
 				residuals_file <- paste0(condition, "_vs_", control, "_residuals.tsv")
-				utils::write.table(residuals, file.path(output_folder, residuals_file), sep = "\t",
+				utils::write.table(residuals, file.path(lfc_folder, residuals_file), sep = "\t",
 						     row.names = FALSE, col.names = TRUE, quote = FALSE) 
 			} else {
 				cat("WARNING: residuals are set to NA, skipping writing residuals to file\n")
