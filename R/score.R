@@ -304,9 +304,9 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 	output[["residuals"]] <- loess_residuals
 	} else if (return_residuals) {
 	cat("WARNING: returning residuals is currently only supported with loess-normalization enabled\n")
-	output[["residuals"]] <- NA
+	output[["residuals"]] <- NULL
 	} else {
-	output[["residuals"]] <- NA
+	output[["residuals"]] <- NULL
 	}
 	return(output)
 }
@@ -503,7 +503,7 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 			#}
 		#}
 		if (save_residuals) {
-			if (!is.na(residuals)) {
+			if (!is.null(residuals)) {
 				residuals_file <- paste0(condition, "_vs_", control, "_residuals.tsv")
 				utils::write.table(residuals, file.path(output_folder, residuals_file), sep = "\t",
 						     row.names = FALSE, col.names = TRUE, quote = FALSE) 
