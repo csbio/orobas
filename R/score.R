@@ -66,8 +66,7 @@ jackknife_outliers<-function(cond_res, threshold=2)
 #' @param verbose If true, prints verbose output (default FALSE). 
 #' @return A named list containing 3 dataframes. 
 #'   i) "scored_data": a dataframe containing scored data with separate columns given by the specified control and condition names.
-#'   ii) "residuals_post_jk": a dataframe containing guide-level and replicate-level differential LFCs scored for condition screen against control screen, after applying JK-outlier removal.
-#'   iii) "residuals_pre_jk": a dataframe containing guide-level and replicate-level differential LFCs scored for condition screen against control screen, before applying jk-outlier removal.
+#'   ii) "residuals_pre_jk": a dataframe containing guide-level and replicate-level differential LFCs scored for condition screen against control screen, before applying jk-outlier removal.
 #' @export
 score_drugs_vs_control <- function(df, screens, control_screen_name, condition_screen_names, 
                                    control_genes = c("None", ""), min_guides = 3, test = "moderated-t", 
@@ -303,19 +302,19 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 	output <- list()
 	output[["scored_data"]] <- scores
 	if (return_residuals & loess) {
-		residuals_df <- data.frame(gene = scores$gene)
-		residuals_df <- cbind(residuals_df, condition_residuals_post_jk[[name]])
-		output[["residuals_post_jk"]] <- residuals_df #loess_residuals
+		#residuals_df <- data.frame(gene = scores$gene)
+		#residuals_df <- cbind(residuals_df, condition_residuals_post_jk[[name]])
+		#output[["residuals_post_jk"]] <- residuals_df #loess_residuals
 		
 		residuals_df <- data.frame(gene = scores$gene)
 		residuals_df <- cbind(residuals_df, condition_residuals_pre_jk[[name]])
 		output[["residuals_pre_jk"]] <- residuals_df #loess_residuals
 	} else if (return_residuals) {
 		cat("WARNING: returning residuals is currently only supported with loess-normalization enabled\n")
-		output[["residuals_post_jk"]] <- NULL
+		#output[["residuals_post_jk"]] <- NULL
 		output[["residuals_pre_jk"]] <- NULL
 	} else {
-		output[["residuals_post_jk"]] <- NULL
+		#output[["residuals_post_jk"]] <- NULL
 		output[["residuals_pre_jk"]] <- NULL
 	}
 	return(output)
@@ -482,7 +481,7 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 					     sd_scale = sd_scale,
 					     verbose = verbose)
 		scores <- temp[["scored_data"]] # scored data returned by score_drugs_vs_control()
-		residuals_post_jk <- temp[["residuals_post_jk"]] 
+		#residuals_post_jk <- temp[["residuals_post_jk"]] 
 		residuals_pre_jk <- temp[["residuals_pre_jk"]]  
 		
 		# call call_drug_hits() to add information to significant and effect-type columns indicating significant positive and negative interactions that meet the provided cut-offs
@@ -503,21 +502,11 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 				 pos_type = pos_type,
 				 plot_type = plot_type, 
 				 label_fdr_threshold = label_fdr_threshold)
-		
-		#if (plot_residuals) {
-			#if (!is.na(residuals)) {
-				#plot_drug_residuals(scores, residuals, control, condition, lfc_folder, 
-						      #neg_type = neg_type, pos_type = pos_type,
-						      #plot_type = plot_type) 
-			#} else {
-			  	#cat("WARNING: residuals are set to NA, skipping residual plots\n")
-			#}
-		#}
 		if (save_residuals) {
 			if (!is.null(residuals_post_jk)) {
-				residuals_file <- paste0(condition, "_vs_", control, "_residuals.tsv")
-				utils::write.table(residuals_post_jk, file.path(lfc_folder, residuals_file), sep = "\t",
-						     row.names = FALSE, col.names = TRUE, quote = FALSE) 
+				#residuals_file <- paste0(condition, "_vs_", control, "_residuals.tsv")
+				#utils::write.table(residuals_post_jk, file.path(lfc_folder, residuals_file), sep = "\t",
+						     #row.names = FALSE, col.names = TRUE, quote = FALSE) 
 							 
 				residuals_file <- paste0(condition, "_vs_", control, "_residuals_pre_jk.tsv")
 				utils::write.table(residuals_pre_jk, file.path(lfc_folder, residuals_file), sep = "\t",
