@@ -17,22 +17,22 @@ scale_values <- function(x) {
 jackknife_outliers<-function(cond_res, threshold=2)
 {  
 	#Find and remove (set to NA) outlier for each gene
-  for(i in c(1:nrow(cond_res))){
-    x = as.numeric(as.vector(cond_res[i,])) #get differential scores for a gene for all replicate-guide pairs
-    var_all = var(x,na.rm = T) #calculate variance of differential scores across all replicate-guide pairs
-    
-	n <- length(x)
-    var_jk <- rep(0, n)
-	#For each replicate-guide pair, calculate variance excluding the differential score for that pair
-    for(j in 1:n) {
-      var_jk[j] <- var(x[ - j],na.rm = T)
-    }
-	#Find the replicate-guide pairs removing which decreses the variance a certain amount (threshold is applied here) 
-    rel = (var_all/var_jk) > threshold 
-    x[rel] <- NA #set values for the outliers to NA
-    cond_res[i,] <-x #update replicate-guide pair values for gene
-  }
-  return (cond_res)
+	for(i in c(1:nrow(cond_res))){
+		x = as.numeric(as.vector(cond_res[i,])) #get differential scores for a gene for all replicate-guide pairs
+		var_all = var(x,na.rm = T) #calculate variance of differential scores across all replicate-guide pairs
+		
+		n <- length(x)
+		var_jk <- rep(0, n)
+		#For each replicate-guide pair, calculate variance excluding the differential score for that pair
+		for(j in 1:n) {
+			var_jk[j] <- var(x[ - j],na.rm = T)
+		}
+		#Find the replicate-guide pairs removing which decreses the variance a certain amount (threshold is applied here) 
+		rel = (var_all/var_jk) > threshold 
+		x[rel] <- NA #set values for the outliers to NA
+		cond_res[i,] <-x #update replicate-guide pair values for gene
+	}
+	return (cond_res)
 }
 
 
@@ -255,7 +255,7 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 		scores[[paste0("differential_", name, "_vs_", control_name)]] <- rowMeans(condition_residuals[[name]],na.rm = TRUE)
 
 		#store residuals after applying jack-knife outlier removal
-		condition_residuals_post_jk[[name]] = condition_residuals[[name]]
+		#condition_residuals_post_jk[[name]] = condition_residuals[[name]]
 		
 	}
   
