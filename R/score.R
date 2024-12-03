@@ -66,7 +66,7 @@ jackknife_outliers<-function(cond_res, threshold=2)
 #' @param verbose If true, prints verbose output (default FALSE). 
 #' @return A named list containing 3 dataframes. 
 #'   i) "scored_data": a dataframe containing scored data with separate columns given by the specified control and condition names.
-#'   ii) "residuals_pre_jk": a dataframe containing guide-level and replicate-level differential LFCs scored for condition screen against control screen, before applying jk-outlier removal.
+#'   ii) "guide_dlfc_pre_jk": a dataframe containing guide-level and replicate-level differential LFCs scored for condition screen against control screen, before applying jk-outlier removal.
 #' @export
 score_drugs_vs_control <- function(df, screens, control_screen_name, condition_screen_names, 
                                    control_genes = c("None", ""), min_guides = 3, test = "moderated-t", 
@@ -304,18 +304,18 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 	if (return_residuals & loess) {
 		#residuals_df <- data.frame(gene = scores$gene)
 		#residuals_df <- cbind(residuals_df, condition_residuals_post_jk[[name]])
-		#output[["residuals_post_jk"]] <- residuals_df #loess_residuals
+		#output[["guide_dlfc_post_jk"]] <- residuals_df #loess_residuals
 		
 		residuals_df <- data.frame(gene = scores$gene)
 		residuals_df <- cbind(residuals_df, condition_residuals_pre_jk[[name]])
-		output[["residuals_pre_jk"]] <- residuals_df #loess_residuals
+		output[["guide_dlfc_pre_jk"]] <- residuals_df #loess_residuals
 	} else if (return_residuals) {
 		cat("WARNING: returning residuals is currently only supported with loess-normalization enabled\n")
-		#output[["residuals_post_jk"]] <- NULL
-		output[["residuals_pre_jk"]] <- NULL
+		#output[["guide_dlfc_post_jk"]] <- NULL
+		output[["guide_dlfc_pre_jk"]] <- NULL
 	} else {
-		#output[["residuals_post_jk"]] <- NULL
-		output[["residuals_pre_jk"]] <- NULL
+		#output[["guide_dlfc_post_jk"]] <- NULL
+		output[["guide_dlfc_pre_jk"]] <- NULL
 	}
 	return(output)
 }
@@ -426,7 +426,7 @@ call_drug_hits <- function(scores, control_screen_name, condition_screen_names,
 #'   (default "Positive").
 #' @param label_fdr_threshold Threshold below which to plot gene labels for significant
 #'   hits, or NULL to plot without labels (default NULL).
-#' @param save_residuals If true, saves residuals for each screen to the output folder
+#' @param save_guide_dlfc If true, saves guide-level dLFC scores for each condition screen to the output folder
 #'   (default FALSE).
 #' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
 #' @param verbose If true, prints verbose output (default FALSE). 
@@ -434,14 +434,15 @@ call_drug_hits <- function(scores, control_screen_name, condition_screen_names,
 score_drugs_batch <- function(df, screens, batch_file, output_folder, 
                               min_guides = 3, test = "moderated-t", 
                               loess = TRUE, ma_transform = TRUE,
-                              control_genes = c("None", ""), sd_scale = FALSE,
+                              control_genes = c("None", ""), 
+			      sd_scale = FALSE,
                               fdr_method = "BY", 
 			      fdr_threshold_positive  = 0.1, fdr_threshold_negative = 0.1,
 			      differential_threshold_positive = 0, differential_threshold_negative = 0,
 			      neg_type = "Negative", 
                               pos_type = "Positive", 
 			      label_fdr_threshold = NULL,
-                              save_residuals = FALSE, 
+                              save_guide_dlfc = FALSE, 
                               plot_type = "png", verbose = FALSE) {
   
 	# Create output folder if nonexistent
@@ -462,13 +463,6 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 	all_scores <- NULL
 	for (i in 1:nrow(batch)) { # iterate over the condition screens listed in the batch file
 	
-		# Make output folders if nonexistent
-		lfc_folder <- file.path(output_folder, "lfc")
-		plot_folder <- file.path(output_folder, "plots")
-		if (!dir.exists(lfc_folder)) { dir.create(lfc_folder) }
-		if (!dir.exists(plot_folder)) { dir.create(plot_folder) }
-	
-		
 		condition <- batch[i,1] # get current condition screen name
 		control <- batch[i,2] # get associated control screen name
 		# call score_drugs_vs_control() to produce data frame of various scores (score condition screen against the control screen)
@@ -481,8 +475,8 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 					     sd_scale = sd_scale,
 					     verbose = verbose)
 		scores <- temp[["scored_data"]] # scored data returned by score_drugs_vs_control()
-		#residuals_post_jk <- temp[["residuals_post_jk"]] 
-		residuals_pre_jk <- temp[["residuals_pre_jk"]]  
+		#guide_dlfc_post_jk <- temp[["guide_dlfc_post_jk"]] 
+		guide_dlfc_pre_jk <- temp[["guide_dlfc_pre_jk"]]  
 		
 		# call call_drug_hits() to add information to significant and effect-type columns indicating significant positive and negative interactions that meet the provided cut-offs
 		scores <- call_drug_hits(scores, control, condition,
@@ -493,6 +487,9 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 					 differential_threshold_negative = differential_threshold_negative
 					)
 		
+		# Make plot folder if nonexistent
+		plot_folder <- file.path(output_folder, "plots")
+		if (!dir.exists(plot_folder)) { dir.create(plot_folder) }
 		# plot drug responses 
 		plot_drug_response(scores, 
 				 control_name = control, 
@@ -502,17 +499,22 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 				 pos_type = pos_type,
 				 plot_type = plot_type, 
 				 label_fdr_threshold = label_fdr_threshold)
+		
 		if (save_residuals) {
-			if (!is.null(residuals_post_jk)) {
-				#residuals_file <- paste0(condition, "_vs_", control, "_residuals.tsv")
-				#utils::write.table(residuals_post_jk, file.path(lfc_folder, residuals_file), sep = "\t",
+			if (!is.null(residuals_pre_jk)) {
+				# Make lfc if nonexistent
+				lfc_folder <- file.path(output_folder, "lfc")
+				if (!dir.exists(lfc_folder)) { dir.create(lfc_folder) }
+				
+				#residuals_file <- paste0(condition, "_vs_", control, "_guide_dlfc_post_jk.tsv")
+				#utils::write.table(guide_dlfc_post_jk, file.path(lfc_folder, residuals_file), sep = "\t",
 						     #row.names = FALSE, col.names = TRUE, quote = FALSE) 
 							 
-				residuals_file <- paste0(condition, "_vs_", control, "_residuals_pre_jk.tsv")
-				utils::write.table(residuals_pre_jk, file.path(lfc_folder, residuals_file), sep = "\t",
+				residuals_file <- paste0(condition, "_vs_", control, "_guide_dlfc_pre_jk.tsv")
+				utils::write.table(guide_dlfc_pre_jk, file.path(lfc_folder, residuals_file), sep = "\t",
 						     row.names = FALSE, col.names = TRUE, quote = FALSE) 
 			} else {
-				cat("WARNING: residuals are set to NA, skipping writing residuals to file\n")
+				cat("WARNING: Guide dLFCs can not be written to file in the current setting, skipping writing guide dLFCs to file\n")
 			}
 		}
 
