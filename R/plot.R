@@ -458,18 +458,14 @@ plot_drug_response <- function(scores, control_name = NULL,
 #' Plot guide-level residuals for all hits
 #' 
 #' Plots guide-level residuals for each called hit and outputs plots to a given folder. 
-#' Works for data returned from \code{call_drug_hits}.
 #' 
-#' @param scores Dataframe of scores returned from \code{call_drug_hits}.
-#' @param residuals Residuals returned with the return_residuals argument set to true
-#'   from \code{call_drug_hits}.
-#' @param control_name Name of control passed to \code{call_drug_hits}.
-#' @param condition_name Name of condition passed to \code{call_drug_hits}.
-#' @param output_folder Folder to output plots to. 
-#' @param neg_type Label for significant effects with a negative differential effect
-#'   passed to \code{call_drug_hits} (default "Negative").
-#' @param pos_type Label for significant effects with a positive differential effect
-#'   passed to \code{call_drug_hits} (default "Positive").
+#' @param scores Dataframe of various scores - loaded from the file written after score_drugs_batch() call 
+#' @param residuals Dataframe guide-level differential LFCs  (loaded from the file written after score_drugs_batch() call with the return_residuals argument set to true)
+#' @param control_name Name of control 
+#' @param condition_name Name of condition 
+#' @param output_folder Folder to output plots to 
+#' @param neg_type Label for significant effects with a negative differential effect (default "Negative", should match entries in the scores dataframe).
+#' @param pos_type Label for significant effects with a positive differential effect (default "Positive", should match entries in the scores dataframe).
 #' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
 #' @export 
 plot_drug_residuals <- function(scores, residuals, control_name, 
