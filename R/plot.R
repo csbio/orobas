@@ -460,7 +460,7 @@ plot_drug_response <- function(scores, control_name = NULL,
 #' Plots guide-level differential LFC scores for each called hit and outputs plots to a given folder. 
 #' 
 #' @param scores Dataframe of various scores - loaded from the file written after score_drugs_batch() call 
-#' @param residuals Dataframe guide-level differential LFCs  (loaded from the file written after score_drugs_batch() call with the return_residuals argument set to true)
+#' @param residuals Dataframe guide-level differential LFCs  (loaded from the file written after score_drugs_batch() call with the save_guide_dlfc argument set to TRUE)
 #' @param control_name Name of control 
 #' @param condition_name Name of condition 
 #' @param output_folder Folder to output plots to 
