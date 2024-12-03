@@ -486,12 +486,11 @@ plot_drug_residuals <- function(scores, residuals, control_name,
   
   # Gets top hits
   response_col <- paste0("effect_type_", condition_name)
-  control_col <- paste0("mean_", control_name)
-  condition_col <- paste0("mean_", condition_name)
+
   diff_col <- paste0("differential_", condition_name, "_vs_", control_name)
   scores <- scores[scores[[response_col]] != "None",]
   residuals <- residuals[residuals$n %in% as.numeric(rownames(scores)),]
-  residuals$lfc <- residuals[[condition_col]] - residuals[[control_col]]
+
   
   # Returns if scores have no hits
   if (nrow(scores) == 0) {
