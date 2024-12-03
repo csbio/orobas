@@ -455,9 +455,9 @@ plot_drug_response <- function(scores, control_name = NULL,
                                    width = 10, height = 7, dpi = 300))
 }
 
-#' Plot guide-level residuals for all hits
+#' Plot guide-level differential LFC scores for all hits
 #' 
-#' Plots guide-level residuals for each called hit and outputs plots to a given folder. 
+#' Plots guide-level differential LFC scores for each called hit and outputs plots to a given folder. 
 #' 
 #' @param scores Dataframe of various scores - loaded from the file written after score_drugs_batch() call 
 #' @param residuals Dataframe guide-level differential LFCs  (loaded from the file written after score_drugs_batch() call with the return_residuals argument set to true)
@@ -468,10 +468,11 @@ plot_drug_response <- function(scores, control_name = NULL,
 #' @param pos_type Label for significant effects with a positive differential effect (default "Positive", should match entries in the scores dataframe).
 #' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
 #' @export 
-plot_drug_residuals <- function(scores, residuals, control_name, 
+plot_guide_level_dlfc_for_hits <- function(scores, residuals, control_name, 
                                 condition_name, output_folder,
                                 neg_type = "Negative", pos_type = "Positive", 
-                                plot_type = "png") {
+                                plot_type = "png") 
+{
   
   # Checks plot type and converts to lowercase
   plot_type <- tolower(plot_type)
@@ -484,65 +485,67 @@ plot_drug_residuals <- function(scores, residuals, control_name,
     dir.create(output_folder)
   }
   
-  # Gets top hits
-  response_col <- paste0("effect_type_", condition_name)
-
-  diff_col <- paste0("differential_", condition_name, "_vs_", control_name)
+  # Get columns associated with the control and condition screens given in the control_name and condition_name
+  scores = scores[,grep(paste0('gene|',condition_name),colnames(scores))]
+  
+  # Get rows from the scores dataframe corresponding to genes with called hits
+  response_col <- paste0("effect_type_", condition_name) # column name that contains effect type for the condition screen
   scores <- scores[scores[[response_col]] != "None",]
-  residuals <- residuals[residuals$n %in% as.numeric(rownames(scores)),]
-
+  
+  # Get rows from the residual dataframe corresponding to genes with called hits
+  residuals <- residuals[residuals$gene %in% scores$gene,]
   
   # Returns if scores have no hits
   if (nrow(scores) == 0) {
     cat(paste("No significant hits for", control_name, "vs", condition_name, "guide-level plotting\n"))
   } else {
-    
+  
     # Gets ranking of top hits
-    neg_order <- order(scores[[diff_col]])
+    diff_col <- paste0("differential_", condition_name, "_vs_", control_name) # get differential LFC score column name
+    neg_order <- order(scores[[diff_col]]) # get order of rows based on the differential LFC scores
     scores$neg_rank <- NA
     scores$pos_rank <- NA
-    scores$neg_rank[neg_order] <- 1:nrow(scores)
-    scores$pos_rank[neg_order] <- nrow(scores):1
+    scores$neg_rank[neg_order] <- 1:nrow(scores) # add ranking based on differential LFC scores (low to high)
+    scores$pos_rank[neg_order] <- nrow(scores):1 # add ranking based on differential LFC scores  (high to low)
+  
+    # Makes LFC plots for all hits
+    for (gene in unique(residuals$gene)) { # iterate over the genes with called hits
     
-    # Makes LFC plots for all top hits
-    for (i in unique(residuals$n)) {
-      
       # Gets data and gene names
-      df <- residuals[residuals$n == i,]
-      ind <- which(as.numeric(rownames(scores)) == i)
-      gene <- scores$gene[ind]
+      df_temp <- as.vector(t(residuals[residuals$gene == gene,2:ncol(residuals)]))
+      df_temp[is.na(df_temp)]<-0
+      df <- data.frame('lfc' = df_temp)
+      df$ID <- unlist(lapply(colnames(residuals)[2:ncol(residuals)],FUN = function(x){str_split(x,'_')[[1]][3]}))
+    
       x_label <- paste0("Guides")
-      y_label <- paste0("Average differential LFC across replicates")
-      
-      # Adds ID column for plotting
-      df$ID <- paste("Guide", 1:nrow(df))
-      
-      # Plots data
-      p <- ggplot2::ggplot(df) +
-        ggplot2::xlab(x_label) +
-        ggplot2::ylab(y_label) +
-        ggplot2::geom_bar(ggplot2::aes_string(x = "ID", y = "lfc"), stat = "identity", color = "Black", 
-                          fill = ggplot2::alpha(c("gray30"), 1)) +
-        ggplot2::geom_hline(yintercept = 1, linetype = 2, size = 1, alpha = 0.75, color = "Yellow") +
-        ggplot2::geom_hline(yintercept = 0, linetype = 2, size = 1, alpha = 0.75, color = "Gray") +
-        ggplot2::geom_hline(yintercept = -1, linetype = 2, size = 1, alpha = 0.75, color = "Blue") +
-        ggplot2::coord_flip() +
-        ggthemes::theme_tufte(base_size = 20)
-      
-      # Gets type and rank of effect
+      y_label <- paste0("Differential Log Fold Change")
+
+      # Gets type and rank of effect to add to the output file name
       effect <- ""
       rank <- 0
-      effect_type <- scores[[response_col]][ind]
+      effect_type <- scores[[response_col]][scores$gene==gene]
       if (effect_type == neg_type) {
         effect <- "neg"
-        rank <- scores$neg_rank[ind]
+        rank <- scores$neg_rank[scores$gene==gene]
       } else {
         effect <- "pos"
-        rank <- scores$pos_rank[ind]
+        rank <- scores$pos_rank[scores$gene==gene]
       }
-      
-      # Saves to file
-      file_name <- paste0(effect, "_", rank, "_", gene, ".", plot_type)
+    
+      # Plots data
+      p <- ggplot2::ggplot(df) +
+      ggplot2::xlab(x_label) +
+      ggplot2::ylab(y_label) +
+      ggplot2::geom_bar(ggplot2::aes_string(x = "ID", y = "lfc"), stat = "identity", color = "Black", position = "dodge2",
+                        fill = ggplot2::alpha(c("gray30"), 1)) +
+      ggplot2::geom_hline(yintercept = 1, linetype = 2, size = 1, alpha = 0.75, color = "Yellow") +
+      ggplot2::geom_hline(yintercept = 0, linetype = 2, size = 1, alpha = 0.75, color = "Gray") +
+      ggplot2::geom_hline(yintercept = -1, linetype = 2, size = 1, alpha = 0.75, color = "Blue") +
+      ggplot2::coord_flip() +
+      ggthemes::theme_tufte(base_size = 20)   
+    
+      # Save plot to file
+      file_name <- paste0(condition_name ,"_", effect, "_", rank, "_", gene,'_pre_jk', ".", plot_type)
       suppressWarnings(ggplot2::ggsave(file.path(output_folder, file_name), width = 10, height = 7, dpi = 300))
     }
   }
