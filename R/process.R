@@ -141,65 +141,6 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
   return(new_df)
 }
 
-#' PCA-normalizes residual LFCs for the given screens
-#' 
-#' PCA-normalizes residual LFCs for a dataset by extracting a given number of principal
-#' components from the dataset, projecting the dataset to those components, and 
-#' subtracting the projected dataset from the original dataset. After performing 
-#' PCA-normalization, consider re-centering LFCs by the mean of non-essential genes. 
-#' 
-#' @param df LFC dataframe.
-#' @param cols Numerical column names to normalize with PCA. 
-#' @param n_components Vector containing indices of principal components to remove from data. 
-#' @param scale Whether or not to scale replicates before extracting principal 
-#'   components (default FALSE).
-#' @param na_behavior Whether to replace NAs with row (per-guide) mean values or to
-#'   omit NAs, as either "mean_replace" or "omit" (default "mean_replace").
-#' @param exclude_screens A list of screen names to exclude, e.g. for replicates with
-#'   mostly NA values (default NULL).
-#' @return PCA-normalized dataframe.
-#' @export 
-pca_screens <- function(df, cols, n_components, scale = FALSE, na_behavior = "mean_replace",
-                        exclude_screens = NULL) {
-  
-  # Checks number of components to remove
-  valid_ind <- 1:length(cols)
-  if (length(n_components) > length(cols)) {
-    stop("ERROR: Specified too many PCs relative to number of columns in data\n")
-  } else if (!(all(n_components %in% valid_ind))) {
-    stop("ERROR: Specified invalid PCs to remove from data \n")
-  }
-  
-  # Replaces NAs with row means
-  na_mask <- is.na(df[,cols])
-  temp <- data.matrix(df[,cols])
-  if (na_behavior == "mean_replace") {
-    for (i in 1:nrow(temp)) {
-      na_ind <- is.na(temp[i,])
-      if (any(na_ind)) {
-        if (!all(na_ind)) {
-          temp[i,na_ind] <- mean(temp[i,], na.rm = TRUE)
-        } else {
-          temp[i,] <- mean(temp, na.rm = TRUE)
-        }
-      }
-    }
-  } else if (na_behavior == "omit") {
-    temp <- stats::na.omit(temp)
-  } else {
-    stop("na_behavior must be either 'mean_replace' or 'omit'")
-  }
-  
-  # PCA-normalizes data
-  pca <- stats::prcomp(temp, center = TRUE, scale. = scale)
-  real_v <- pca$rotation[,n_components]
-  projected <- temp %*% real_v %*% t(real_v)
-  df[,cols] <- temp - projected
-  df[,cols][na_mask] <- NA
-  
-  # Returns PCA-normalized data
-  return(df)
-}
 
 #' Filters guides with too few read counts.
 #' 
