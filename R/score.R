@@ -501,7 +501,7 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 				 label_fdr_threshold = label_fdr_threshold)
 		
 		if (save_guide_dlfc) {
-			if (!is.null(residuals_pre_jk)) {
+			if (!is.null(guide_dlfc_pre_jk)) {
 				# Make lfc if nonexistent
 				lfc_folder <- file.path(output_folder, "lfc")
 				if (!dir.exists(lfc_folder)) { dir.create(lfc_folder) }
