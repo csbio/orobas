@@ -61,7 +61,7 @@ jackknife_outliers<-function(cond_res, threshold=2)
 #' @param fdr_method Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default "BY").
 #' @param sd_scale If TRUE, apply standard-deviation scaling to differential LFC scores.
 #'   Only works when test = "moderated-t" (default FALSE).
-#' @param return_residuals If FALSE, returns NA instead of residuals dataframe (default TRUE).
+#' @param return_residuals If FALSE, returns NA instead of residuals dataframe (default FALSE).
 #'   This is recommend if scoring large datasets and memory is a limitation.  
 #' @param verbose If true, prints verbose output (default FALSE). 
 #' @return A named list containing 3 dataframes. 
@@ -71,7 +71,7 @@ jackknife_outliers<-function(cond_res, threshold=2)
 score_drugs_vs_control <- function(df, screens, control_screen_name, condition_screen_names, 
                                    control_genes = c("None", ""), min_guides = 3, test = "moderated-t", 
                                    loess = TRUE, ma_transform = TRUE, fdr_method = "BY",
-                                   sd_scale = FALSE, return_residuals = TRUE, verbose = FALSE) {
+                                   sd_scale = FALSE, return_residuals = FALSE, verbose = FALSE) {
   
   
 	if (verbose) {
@@ -472,6 +472,7 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 					     ma_transform = ma_transform, 
 					     control_genes = control_genes, 
 					     fdr_method = fdr_method, 
+					       return_residuals = save_guide_dlfc,
 					     sd_scale = sd_scale,
 					     verbose = verbose)
 		scores <- temp[["scored_data"]] # scored data returned by score_drugs_vs_control()
