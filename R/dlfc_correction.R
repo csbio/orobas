@@ -89,7 +89,7 @@ remove_principal_component_signal<- function(scores,pc=1)
 #' remove signal from control screens from dLFC scores
 #' 
 #' load differential log fold change scores generated from control screens from mentioned file.
-#' apply prncipal component analysis to the control dLFC scores.
+#' apply principal component analysis to the control dLFC scores.
 #' create projection of all principal components from control-dLFCs onto the main(condition) dLFC score matrix.
 #' subtract the the projection matrix from condition score matrix to remove dLFC signal of control screens 
 #' 
@@ -107,7 +107,7 @@ remove_control_dlfc_signal<- function(scores,control_dlfc_filepath)
 	cg_dmso <- cg_dmso[complete.cases(cg_dmso), ] #keep rows with no 'NA' values
 	
 	#get common genes between control and condition score files and get those subset of rows
-	#control dlfc and condition dlfc gene sets may overlap completely
+	#control dlfc and condition dlfc gene sets may not overlap completely
 	genes <- intersect(rownames(scores), rownames(cg_dmso))
 	scores_ <- scores[genes,]
 	cg_dmso <- cg_dmso[genes,]
