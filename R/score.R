@@ -59,8 +59,6 @@ jackknife_outliers<-function(cond_res, threshold=2)
 #' @param ma_transform If true, M-A transforms data before running loess normalization. Only
 #'   has an effect when loess = TRUE (default TRUE).
 #' @param fdr_method Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default "BY").
-#' @param sd_scale If TRUE, apply standard-deviation scaling to differential LFC scores.
-#'   Only works when test = "moderated-t" (default FALSE).
 #' @param return_residuals If FALSE, returns NA instead of residuals dataframe (default FALSE).
 #'   This is recommend if scoring large datasets and memory is a limitation.  
 #' @param verbose If true, prints verbose output (default FALSE). 
@@ -71,7 +69,7 @@ jackknife_outliers<-function(cond_res, threshold=2)
 score_drugs_vs_control <- function(df, screens, control_screen_name, condition_screen_names, 
                                    control_genes = c("None", ""), min_guides = 3, test = "moderated-t", 
                                    loess = TRUE, ma_transform = TRUE, fdr_method = "BY",
-                                   sd_scale = FALSE, return_residuals = FALSE, verbose = FALSE) {
+                                   return_residuals = FALSE, verbose = FALSE) {
   
   
 	if (verbose) {
@@ -277,27 +275,6 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 	stats::p.adjust(scores[[paste0("pval_", name, "_vs_", control_name)]], method = fdr_method)
 	
   
-	# Scales moderate effects in top and bottom 10% of data to de-emphasize those if a scaling factor is provided. 
-	# The mean to divide SD values by is a pre-computed scalar
-	if (test == "moderated-t") {
-		if (sd_scale) {
-			
-			resid <- condition_residuals[[name]] # get the differential LFC matrix for the current condition screen
-			# calculate target standard deviation per screen(SD of scores between 10%-90% percentiles)
-			lfc_range <- stats::quantile(resid, probs = c(0.1, 0.9), na.rm = TRUE) 
-			target_sd <- stats::sd(resid[resid > lfc_range[1] & resid < lfc_range[2]], na.rm = TRUE)
-			# normalize target standard deviation
-			sd_scale_factor <- mean(target_sd)
-			target_sd <- target_sd / sd_scale_factor
-			# normalize per-screen dlfc scores by target standard deviation 
-			condition_residuals[[name]] <- resid / target_sd
-			# mean-collapse differential LFC scores across guides and replicates for each gene
-			# update dLFC column for the condition screen in scores dataframe
-			scores[[paste0("differential_", name, "_vs_", control_name)]] <- rowMeans(condition_residuals[[name]],na.rm = TRUE)
-			 
-		}
-	}
-  
 	# Explicitly returns scored data
 	output <- list()
 	output[["scored_data"]] <- scores
@@ -408,8 +385,6 @@ call_drug_hits <- function(scores, control_screen_name, condition_screen_names,
 #' @param ma_transform If true, M-A transforms data before running loess normalization. Only
 #'   has an effect when loess = TRUE (default TRUE).
 #' @param control_genes List of control genes to remove, e.g. "luciferase" (default c("None", "")).
-#' @param sd_scale If TRUE, apply standard-deviation scaling to differential LFC scores.
-#'   Only works when test = "moderated-t" (default FALSE).
 #' @param fdr_method Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default
 #'   "BY")
 #' @param fdr_threshold_positive Threshold below which to call gene effects as significant positive hits
@@ -435,7 +410,6 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
                               min_guides = 3, test = "moderated-t", 
                               loess = TRUE, ma_transform = TRUE,
                               control_genes = c("None", ""), 
-			      sd_scale = FALSE,
                               fdr_method = "BY", 
 			      fdr_threshold_positive  = 0.1, fdr_threshold_negative = 0.1,
 			      differential_threshold_positive = 0, differential_threshold_negative = 0,
@@ -473,7 +447,6 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 					     control_genes = control_genes, 
 					     fdr_method = fdr_method, 
 					       return_residuals = save_guide_dlfc,
-					     sd_scale = sd_scale,
 					     verbose = verbose)
 		scores <- temp[["scored_data"]] # scored data returned by score_drugs_vs_control()
 		#guide_dlfc_post_jk <- temp[["guide_dlfc_post_jk"]] 
