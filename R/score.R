@@ -61,7 +61,6 @@ jackknife_outliers<-function(cond_res, threshold=2)
 #' @param fdr_method Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default "BY").
 #' @param return_residuals If FALSE, returns NA instead of residuals dataframe (default FALSE).
 #'   This is recommend if scoring large datasets and memory is a limitation.  
-#' @param verbose If true, prints verbose output (default FALSE). 
 #' @return A named list containing 3 dataframes. 
 #'   i) "scored_data": a dataframe containing scored data with separate columns given by the specified control and condition names.
 #'   ii) "guide_dlfc_pre_jk": a dataframe containing guide-level and replicate-level differential LFCs scored for condition screen against control screen, before applying jk-outlier removal.
@@ -69,12 +68,10 @@ jackknife_outliers<-function(cond_res, threshold=2)
 score_drugs_vs_control <- function(df, screens, control_screen_name, condition_screen_names, 
                                    control_genes = c("None", ""), min_guides = 3, test = "moderated-t", 
                                    loess = TRUE, ma_transform = TRUE, fdr_method = "BY",
-                                   return_residuals = FALSE, verbose = FALSE) {
+                                   return_residuals = FALSE) {
   
-  
-	if (verbose) {
-		cat(paste("Preparing to score...\n"))
-	}
+	cat(paste("Preparing to score...\n"))
+	
 	# Get name of control screen and get control screen replicate names (data originally from sample table tsv file)
 	control_name <- control_screen_name 
 	control_cols <- screens[[control_name]][["replicates"]] 
@@ -404,7 +401,6 @@ call_drug_hits <- function(scores, control_screen_name, condition_screen_names,
 #' @param save_guide_dlfc If true, saves guide-level dLFC scores for each condition screen to the output folder
 #'   (default FALSE).
 #' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
-#' @param verbose If true, prints verbose output (default FALSE). 
 #' @export
 score_drugs_batch <- function(df, screens, batch_file, output_folder, 
                               min_guides = 3, test = "moderated-t", 
@@ -417,7 +413,7 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
                               pos_type = "Positive", 
 			      label_fdr_threshold = NULL,
                               save_guide_dlfc = FALSE, 
-                              plot_type = "png", verbose = FALSE) {
+                              plot_type = "png") {
   
 	# Create output folder if nonexistent
 	if (!dir.exists(output_folder)) { dir.create(output_folder, recursive = TRUE) }
@@ -446,8 +442,8 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 					     ma_transform = ma_transform, 
 					     control_genes = control_genes, 
 					     fdr_method = fdr_method, 
-					       return_residuals = save_guide_dlfc,
-					     verbose = verbose)
+					       return_residuals = save_guide_dlfc
+					     )
 		scores <- temp[["scored_data"]] # scored data returned by score_drugs_vs_control()
 		#guide_dlfc_post_jk <- temp[["guide_dlfc_post_jk"]] 
 		guide_dlfc_pre_jk <- temp[["guide_dlfc_pre_jk"]]  
