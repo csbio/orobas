@@ -52,8 +52,7 @@ jackknife_outliers<-function(cond_res, threshold=2)
 #' @param control_genes List of control genes to remove, e.g. "luciferase" (default c("None", "")).
 #' @param min_guides The minimum number of guides per gene pair required to score data 
 #'   (default 3).
-#' @param test Type of hypothesis testing to run. Must be one of "rank-sum" for Wilcoxon
-#'   rank-sum testing or "moderated-t" for moderated t-testing (default "moderated-t").
+#' @param test Type of hypothesis testing to run. "moderated-t" for moderated t-testing (default "moderated-t").
 #' @param loess If true, loess-normalizes residuals before running hypothesis testing.
 #'   Only works when test = "moderated-t" (default TRUE).
 #' @param ma_transform If true, M-A transforms data before running loess normalization. Only
@@ -191,14 +190,7 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 		# differential LFC score column may be updated later based on different parameter settings
 		
 		# Perform the specified type of significance testing or store differential LFC scores for later testing
-		if (test == "rank-sum") { # If 'rank-sum' test is specified
-			# calculate p-values indicating the significance of differential LFC scores using wilcoxon rank-sum test
-			# wilcoxon rank-sum test compares the guide-level control and condition mean LFC scores
-			# update pval column for condition screen in scores dataframe
-			scores[[paste0("pval_", name, "_vs_", control_name)]][i] <- 
-			  suppressWarnings(stats::wilcox.test(rep_mean_condition, rep_mean_control))$p.value
-		
-		} else if (test == "moderated-t") { # If 'moderated-t' test is specified
+		if (test == "moderated-t") { # If 'moderated-t' test is specified
 			#create temporary list to store loess-normalized differential LFC values of current condition screen replicates
 			#loess_residual_rep = c() 
 			condition_reps = condition_cols[[name]] # get condition replicate names
