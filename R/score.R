@@ -175,7 +175,7 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 		rep_mean_condition <- rowMeans(data.frame(guide_vals[condition_cols]), na.rm = TRUE) 
 		rep_mean_condition <- rep_mean_condition[keep_ind] # only keep guides where 'control-replicate LFC means' are non-nan
 		rep_mean_condition[is.nan(rep_mean_condition)] <- NA # set NA if condition-replicate LFC mean is nan
-		diff <- rep_mean_condition - rep_mean_control # Calculate guide-level differential LFC scores - one value per guide
+		# diff <- rep_mean_condition - rep_mean_control # Calculate guide-level differential LFC scores - one value per guide
 		
 		# Update output scores dataframe to gene-level values
 		scores[[paste0("n_", control_name)]][i] <- length(rep_mean_control) # Total number of control guides contributing to scores
