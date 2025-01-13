@@ -371,7 +371,7 @@ def run_batch_correction(data, output_file_directory):
         roc_histogram_generation(roc_df_['rocauc'],roc_auc_score_screen_pcc_na,filepath)
         
         #if roc_auc score drops below .51 save data file and plot, stop batch correction        
-        if np.around(roc_auc_score_screen_pcc_na,decimals=2) < 0.51 or components_reduced > 20: 
+        if np.around(roc_auc_score_screen_pcc_na,decimals=2) < 0.51: #or components_reduced > 20: 
             print('LDA correction complete.')
             print('Removed components: ' + str(components_reduced))
             
