@@ -318,7 +318,7 @@ def run_batch_correction(data, output_file_directory):
     # LDA analysis
     X = df.T # Shape: (batch, genes)
     y = np.array(list(screen_batch_dictionary.values()))
-    lda_eigen = LinearDiscriminantAnalysis(solver='eigen', n_components=9, shrinkage='auto', store_covariance=True)
+    lda_eigen = LinearDiscriminantAnalysis(solver='eigen', shrinkage='auto', store_covariance=True)
     lda_eigen.fit(X,y)
     #X_transform_eigen = lda_eigen.transform(X)
     print(str('Training LDA complete.'))
