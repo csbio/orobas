@@ -252,3 +252,51 @@ check_batch_file <- function(batch_file, screens) {
   
   return(TRUE)
 }
+
+#' Checks a group file
+#' 
+#' Checks to make sure that the contents of the .tsv file and its formats are appropriate for
+#' running group scoring functions.
+#' 
+#' @param group_file Path to .tsv file mapping screens to their controls for scoring, with four 
+#'   columns for "Screen", "Control", "Group" and "Type." The "Group" column can contain any 
+#'   meaningful label for each group, whereas the "Type" column must be labeled either "control" 
+#'   or "condition." For each unique group label, all conditions in that group are scored
+#'   against all controls.
+#'   @param control_only If true, only check for control effect scoring (default FALSE).
+#' @return TRUE.
+#' @keywords internal
+check_group_file <- function(group_file, screens, control_only=FALSE) {
+  
+  # Checks if file exists and is a .tsv file
+  ext <- tools::file_ext(group_file)
+  if (ext != "tsv") {
+    stop(paste("file", group_file, "not a .tsv file"))
+  }
+  if (!file.exists(group_file)) {
+    stop(paste("file", group_file, "does not exist at the specified path"))
+  }
+  
+  # Loads file and checks its format
+  df <- utils::read.csv(group_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
+  if (colnames(df)[1] != "Screen" | colnames(df)[2] != "Control" | colnames(df)[3] != "Group" | 
+      colnames(df)[4] != "Type" | length(colnames(df)) > 4) {
+    stop(paste("file", group_file, "does not contain exactly four columns labeled Screen, Control, Group and Type"))
+  }
+  
+  # Checks that all screens are represented in the screens object
+  if (!control_only) {
+    for (screen in df$Screen) {
+      if (!(screen %in% names(screens))) {
+        stop(paste("screen", screen, "not in screens"))
+      }
+    }
+  }
+  for (type in df$Type) {
+    if (type != "control" & type != "condition") {
+      stop(paste("type", type, "must be either 'control' or 'condition'"))
+    }
+  }
+  
+  return(TRUE)
+}
