@@ -308,3 +308,11 @@ abbreviate_names <- function(df, pattern, indices) {
   colnames(df)[indices] <- abbrev_cols
   return(df)
 }
+
+# Fixes replicate names
+format_replicate_names <- function(rep_names) {
+  rep_names <- as.character(trimws(rep_names, which = "right"))
+  fixes <- c("-_" = "", "_-" = "", "-" = "", ", " = "", " \\+ " = "", " " = "")
+  rep_names <- str_replace_all(rep_names, fixes)
+  return(rep_names)
+}
