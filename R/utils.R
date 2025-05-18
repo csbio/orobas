@@ -300,3 +300,11 @@ check_group_file <- function(group_file, screens, control_only=FALSE) {
   
   return(TRUE)
 }
+
+# Replaces column names with drug names for the specified indices and regex pattern
+abbreviate_names <- function(df, pattern, indices) {
+  abbrev_cols <- str_split(colnames(df)[indices], "_vs_", simplify = TRUE)
+  abbrev_cols <- str_split(abbrev_cols[,1], pattern, simplify = TRUE)[,2]
+  colnames(df)[indices] <- abbrev_cols
+  return(df)
+}
