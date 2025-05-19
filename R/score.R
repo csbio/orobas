@@ -494,6 +494,23 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 #' @param batch_file Path to .tsv file mapping screens to their controls for scoring, with two 
 #'   columns for "Screen" and "Control." 
 #' @param output_folder Folder to output scored data and plots to. 
+#' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
+#' @param display_numbers Whether or not to include PCC values in heatmap (default TRUE).
+#' @param show_rownames Whether or not to show row names on the plot (default TRUE).
+#' @param show_colnames Whether or not to show column names on the plot (default TRUE).
+#' @param filter_names_prefix substring to identify list of screen names to filter based on read counts by in the normalization step. (default 'T0')
+#' @param cf1 Scaling factor (default 1e6).
+#' @param cf2 Pseudocount (default 1).
+#' @param min_reads Minimum number of reads to keep (default 30, anything
+#'   below this value will be filtered out).
+#' @param max_reads Maximum number of reads to keep (default 10000, anything
+#'   above this value will be filtered out).
+#' @param nonessential_norm Whether or not to normalize each screen against its
+#'   population of core non-essential genes, as defined by Traver et al. 2015 
+#'   (default FALSE).
+#' @param replace_NA Whether or not to replace NA and NULL values in non-T0 screens 
+#'   with 0's after filtering out T0 guides with too few or NA readcounts 
+#'   (default TRUE).
 #' @param min_guides The minimum number of guides per gene pair required to score data 
 #'   (default 3).
 #' @param loess If true, loess-normalizes residuals before running hypothesis testing.
@@ -519,7 +536,6 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 #'   hits, or NULL to plot without labels (default NULL).
 #' @param save_guide_dlfc If true, saves guide-level dLFC scores for each condition screen to the output folder
 #'   (default FALSE).
-#' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
 #' @export
 score_screens<- function(output_folder,input_file,sample_file,batch_file,
 plot_type = 'png', display_numbers = TRUE, show_colnames = TRUE, show_rownames = TRUE,
