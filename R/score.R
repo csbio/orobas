@@ -644,7 +644,7 @@ neg_type = "Negative",pos_type = "Positive", label_fdr_threshold = NULL, save_gu
 					
 	
 	#read bulk score file and generate dLFC and FDR file	
-	input_file <- paste(output_folder,"condition_gene_calls.tsv",sep='')
+	input_file <- file.path(output_folder,"condition_gene_calls.tsv")
 	all_score <- read.csv(file.path(input_file),header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 	
 	scores <- all_score[,grepl("gene|differential", colnames(all_score))]
