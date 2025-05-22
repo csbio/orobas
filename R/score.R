@@ -544,12 +544,7 @@ min_guides = 3, loess = TRUE, ma_transform = TRUE,control_genes = c("None", ""),
 fdr_method = "BY",fdr_threshold_positive  = 0.1, fdr_threshold_negative = 0.1,differential_threshold_positive = 0, differential_threshold_negative = 0,
 neg_type = "Negative",pos_type = "Positive", label_fdr_threshold = NULL, save_guide_dlfc = FALSE
 )
-{	
-	# check if batch table exists
-	if (!file.exists(batch_file))
-	{	
-		stop(paste("ERROR: Could not find batch table file ", batch_file))
-	}
+{
 	
 	# read sample table file if exists
 	if (file.exists(sample_file))
@@ -559,6 +554,19 @@ neg_type = "Negative",pos_type = "Positive", label_fdr_threshold = NULL, save_gu
 		} else {
 		stop(paste("ERROR: Could not find sample table file ", sample_file))
 	}
+		
+	# Check format and existance of batch file 
+	first_file <- utils::read.table(file = batch_file, header = F, nrows = 1, sep = "\t", encoding = "UTF-8")
+	batch <- NULL
+	if (ncol(first_file) == 2) {
+		check_batch_file(batch_file, screens)  
+	} else {
+		stop(paste("file", batch_file, "must contain exactly 2 columns"))
+	}
+
+	# read batch file
+	batch <- utils::read.csv(batch_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")  
+	
 	
 	#read raw read-count file if exists
 	if (file.exists(input_file))
@@ -597,6 +605,9 @@ neg_type = "Negative",pos_type = "Positive", label_fdr_threshold = NULL, save_gu
 	raw_reads <- raw_reads[,(cols %in% col_list)]
 
 	# create output directories
+	condition_1 <- batch[1,1] #read first screen name from batch file
+	screen_name = strsplit(condition_1,"_")[[1]][1] # extract screen-batch name from screen name
+	output_folder <- file.path(output_folder, screen_name) # create sub-directory with screen-batch name in output directory
 	qc_folder <- file.path(output_folder, "qc") # directory to store guide-level normalized reads quality-control files
 	read_folder <- file.path(qc_folder, "reads") # directory to store raw read quality-control files
 	
