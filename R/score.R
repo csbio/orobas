@@ -403,7 +403,7 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
 	if (ncol(first_file) == 2) {
 		check_batch_file(batch_file, screens)  
 	} else {
-		stop(paste("file", batch_file, "must contain exactly 2 columns (see score_drugs_batch documentation)"))
+		stop(paste("file", batch_file, "must contain exactly 2 columns"))
 	}
 	# read batch file
 	batch <- utils::read.csv(batch_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
