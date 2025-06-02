@@ -504,13 +504,13 @@ correct_dlfc_scores_in_batch <- function(
 	label_fdr_threshold = NULL    
     )
 {
-  # check if batch table exists
+  # check if condition-control-map table exists
   if (!file.exists(batch_table_file_path))
   {	
     stop(paste("ERROR: Could not find file ", batch_table_file_path))
   }
   
-  # check if sample table exists
+  # check if screen-replicates-map table exists
   if (!file.exists(sample_table_file_path))
   {	
     stop(paste("ERROR: Could not find file ", sample_table_file_path))
@@ -522,20 +522,21 @@ correct_dlfc_scores_in_batch <- function(
     stop(paste("ERROR: Could not find file ", raw_read_count_data_file_path))
   }
   
-  # read batch file
+  # read condition-control-map table file
   batch <- utils::read.csv(batch_table_file_path, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
   
-  #gather scores various screens from different files
-  flag = 0
+  #gather scores from various screens from different files generated during the single-screen scoring 
+  flag = 0 # flag to keep track if data from the first file is being read
   for (i in 1:nrow(batch)) {
     condition <- batch[i,1] # get current condition screen name
     control <- batch[i,2] # get associated control screen name
-    screen_name = strsplit(condition,"_")[[1]][1]
-    input_file <- file.path(input_path, screen_name,"condition_gene_calls.tsv")
+    screen_name = strsplit(condition,"_")[[1]][1] # extract screen-group name from condition screen name
+    input_file <- file.path(input_path, screen_name,"condition_gene_calls.tsv") # get file path for screen-group single-screen-score file for current condition screen("condition_gene_calls.tsv")
     
-    if (file.exists(input_file) ) {
-      curr_screen_score <- read.csv(file.path(input_file),header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-      col_list <- c('gene',
+    if (file.exists(input_file) ) { # if the screen-group single-screen-score file exists
+      curr_screen_score <- read.csv(file.path(input_file),header = TRUE, sep = "\t", stringsAsFactors = FALSE) # read screen-group single-screen-score file
+      # select specific columns from score file - mean LFCs columns for current condition and control screens; differential LFC, FDR, significance flag, and effect-type columns for condition screen
+    	col_list <- c('gene',
                     paste0('mean_',control,sep=''),
                     paste0('mean_',condition,sep=''),
                     paste0('differential_',condition,'_vs_',control,sep=''),
@@ -543,14 +544,14 @@ correct_dlfc_scores_in_batch <- function(
                     paste0('significant_',condition,'_vs_',control,sep=''),
                     paste0('effect_type_',condition,sep=''))
       
-      
+      # Check if column exists in the read-in score file
       if (paste0('mean_',condition,sep='') %in% colnames(curr_screen_score) ) { 
         
-        curr_screen_score = curr_screen_score[,col_list]
-        if(flag==0){
+        curr_screen_score = curr_screen_score[,col_list] # extract the selected columns in a dataframe
+        if(flag==0){ #if reading the first file, copy the whole dataframe 
           all_score <- curr_screen_score
-          flag = 1
-        }else{
+          flag = 1 #update flag
+        }else{ #if not reading the first file, append the dataframe
           genes <- intersect(all_score$gene, curr_screen_score$gene)
           all_score <- all_score[all_score$gene %in% genes,]
           curr_screen_score <- curr_screen_score[curr_screen_score$gene %in% genes,]
@@ -563,7 +564,8 @@ correct_dlfc_scores_in_batch <- function(
       print(paste('Missing screen file: ',screen_name))
     }
   }
-  
+
+	# abort if not enough data available for batch correction; at least data from 3 screens.
   if(length(colnames(all_score))<36){ 
     stop(paste("Not enough data retrieved from screen files. Should be more than 3 screens!"))
   }
