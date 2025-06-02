@@ -299,6 +299,30 @@ save_intermediate=FALSE
   return(scores)
 }
 
+#' wrapper function to generate differential log fold change from control screens
+#' 
+#'  @param batch_table_file_path 
+#'  @param sample_table_file_path 
+#'  @param raw_read_count_data_file_path 
+#'  @param output_folder 
+#' @param filter_names_postfix 
+#' @param cf1
+#' @param cf2
+#' @param min_reads
+#' @param max_reads
+#' @param nonessential_norm
+#' @param replace_NA
+#' @param min_guides
+#' @param loess
+#' @param ma_transform
+#' @param control_genes
+#' @param qc_control_pcc
+#' @param verbose
+#' @param black_list
+#' @param screen_control_keyword
+#' Output: creates file dLFC score file "control_effect_scores.tsv" in folder 'control' 
+#'  
+#'  @export
 generate_control_dlfc_scores <- function(
 batch_table_file_path,
 sample_table_file_path, 
