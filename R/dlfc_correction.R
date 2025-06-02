@@ -305,21 +305,27 @@ save_intermediate=FALSE
 #'  @param sample_table_file_path 
 #'  @param raw_read_count_data_file_path 
 #'  @param output_folder 
-#' @param filter_names_postfix 
-#' @param cf1
-#' @param cf2
-#' @param min_reads
-#' @param max_reads
-#' @param nonessential_norm
-#' @param replace_NA
-#' @param min_guides
-#' @param loess
-#' @param ma_transform
-#' @param control_genes
-#' @param qc_control_pcc
-#' @param verbose
-#' @param black_list
-#' @param screen_control_keyword
+#' @param filter_names_postfix Postfix to identify list of screen names to filter based on read counts by. 
+#' @param cf1 parameter for \code{normalize_screens}. Scaling factor (default 1e6).
+#' @param cf2 parameter for \code{normalize_screens}. Pseudocount (default 1).
+#' @param min_reads parameter for \code{normalize_screens}. Minimum number of reads to keep (default 30, anything
+#'   below this value will be filtered out).
+#' @param max_reads parameter for \code{normalize_screens}. Maximum number of reads to keep (default 10000, anything
+#'   above this value will be filtered out).
+#' @param nonessential_norm parameter for \code{normalize_screens}. Whether or not to normalize each screen against its
+#'   population of core non-essential genes, as defined by Traver et al. 2015 
+#'   (default FALSE).
+#' @param replace_NA parameter for \code{normalize_screens}.  Whether or not to replace NA and NULL values in non-T0 screens 
+#'   with 0's after filtering out T0 guides with too few or NA readcounts 
+#'   (default TRUE).
+#' @param min_guides parameter for \code{score_controls_batch}.
+#' @param loess parameter for \code{score_controls_batch}.
+#' @param ma_transform parameter for \code{score_controls_batch}.
+#' @param control_genes parameter for \code{score_controls_batch}.
+#' @param qc_control_pcc parameter for \code{score_controls_batch}.
+#' @param verbose parameter for \code{score_controls_batch}.
+#' @param black_list parameter for \code{score_controls_batch}.
+#' @param screen_control_keyword parameter for \code{score_controls_batch}.
 #' Output: creates file dLFC score file "control_effect_scores.tsv" in folder 'control' 
 #'  
 #'  @export
@@ -418,12 +424,18 @@ screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 #'  @param raw_read_count_data_file_path 
 #'  @param output_folder 
 #' @param filter_names_postfix parameter for \code{generate_control_dlfc_scores}.
-#' @param cf1 parameter for \code{generate_control_dlfc_scores}.
-#' @param cf2 parameter for \code{generate_control_dlfc_scores}.
-#' @param min_reads parameter for \code{generate_control_dlfc_scores}.
-#' @param max_reads parameter for \code{generate_control_dlfc_scores}.
-#' @param nonessential_norm parameter for \code{generate_control_dlfc_scores}.
-#' @param replace_NA parameter for \code{generate_control_dlfc_scores}.
+#' @param cf1 parameter for \code{generate_control_dlfc_scores}.  Scaling factor (default 1e6).
+#' @param cf2 parameter for \code{generate_control_dlfc_scores}. Pseudocount (default 1).
+#' @param min_reads parameter for \code{generate_control_dlfc_scores}. Minimum number of reads to keep (default 30, anything
+#'   below this value will be filtered out).
+#' @param max_reads parameter for \code{generate_control_dlfc_scores}. Maximum number of reads to keep (default 10000, anything
+#'   above this value will be filtered out).
+#' @param nonessential_norm parameter for \code{generate_control_dlfc_scores}. Whether or not to normalize each screen against its
+#'   population of core non-essential genes, as defined by Traver et al. 2015 
+#'   (default FALSE).
+#' @param replace_NA parameter for \code{generate_control_dlfc_scores}. Whether or not to replace NA and NULL values in non-T0 screens 
+#'   with 0's after filtering out T0 guides with too few or NA readcounts 
+#'   (default TRUE).
 #' @param min_guides parameter for \code{generate_control_dlfc_scores}.
 #' @param loess parameter for \code{generate_control_dlfc_scores}.
 #' @param ma_transform parameter for \code{generate_control_dlfc_scores}.
