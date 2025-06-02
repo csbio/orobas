@@ -615,8 +615,8 @@ correct_dlfc_scores_in_batch <- function(
   all_score <- all_score[all_score$gene %in% genes,]
   dlfc_score <- dlfc_score[dlfc_score$gene %in% genes,]
   
-  # update dLFC, sigificance, and effect type columns 
-  # generate LFC scatter plots
+  # Update the dLFC, significance, and effect type columns from all screens based on the corrected dLFC scores
+  # Generate LFC scatter plots based on the corrected dLFC scores 
   plots_folder = file.path(output_folder, "plots")
   if (!dir.exists(plots_folder)) { dir.create(plots_folder) }
   
@@ -667,15 +667,17 @@ correct_dlfc_scores_in_batch <- function(
       
     }
   }   
-  
+
+  # save scores from all screens
   scores_fname <- file.path(output_folder, "scores_all.csv")
   write.table(all_score, scores_fname, sep = ",", row.names = F, col.names = TRUE, quote = FALSE)
   
-  #create fdr matrix from all screens
-  fdr_scores <- all_score[,grepl("gene|fdr", colnames(all_score))]
-  fdr_scores <- abbreviate_names(fdr_scores, "fdr_", 2:ncol(scores))
-  rownames(fdr_scores) <- fdr_scores$gene #set matrix rownames to gene names ('gene' column (first column) contains gene names at this point)
-  fdr_scores <- fdr_scores[,-1] #remove first column ('gene' column)
+  #create dataframe with only the FDR columns from all screens
+  fdr_scores <- all_score[,grepl("gene|fdr", colnames(all_score))] # get column 'gene' and any columns with name containing string 'fdr'
+  fdr_scores <- abbreviate_names(fdr_scores, "fdr_", 2:ncol(scores)) # reformat 'fdr' column names
+  rownames(fdr_scores) <- fdr_scores$gene # set matrix rownames to gene names ('gene' column (first column) contains gene names at this point)
+  fdr_scores <- fdr_scores[,-1] # remove first column ('gene' column)
+  # save FDR score dataframe to file
   scores_fdr_fname <- file.path(output_folder, "fdr_scores_all.tsv")
   write.table(fdr_scores, scores_fdr_fname, sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
   
