@@ -471,6 +471,11 @@ score_drugs_batch <- function(df, screens, batch, output_folder,
 	
 }
 
+get_screen_type<-function(x)
+{
+  x1<-strsplit(x,"_")[[1]][1] #split x with delimiter \. and retrieve first sub-string
+  return( x1)
+}
 
 #' Wrapper function to normalize and score screens and generate various plots. 
 #' 
@@ -524,7 +529,7 @@ score_drugs_batch <- function(df, screens, batch, output_folder,
 #' @param save_guide_dlfc If true, saves guide-level dLFC scores for each condition screen to the output folder
 #'   (default FALSE).
 #' @export
-score_screens<- function(output_folder,input_file,sample_file,batch_file,
+score_screens<- function(parent_folder,input_file,sample_file,batch_file,
 plot_type = 'png', display_numbers = TRUE, show_colnames = TRUE, show_rownames = TRUE,
 filter_names_prefix = 'T0', cf1 = 1e6, cf2 = 1, min_reads = 30, max_reads = 10000, nonessential_norm = TRUE,replace_NA = TRUE,
 min_guides = 3, loess = TRUE, ma_transform = TRUE,control_genes = c("None", ""),
@@ -537,7 +542,7 @@ neg_type = "Negative",pos_type = "Positive", label_fdr_threshold = NULL, save_gu
 	if (file.exists(sample_file))
 	{
 		#Add screen list and mapped replicate list from sample_table meta file
-		screens <- add_screens_from_table(sample_file)
+		all_screens <- add_screens_from_table(sample_file)
 		} else {
 		stop(paste("ERROR: Could not find sample table file ", sample_file))
 	}
@@ -546,106 +551,135 @@ neg_type = "Negative",pos_type = "Positive", label_fdr_threshold = NULL, save_gu
 	first_file <- utils::read.table(file = batch_file, header = F, nrows = 1, sep = "\t", encoding = "UTF-8")
 	batch <- NULL
 	if (ncol(first_file) == 2) {
-		check_batch_file(batch_file, screens)  
+		check_batch_file(batch_file, all_screens)  
 	} else {
 		stop(paste("file", batch_file, "must contain exactly 2 columns"))
 	}
 
 	# read batch file
-	batch <- utils::read.csv(batch_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")  
+	batch_all <- utils::read.csv(batch_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")  
 	
 	
 	#read raw read-count file if exists
 	if (file.exists(input_file))
 	{
-		raw_reads <- read.csv(input_file, 
+		raw_reads_all <- read.csv(input_file, 
 						  header = TRUE, stringsAsFactors = FALSE, sep = "\t", check.names = FALSE,
 						  encoding = "UTF-8")
 						  
 				
 		# format column names of raw read-count data to remove "-_", "_-", "-", ",", "\\+", " "
-		colnames(raw_reads) <- format_replicate_names(colnames(raw_reads))					  
+		colnames(raw_reads_all) <- format_replicate_names(colnames(raw_reads_all))					  
 						  } else {
 		stop(paste("ERROR: Could not find raw read-count file ", input_file))
 	}
 	
 	
 	# check if raw read-count file has a 'gene' column
-	if(!('gene' %in% colnames(raw_reads))){
+	if(!('gene' %in% colnames(raw_reads_all))){
 		stop(paste("ERROR: The raw read-count file does not contain gene column (should be named 'gene') "))
 	}
 	
 	# check if raw read-count file contain all screen replicate columns
-	replicate_stat = check_replicates(raw_reads, screens)
+	replicate_stat = check_replicates(raw_reads_all, all_screens)
 	if(length(replicate_stat[["missing_from_df"]])!=0){ 
 		stop(paste("ERROR: The raw read-count file does not contain all required columns listed in sample table meta file."))
 	}
 	
-	#Extract gene and relevant screen replicate columns from the raw read-count data
-	col_list = c('gene')
-	for(item in c(1:length(screens)))
+	screen_batch = unique(unlist(lapply(as.character(batch_all$Screen),get_screen_type) ))
+	sample_table = utils::read.table(sample_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
+	
+	flag = 0
+	for( screen in screen_batch)
 	{
-	  reps = screens[[item]][["replicates"]]
-	  col_list = c(col_list,reps)
+		batch = batch_all[which(grepl(screen,batch_all$Screen)),]
+		
+		#get replicate maps for screen
+		cur_sample_table = sample_table[which(grepl(screen,sample_table$Screen)),]		
+		sampla_table_NormalizeTo = unique(cur_sample_table$NormalizeTo)
+		cur_sample_t0 = sample_table[which(sample_table$Screen %in% sampla_table_NormalizeTo),]
+		cur_sample_table = unique(rbind(cur_sample_t0,cur_sample_table))
+		screens = all_screens[cur_sample_table$Screen]
+	
+		#Extract gene and relevant screen replicate columns from the raw read-count data
+		col_list = c('gene')
+		for(item in c(1:length(screens)))
+		{
+		  reps = screens[[item]][["replicates"]]
+		  col_list = c(col_list,reps)
+		}
+		cols= (colnames(raw_reads_all))
+		raw_reads <- raw_reads_all[,(cols %in% col_list)]
+
+		# create output directories
+		
+		output_folder <- file.path(parent_folder, screen) # create sub-directory with screen-batch name in output directory
+		qc_folder <- file.path(output_folder, "qc") # directory to store guide-level normalized reads quality-control files
+		read_folder <- file.path(qc_folder, "reads") # directory to store raw read quality-control files
+		
+		# Create output directories if non-existent
+		if (!dir.exists(output_folder)) { dir.create(output_folder, recursive = TRUE) }
+		if (!dir.exists(qc_folder)) { dir.create(qc_folder) }
+		if (!dir.exists(read_folder)) { dir.create(read_folder) }
+		
+		# generate raw read-count QC files
+		plot_reads_qc(raw_reads, screens, read_folder, 
+			plot_type = plot_type, display_numbers = display_numbers, show_colnames = show_colnames, show_rownames = show_rownames)
+
+		# normalize raw read-counts to earlier time-point 
+		t0_screens <- names(screens)[grepl(paste('_',filter_names_prefix,'$',sep=''), names(screens))] #filter T0 screens while normalizing
+		raw_reads <- normalize_screens(raw_reads, screens, filter_names = t0_screens,
+								cf1 = cf1, cf2 = cf2, 
+								min_reads = min_reads, max_reads = max_reads, nonessential_norm = nonessential_norm,
+								replace_NA = replace_NA
+		)
+		write.csv(raw_reads,file.path(output_folder,'t0_normalized_screens.tsv'), row.names=F)
+		
+		# generate guide-level normalized reads QC files
+		plot_lfc_qc(raw_reads, screens, qc_folder, 
+			plot_type = plot_type, display_numbers = display_numbers, show_colnames = show_colnames, show_rownames = show_rownames)
+
+
+		score_drugs_batch(raw_reads, screens, batch, output_folder,
+						min_guides = min_guides, loess = loess, ma_transform = ma_transform,control_genes = control_genes,
+						fdr_method = fdr_method,fdr_threshold_positive  = fdr_threshold_positive, fdr_threshold_negative = fdr_threshold_negative,
+						differential_threshold_positive = differential_threshold_positive, differential_threshold_negative = differential_threshold_negative,
+						neg_type = neg_type,pos_type = pos_type, label_fdr_threshold = label_fdr_threshold, save_guide_dlfc = save_guide_dlfc
+		)
+		
+		
+		#read bulk score file and generate dLFC and FDR file	 
+		all_score <- read.csv(file.path(output_folder,"condition_gene_calls.tsv"),header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+		
+		if(flag==0){
+			scores <- all_score[,grepl("gene|differential", colnames(all_score))]						
+			scores_fdr <- all_score[,grepl("gene|fdr", colnames(all_score))]
+			flag = 1			
+		}else{
+			cur_scores <- all_score[,grepl("gene|differential", colnames(all_score))]	
+			genes <- intersect(scores$gene, cur_scores$gene)
+			scores <- scores[scores$gene %in% genes,]
+			cur_scores <- cur_scores[cur_scores$gene %in% genes,]
+			scores <- cbind(scores, cur_scores[,2:ncol(cur_scores)])
+			
+			cur_scores_fdr <- all_score[,grepl("gene|fdr", colnames(all_score))]
+			genes <- intersect(scores_fdr$gene, cur_scores_fdr$gene)
+			scores_fdr <- scores_fdr[scores_fdr$gene %in% genes,]
+			cur_scores_fdr <- cur_scores_fdr[cur_scores_fdr$gene %in% genes,]
+			scores_fdr <- cbind(scores_fdr, cur_scores_fdr[,2:ncol(cur_scores_fdr)])
+		}
 	}
-	cols= (colnames(raw_reads))
-	raw_reads <- raw_reads[,(cols %in% col_list)]
 
-	# create output directories
-	condition_1 <- batch[1,1] #read first screen name from batch file
-	screen_name = strsplit(condition_1,"_")[[1]][1] # extract screen-batch name from screen name
-	output_folder <- file.path(output_folder, screen_name) # create sub-directory with screen-batch name in output directory
-	qc_folder <- file.path(output_folder, "qc") # directory to store guide-level normalized reads quality-control files
-	read_folder <- file.path(qc_folder, "reads") # directory to store raw read quality-control files
-	
-	# Create output directories if non-existent
-	if (!dir.exists(output_folder)) { dir.create(output_folder, recursive = TRUE) }
-	if (!dir.exists(qc_folder)) { dir.create(qc_folder) }
-	if (!dir.exists(read_folder)) { dir.create(read_folder) }
-	
-	# generate raw read-count QC files
-	plot_reads_qc(raw_reads, screens, read_folder, 
-		plot_type = plot_type, display_numbers = display_numbers, show_colnames = show_colnames, show_rownames = show_rownames)
-
-	# normalize raw read-counts to earlier time-point 
-	t0_screens <- names(screens)[grepl(filter_names_prefix, names(screens))] #filter T0 screens while normalizing
-	raw_reads <- normalize_screens(raw_reads, screens, filter_names = t0_screens,
-							cf1 = cf1, cf2 = cf2, 
-                            min_reads = min_reads, max_reads = max_reads, nonessential_norm = nonessential_norm,
-                            replace_NA = replace_NA
-	)
-	write.csv(raw_reads,file.path(output_folder,'t0_normalized_screens.tsv'), row.names=F)
-	
-	# generate guide-level normalized reads QC files
-	plot_lfc_qc(raw_reads, screens, qc_folder, 
-		plot_type = plot_type, display_numbers = display_numbers, show_colnames = show_colnames, show_rownames = show_rownames)
-
-
-	batch_file <- file.path(batch_file)
-	score_drugs_batch(raw_reads, screens, batch_file, output_folder,
-					min_guides = min_guides, loess = loess, ma_transform = ma_transform,control_genes = control_genes,
-					fdr_method = fdr_method,fdr_threshold_positive  = fdr_threshold_positive, fdr_threshold_negative = fdr_threshold_negative,
-					differential_threshold_positive = differential_threshold_positive, differential_threshold_negative = differential_threshold_negative,
-					neg_type = neg_type,pos_type = pos_type, label_fdr_threshold = label_fdr_threshold, save_guide_dlfc = save_guide_dlfc
-	)
-					
-	
-	#read bulk score file and generate dLFC and FDR file	
-	input_file <- file.path(output_folder,"condition_gene_calls.tsv")
-	all_score <- read.csv(file.path(input_file),header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-	
-	scores <- all_score[,grepl("gene|differential", colnames(all_score))]
 	scores <- abbreviate_names(scores, "differential_", 2:ncol(scores))
 	rownames(scores) <- scores$gene #set matrix rownames to gene names ('gene' column (first column) contains gene names at this point)
 	scores <- scores[,-1] #remove first column ('gene' column)
-	score_fname <- file.path(output_folder, "differential_LFC_scores.tsv")
+	score_fname <- file.path(parent_folder, "differential_LFC_scores.tsv")
 	write.table(scores, score_fname, sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
 	
-	scores_fdr <- all_score[,grepl("gene|fdr", colnames(all_score))]
 	scores_fdr <- abbreviate_names(scores_fdr, "fdr_", 2:ncol(scores_fdr))
 	rownames(scores_fdr) <- scores_fdr$gene #set matrix rownames to gene names ('gene' column (first column) contains gene names at this point)
 	scores_fdr <- scores_fdr[,-1] #remove first column ('gene' column)
-	scores_fdr_fname <- file.path(output_folder, "fdr_scores.tsv")
+	scores_fdr_fname <- file.path(parent_folder, "fdr_scores.tsv")
 	write.table(scores_fdr, scores_fdr_fname, sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
 
 }
