@@ -351,7 +351,7 @@ call_drug_hits <- function(scores, control_screen_name, condition_screen_names,
 #' 
 #' @param df LFC dataframe.
 #' @param screens List of screens generated with \code{add_screens}.
-#' @param batch_file Path to .tsv file mapping screens to their controls for scoring, with two 
+#' @param batch dataframe mapping screens to their controls for scoring, with two 
 #'   columns for "Screen" and "Control." 
 #' @param output_folder Folder to output scored data and plots to. 
 #' @param min_guides The minimum number of guides per gene pair required to score data 
@@ -381,7 +381,7 @@ call_drug_hits <- function(scores, control_screen_name, condition_screen_names,
 #'   (default FALSE).
 #' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
 #' @export
-score_drugs_batch <- function(df, screens, batch_file, output_folder, 
+score_drugs_batch <- function(df, screens, batch, output_folder, 
                               min_guides = 3, 
                               loess = TRUE, ma_transform = TRUE,
                               control_genes = c("None", ""), 
@@ -394,20 +394,7 @@ score_drugs_batch <- function(df, screens, batch_file, output_folder,
                               save_guide_dlfc = FALSE, 
                               plot_type = "png") {
   
-	# Create output folder if nonexistent
-	if (!dir.exists(output_folder)) { dir.create(output_folder, recursive = TRUE) }
-	
-	# Check format of batch file
-	first_file <- utils::read.table(file = batch_file, header = F, nrows = 1, sep = "\t", encoding = "UTF-8")
-	batch <- NULL
-	if (ncol(first_file) == 2) {
-		check_batch_file(batch_file, screens)  
-	} else {
-		stop(paste("file", batch_file, "must contain exactly 2 columns"))
-	}
-	# read batch file
-	batch <- utils::read.csv(batch_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
-	
+
 	# Score each condition screen separately
 	all_scores <- NULL
 	for (i in 1:nrow(batch)) { # iterate over the condition screens listed in the batch file
