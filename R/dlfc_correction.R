@@ -410,6 +410,44 @@ screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 	
 }
 
+#' wrapper function to generate differential log fold change from control screens
+#'
+#'  @param input_path 
+#'  @param batch_table_file_path 
+#'  @param sample_table_file_path 
+#'  @param raw_read_count_data_file_path 
+#'  @param output_folder 
+#' @param filter_names_postfix 
+#' @param cf1
+#' @param cf2
+#' @param min_reads
+#' @param max_reads
+#' @param nonessential_norm
+#' @param replace_NA
+#' @param min_guides
+#' @param loess
+#' @param ma_transform
+#' @param control_genes
+#' @param qc_control_pcc
+#' @param verbose
+#' @param black_list
+#' @param screen_control_keyword
+#' @param remove_screen_list
+#' @param drug_list_4x4
+#' @param null_drug_list
+#' @param save_intermediate
+#' @param neg_type
+#' @param pos_type
+#' @param fdr_threshold_positive
+#' @param fdr_threshold_negative
+#' @param differential_threshold_positive
+#' @param differential_threshold_negative
+#' @param plot_type
+#' @param label_fdr_threshold
+#'
+#' Output: generates corrected dLFC score file and other files 
+#'  
+#'  @export
 correct_dlfc_scores_in_batch <- function(
     input_path, 
 	batch_table_file_path, 
