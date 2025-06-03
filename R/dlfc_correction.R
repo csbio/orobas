@@ -351,7 +351,7 @@ black_list=c('bad_screen_name', ""),
 screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 )
 {	
-			   
+	# create control-control-map table and control-replicate-map table files from condition-control-map table and screen-replicates-map table		   
 	batch_table = read.table(batch_table_file_path, sep='\t',  header = T, stringsAsFactors = F)
 	sample_table = read.table(sample_table_file_path,sep='\t', header = T, stringsAsFactors = F)
 
