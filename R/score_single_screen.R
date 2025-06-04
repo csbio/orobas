@@ -529,12 +529,36 @@ get_screen_type<-function(x)
 #' @param save_guide_dlfc If true, saves guide-level dLFC scores for each condition screen to the output folder
 #'   (default FALSE).
 #' @export
-score_screens<- function(parent_folder,input_file,sample_file,batch_file,
-plot_type = 'png', display_numbers = TRUE, show_colnames = TRUE, show_rownames = TRUE,
-filter_names_prefix = 'T0', cf1 = 1e6, cf2 = 1, min_reads = 30, max_reads = 10000, nonessential_norm = TRUE,replace_NA = TRUE,
-min_guides = 3, loess = TRUE, ma_transform = TRUE,control_genes = c("None", ""),
-fdr_method = "BY",fdr_threshold_positive  = 0.1, fdr_threshold_negative = 0.1,differential_threshold_positive = 0, differential_threshold_negative = 0,
-neg_type = "Negative",pos_type = "Positive", label_fdr_threshold = NULL, save_guide_dlfc = FALSE
+
+run_single_screen_scoring<- function(
+	parent_folder,
+	input_file,
+	sample_file,
+	batch_file,
+	plot_type = 'png', 
+	display_numbers = TRUE, 
+	show_colnames = TRUE, 
+	show_rownames = TRUE,
+	filter_names_prefix = 'T0', 
+	cf1 = 1e6, 
+	cf2 = 1, 
+	min_reads = 30, 
+	max_reads = 10000, 
+	nonessential_norm = TRUE,
+	replace_NA = TRUE,
+	min_guides = 3, 
+	loess = TRUE, 
+	ma_transform = TRUE,
+	control_genes = c("None", ""),
+	fdr_method = "BY",
+	fdr_threshold_positive  = 0.1, 
+	fdr_threshold_negative = 0.1,
+	differential_threshold_positive = 0, 
+	differential_threshold_negative = 0,
+	neg_type = "Negative",
+	pos_type = "Positive", 
+	label_fdr_threshold = NULL, 
+	save_guide_dlfc = FALSE
 )
 {
 	
