@@ -285,8 +285,10 @@ save_intermediate=FALSE
   }
   
   ####batch correction using lda
-  scores <- screen_batch_correction_with_lda(scores, output_folder)
-  score_fname <- file.path(output_folder, "dLFC_scores_sd_scaled_pc_removed_control_removed_batch_corrected.tsv")
+  lda_output_folder <- file.path(output_folder,'LDA_evaluation_plots')
+  if (!dir.exists(lda_output_folder)) { dir.create(lda_output_folder) }
+  scores <- screen_batch_correction_with_lda(scores, lda_output_folder)
+  score_fname <- file.path(output_folder, "global_normalized_dLFC_scores.tsv")
   write.table(scores, score_fname, sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
   
   if(flag_wbc)
