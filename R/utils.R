@@ -38,7 +38,9 @@ add_screens_from_table <- function(table_file) {
   for (i in 1:nrow(table)) {
     name <- table[["Screen"]][i]
     replicates <- unlist(strsplit(table[["Replicates"]][i], ";"))
+    replicates <- format_replicate_names(replicates)
     normalize_name <- table[["NormalizeTo"]][i]
+    normalize_name <- format_replicate_names(normalize_name)
     if (is.na(normalize_name)) {
       normalize_name <- NULL
     }
