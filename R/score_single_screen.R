@@ -14,7 +14,7 @@ scale_values <- function(x) {
 #'
 #' @param x	string containing the screen name in the format screen-batch-name_compound-name_time
 #' @return	string containing the screen-batch name
-get_screen_type<-function(x)
+get_screen_batch_name<-function(x)
 {
   x1<-strsplit(x,"_")[[1]][1] #split x with delimiter _ and retrieve first sub-string
   return( x1)
@@ -615,7 +615,7 @@ run_single_screen_scoring<- function(
 		stop(paste("ERROR: The raw read-count file does not contain all required columns listed in sample table meta file."))
 	}
 	
-	screen_batch = unique(unlist(lapply(as.character(batch_all$Screen),get_screen_type) ))
+	screen_batch = unique(unlist(lapply(as.character(batch_all$Screen),get_screen_batch_name) ))
 	sample_table = utils::read.table(sample_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
 	
 	flag = 0
