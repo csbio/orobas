@@ -9,6 +9,17 @@ scale_values <- function(x) {
   val <- (x-min(x, na.rm=T)) / (max(x, na.rm=T) - min(x, na.rm=T))
 }
 
+#' Gets the screen-batch name from the screen name
+#' Example: screen name: CHEM001_BORTEZOMIB_T18;  from this returns CHEM001 which is the screen-batch name
+#'
+#' @param x	string containing the screen name in the format screen-batch-name_compound-name_time
+#' @return	string containing the screen-batch name
+get_screen_type<-function(x)
+{
+  x1<-strsplit(x,"_")[[1]][1] #split x with delimiter _ and retrieve first sub-string
+  return( x1)
+}
+
 #' Finds and removes (set to NA) outlier guides from the conditional residual (differential scores) for each gene
 #'
 #' @param cond_res	dataframe of condition residuals (differential scores); rows: genes, column: replicate-guide pair 
@@ -469,12 +480,6 @@ score_drugs_batch <- function(df, screens, batch, output_folder,
 			 row.names = FALSE, col.names = TRUE, quote = FALSE) 
 	} 
 	
-}
-
-get_screen_type<-function(x)
-{
-  x1<-strsplit(x,"_")[[1]][1] #split x with delimiter \. and retrieve first sub-string
-  return( x1)
 }
 
 #' Wrapper function to normalize and score screens and generate various plots. 
