@@ -521,7 +521,10 @@ correct_dlfc_scores_in_batch <- function(
   {	
     stop(paste("ERROR: Could not find file ", raw_read_count_data_file_path))
   }
-  
+
+  output_folder <- file.path(output_folder,'global_normalization')
+  if (!dir.exists(output_folder)) { dir.create(output_folder, recursive = TRUE) }
+	
   # read condition-control-map table file
   batch <- utils::read.csv(batch_table_file_path, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
   
