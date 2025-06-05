@@ -452,10 +452,6 @@ score_single_screen <- function(df, screens, batch, output_folder,
 				# Make lfc if nonexistent
 				lfc_folder <- file.path(output_folder, "lfc")
 				if (!dir.exists(lfc_folder)) { dir.create(lfc_folder) }
-				
-				#residuals_file <- paste0(condition, "_vs_", control, "_guide_dlfc_post_jk.tsv")
-				#utils::write.table(guide_dlfc_post_jk, file.path(lfc_folder, residuals_file), sep = "\t",
-						     #row.names = FALSE, col.names = TRUE, quote = FALSE) 
 							 
 				residuals_file <- paste0(condition, "_vs_", control, "_guide_dlfc_pre_jk.tsv")
 				utils::write.table(guide_dlfc_pre_jk, file.path(lfc_folder, residuals_file), sep = "\t",
