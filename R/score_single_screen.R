@@ -73,7 +73,7 @@ jackknife_outliers<-function(cond_res, threshold=2)
 #'   i) "scored_data": a dataframe containing scored data with separate columns given by the specified control and condition names.
 #'   ii) "guide_dlfc_pre_jk": a dataframe containing guide-level and replicate-level differential LFCs scored for condition screen against control screen, before applying jk-outlier removal.
 #' @export
-score_drugs_vs_control <- function(df, screens, control_screen_name, condition_screen_names, 
+score_condition_vs_control <- function(df, screens, control_screen_name, condition_screen_names, 
                                    control_genes = c("None", ""), min_guides = 3, 
                                    loess = TRUE, ma_transform = TRUE, fdr_method = "BY",
                                    return_residuals = FALSE) {
@@ -290,9 +290,9 @@ score_drugs_vs_control <- function(df, screens, control_screen_name, condition_s
 #' Call significant responses for scored chemogenomic data.
 #' 
 #' Run this to call significant responses for data returned from 
-#' \code{score_drugs_vs_control}.
+#' \code{score_condition_vs_control}.
 #' 
-#' @param scores Dataframe returned from \code{score_drugs_vs_control}
+#' @param scores Dataframe returned from \code{score_condition_vs_control}
 #' @param control_screen_name Name of a control screen to test condition screens against
 #' @param condition_screen_names A list of condition screen names to score against the 
 #'   control screen.
@@ -412,8 +412,8 @@ score_drugs_batch <- function(df, screens, batch, output_folder,
 	
 		condition <- batch[i,1] # get current condition screen name
 		control <- batch[i,2] # get associated control screen name
-		# call score_drugs_vs_control() to produce data frame of various scores (score condition screen against the control screen)
-		temp <- score_drugs_vs_control(df, screens, control, condition, 
+		# call score_condition_vs_control() to produce data frame of various scores (score condition screen against the control screen)
+		temp <- score_condition_vs_control(df, screens, control, condition, 
 					     min_guides = min_guides, 
 					     loess = loess, 
 					     ma_transform = ma_transform, 
@@ -421,7 +421,7 @@ score_drugs_batch <- function(df, screens, batch, output_folder,
 					     fdr_method = fdr_method, 
 					       return_residuals = save_guide_dlfc
 					     )
-		scores <- temp[["scored_data"]] # scored data returned by score_drugs_vs_control()
+		scores <- temp[["scored_data"]] # scored data returned by score_condition_vs_control()
 		#guide_dlfc_post_jk <- temp[["guide_dlfc_post_jk"]] 
 		guide_dlfc_pre_jk <- temp[["guide_dlfc_pre_jk"]]  
 		
