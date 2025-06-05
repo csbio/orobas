@@ -495,7 +495,7 @@ score_single_screen <- function(df, screens, batch, output_folder,
 #' @param display_numbers Whether or not to include PCC values in heatmap (default TRUE).
 #' @param show_rownames Whether or not to show row names on the plot (default TRUE).
 #' @param show_colnames Whether or not to show column names on the plot (default TRUE).
-#' @param filter_names_prefix substring to identify list of screen names to filter based on read counts by in the normalization step. (default 'T0')
+#' @param filter_names_postfix substring to identify list of screen names to filter based on read counts by in the normalization step. (default 'T0')
 #' @param cf1 Scaling factor (default 1e6).
 #' @param cf2 Pseudocount (default 1).
 #' @param min_reads Minimum number of reads to keep (default 30, anything
@@ -544,7 +544,7 @@ run_single_screen_scoring<- function(
 	display_numbers = TRUE, 
 	show_colnames = TRUE, 
 	show_rownames = TRUE,
-	filter_names_prefix = 'T0', 
+	filter_names_postfix = 'T0', 
 	cf1 = 1e6, 
 	cf2 = 1, 
 	min_reads = 30, 
@@ -656,7 +656,7 @@ run_single_screen_scoring<- function(
 			plot_type = plot_type, display_numbers = display_numbers, show_colnames = show_colnames, show_rownames = show_rownames)
 
 		# normalize raw read-counts to earlier time-point 
-		t0_screens <- names(screens)[grepl(paste('_',filter_names_prefix,'$',sep=''), names(screens))] #filter T0 screens while normalizing
+		t0_screens <- names(screens)[grepl(paste('_',filter_names_postfix,'$',sep=''), names(screens))] #filter T0 screens while normalizing
 		raw_reads <- normalize_screens(raw_reads, screens, filter_names = t0_screens,
 								cf1 = cf1, cf2 = cf2, 
 								min_reads = min_reads, max_reads = max_reads, nonessential_norm = nonessential_norm,
