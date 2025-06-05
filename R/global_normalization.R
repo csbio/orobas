@@ -55,7 +55,7 @@ apply_SD_scaling<- function(scores,sd_table_output_directory)
 	post_scaling_sd <- apply(scores, 2, stats::sd, na.rm=TRUE)
 	sd_table <- data.frame(cbind(pre_scaling_sd, post_scaling_sd))
 	colnames(sd_table) <- c("pre_scaling_sd", "post_scaling_sd")
-	sd_fname <- file.path(sd_table_output_directory,"sd_table.tsv")
+	sd_fname <- file.path(sd_table_output_directory,"sd_scale_table.tsv")
 	write.table(sd_table, sd_fname, sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
 
 
@@ -295,7 +295,7 @@ save_intermediate=FALSE
   {
     wbc_4x4_temp = score_wbc(scores, drug_list_4x4, null_drug_list)
     wbc_4x4$lda_batch_corrected = wbc_4x4_temp$wbc
-    write.csv(wbc_4x4, file.path(output_folder,'wbc_4x4_all.csv'), quote = FALSE,row.names = FALSE)
+    write.csv(wbc_4x4, file.path(output_folder,'wbc_scores.csv'), quote = FALSE,row.names = FALSE)
   }
   
   return(scores)
