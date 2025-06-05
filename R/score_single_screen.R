@@ -134,8 +134,6 @@ score_condition_vs_control <- function(df, screens, control_screen_name, conditi
 	  colnames(residual_df) <- paste0("guide_residual_", rep(1:max_guides,each=length(condition_reps)),'_', condition_reps)
 	  condition_residuals <- residual_df
 		  
-	
-  
 	# Pairwise LOESS smoothing - pair-wise control-condition replicates
 	# Compute loess-normalized differential LFC scores if specified and store them in a dataframe (loess_residuals)
 	# These values will be later added to the output scores dataframe as differential LFC scores for condition screens
@@ -230,16 +228,12 @@ score_condition_vs_control <- function(df, screens, control_screen_name, conditi
 				} 
 				condition_residuals[i, paste0("guide_residual_", 1:max_guides,'_', rep(condition_reps[rep_index], max_guides))] <- resid 
 			}
-		}
-			
-		
+		}		
 		
 	}
   
-	#remove (set to NA) outlier guides per-gene using jack-knife method for each condition if the significance test is moderated-t 
+	#remove (set to NA) outlier guides per-gene using jack-knife method for each condition
 	
-	
-
 	#store residuals before applying jack-knife outlier removal
 	condition_residuals_pre_jk = condition_residuals
 	
@@ -249,25 +243,19 @@ score_condition_vs_control <- function(df, screens, control_screen_name, conditi
 	# update dLFC column for the condition screen in scores dataframe
 	scores[[paste0("differential_", name, "_vs_", control_name)]] <- rowMeans(condition_residuals,na.rm = TRUE)
 
-		
-	
-  
-  	# calculate p-values indicating significance of differential LFC scores using moderated t-test 
-		
+  	# calculate p-values indicating significance of differential LFC scores using moderated t-test 	
 	block <- rep(1:max_guides, each=length(condition_cols)) #group same guides together - all technical-replicates in each guide block
 	dupcor <- limma::duplicateCorrelation(condition_residuals, block=block) #Estimate the correlation between technical replicates from a series of arrays ( here calculating inter-biological replicate (guides) correlation)
 	ebayes_fit <- limma::eBayes(limma::lmFit(condition_residuals, design=NULL, block=block, correlation=dupcor$consensus)) # compute moderated t-statistics of dLFC by empirical Bayes moderation of the standard errors towards a common value
 	p_val <- ebayes_fit$p.value[,1]
 	scores[[paste0("pval_", name, "_vs_", control_name)]] <- p_val # update pval column for condition screen in scores dataframe
 	   
-	
 	# Correct p-values for multiple testing and add a new column with FDR values
 	# update FDR column for condition screen in scores dataframe
 	
 	scores[[paste0("fdr_", name, "_vs_", control_name)]] <- 
 	stats::p.adjust(scores[[paste0("pval_", name, "_vs_", control_name)]], method = fdr_method)
 	
-  
 	# Explicitly returns scored data
 	output <- list()
 	output[["scored_data"]] <- scores
@@ -311,44 +299,47 @@ score_condition_vs_control <- function(df, screens, control_screen_name, conditi
 #' @return Dataframe of scored data with differential effects called as significant
 #'   for the specified conditions. 
 #' @export
-call_drug_hits <- function(scores, control_screen_name, condition_screen_names,
-                           fdr_threshold_positive  = 0.1, fdr_threshold_negative = 0.1,
-			   differential_threshold_positive = 0, differential_threshold_negative = 0,
-                           neg_type = "Negative", pos_type = "Positive") {
-  
-	# Get name of control screen, condition screen, and condition screen replicate names (data originally from sample table tsv file)
+call_drug_hits <- function(
+	scores, 
+	control_screen_name, 
+	condition_screen_names,
+        fdr_threshold_positive  = 0.1, 
+	fdr_threshold_negative = 0.1,
+	differential_threshold_positive = 0, 
+	differential_threshold_negative = 0,
+        neg_type = "Negative", 
+	pos_type = "Positive"
+)
+{  	
 	control_name <- control_screen_name
-	condition_names <- c()
-	for (condition in condition_screen_names) {
-		condition_names <- c(condition_names, condition)
-	}
+	name <- condition_screen_names
   
-	# Update 'significant' column for each condition against the control
+	# Update 'significant' column for condition against the control
 	# significance call for positive and negative dLFCs are handled differently
 	# if the fdr score < fdr_threshold_positive and differential score > 0  set significant to TRUE
 	# if the fdr score < fdr_threshold_negative and differential score < 0  set significant to TRUE
-	for (name in condition_names) {
-		scores[[paste0("significant_", name, "_vs_", control_name)]] <- 
-		(scores[[paste0("fdr_", name, "_vs_", control_name)]] < fdr_threshold_positive) & 
-		(scores[[paste0("differential_", name, "_vs_", control_name)]] > 0) 
-		
-		scores[[paste0("significant_", name, "_vs_", control_name)]] <- 
-		(scores[[paste0("significant_", name, "_vs_", control_name)]] == TRUE) |
-		((scores[[paste0("fdr_", name, "_vs_", control_name)]] < fdr_threshold_negative) & 
-		(scores[[paste0("differential_", name, "_vs_", control_name)]] < 0)) 
-	}
+
+	scores[[paste0("significant_", name, "_vs_", control_name)]] <- 
+	(scores[[paste0("fdr_", name, "_vs_", control_name)]] < fdr_threshold_positive) & 
+	(scores[[paste0("differential_", name, "_vs_", control_name)]] > 0) 
+	
+	scores[[paste0("significant_", name, "_vs_", control_name)]] <- 
+	(scores[[paste0("significant_", name, "_vs_", control_name)]] == TRUE) |
+	((scores[[paste0("fdr_", name, "_vs_", control_name)]] < fdr_threshold_negative) & 
+	(scores[[paste0("differential_", name, "_vs_", control_name)]] < 0)) 
+
 	
 	# update 'effect_type_' column based on 'significant_' column and differential score thresholds
 	# if signifinant = TRUE and differential score < differential_threshold_negative, then set type to negative
 	# if signifinant = TRUE and differential score > differential_threshold_positive, then set type to positive
-	for (name in condition_names) {
-		response_col <- paste0("effect_type_", name)
-		scores[[response_col]] <- "None"
-		diffs <- scores[[paste0("differential_", name, "_vs_", control_name)]]
-		sig <- scores[[paste0("significant_", name, "_vs_", control_name)]]
-		scores[[response_col]][sig & diffs < differential_threshold_negative] <- neg_type
-		scores[[response_col]][sig & diffs > differential_threshold_positive] <- pos_type
-	}
+
+	response_col <- paste0("effect_type_", name)
+	scores[[response_col]] <- "None"
+	diffs <- scores[[paste0("differential_", name, "_vs_", control_name)]]
+	sig <- scores[[paste0("significant_", name, "_vs_", control_name)]]
+	scores[[response_col]][sig & diffs < differential_threshold_negative] <- neg_type
+	scores[[response_col]][sig & diffs > differential_threshold_positive] <- pos_type
+
   
 	# return updated scores dataframe
 	return(scores)
