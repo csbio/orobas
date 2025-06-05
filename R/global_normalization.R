@@ -364,9 +364,9 @@ screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 
 	control_table = data.frame('Screen' =unique(batch_table$Control), 'Control' =unique(batch_table$Control), 'Group' = 'control', 'Type' = 'control')
 	
-	write.table(control_table, file = file.path(output_folder,"control_table.tsv")
+	write.table(control_table, file = file.path(output_folder,"control_control_map_table.tsv")
             , sep='\t', row.names = F, quote = F)
-	write.table(control_sample_table, file = file.path(output_folder,"control_sample_table.tsv")
+	write.table(control_sample_table, file = file.path(output_folder,"control_replicates_map_table.tsv")
             , sep='\t', row.names = F, quote = F)		
 	
 	#read raw-read count file
@@ -377,7 +377,7 @@ screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 	colnames(raw_reads) <- format_replicate_names(colnames(raw_reads))
 	
 	# Process screens
-	screens <- add_screens_from_table(file.path(output_folder,"control_sample_table.tsv"))
+	screens <- add_screens_from_table(file.path(output_folder,"control_replicates_map_table.tsv"))
 	
 	#Extract gene and relevant screen replicate columns from the raw read-count data
 	col_list = c('gene')
@@ -405,7 +405,7 @@ screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 	# Score dataset
 	score_controls_batch(df = raw_reads, 
 				screens = screens, 
-				batch_file = file.path(output_folder,"control_table.tsv"), 
+				batch_file = file.path(output_folder,"control_control_map_table.tsv"), 
 				output_folder = output_folder,
                 control_genes = control_genes,
                 min_guides = min_guides, 
