@@ -303,7 +303,7 @@ save_intermediate=FALSE
 
 #' wrapper function to generate differential log fold change from control screens
 #' 
-#'  @param batch_table_file_path 
+#'  @param condition_control_map_file 
 #'  @param screen_replicate_map_file 
 #'  @param raw_read_count_file 
 #'  @param output_folder 
@@ -332,7 +332,7 @@ save_intermediate=FALSE
 #'  
 #'  @export
 generate_control_dlfc_scores <- function(
-batch_table_file_path,
+condition_control_map_file,
 screen_replicate_map_file, 
 raw_read_count_file,
 output_folder, 
@@ -354,7 +354,7 @@ screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 )
 {	
 	# create control-control-map table and control-replicate-map table files from condition-control-map table and screen-replicates-map table		   
-	batch_table = read.table(batch_table_file_path, sep='\t',  header = T, stringsAsFactors = F)
+	batch_table = read.table(condition_control_map_file, sep='\t',  header = T, stringsAsFactors = F)
 	sample_table = read.table(screen_replicate_map_file,sep='\t', header = T, stringsAsFactors = F)
 
 	control_sample_table = sample_table[which(sample_table$Screen %in% unique(batch_table$Control)),]
@@ -421,7 +421,7 @@ screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 #' wrapper function to generate differential log fold change from control screens
 #'
 #'  @param input_path 
-#'  @param batch_table_file_path 
+#'  @param condition_control_map_file 
 #'  @param screen_replicate_map_file 
 #'  @param raw_read_count_file 
 #'  @param output_folder 
@@ -473,7 +473,7 @@ screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 #'  @export
 run_global_normalization <- function(
     input_path, 
-	batch_table_file_path, 
+	condition_control_map_file, 
 	output_folder, 
 	screen_replicate_map_file, 
 	raw_read_count_file,
@@ -507,9 +507,9 @@ run_global_normalization <- function(
     )
 {
   # check if condition-control-map table exists
-  if (!file.exists(batch_table_file_path))
+  if (!file.exists(condition_control_map_file))
   {	
-    stop(paste("ERROR: Could not find file ", batch_table_file_path))
+    stop(paste("ERROR: Could not find file ", condition_control_map_file))
   }
   
   # check if screen-replicates-map table exists
@@ -528,7 +528,7 @@ run_global_normalization <- function(
   if (!dir.exists(output_folder)) { dir.create(output_folder, recursive = TRUE) }
 	
   # read condition-control-map table file
-  batch <- utils::read.csv(batch_table_file_path, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
+  batch <- utils::read.csv(condition_control_map_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
   
   #gather scores from various screens from different files generated during the single-screen scoring 
   flag = 0 # flag to keep track if data from the first file is being read
@@ -583,7 +583,7 @@ run_global_normalization <- function(
   
   #generate control dlfc_score
   generate_control_dlfc_scores(
-	batch_table_file_path = batch_table_file_path,
+	condition_control_map_file = condition_control_map_file,
 	screen_replicate_map_file = screen_replicate_map_file, 
 	raw_read_count_file = raw_read_count_file,
 	output_folder = output_folder,	
