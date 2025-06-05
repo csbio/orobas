@@ -12,7 +12,10 @@
 #' @return  differential log fold change scores data-frame (library-genes X screens) after removing selected screens (columns)
 #' 
 #' @export
-remove_screens<- function(scores, exclude_screen_list=c())
+remove_screens<- function(
+	scores, 
+	exclude_screen_list=c()
+)
 {
   #remove screens listed in exclude_screen_list from dLFC scores matrix 
 	return(scores[,!(colnames(scores) %in% exclude_screen_list)])
@@ -30,7 +33,10 @@ remove_screens<- function(scores, exclude_screen_list=c())
 #' @return  differential log fold change scores data-frame (library-genes X screens) after applying SD scaling per screen (column)
 #' 
 #' @export
-apply_SD_scaling<- function(scores,sd_table_output_directory)
+apply_SD_scaling<- function(
+	scores,
+	sd_table_output_directory
+)
 {
 	  #calculate standard-deviation of each screen before scaling
 	  pre_scaling_sd <- apply(scores, 2, stats::sd, na.rm=TRUE)
@@ -50,14 +56,12 @@ apply_SD_scaling<- function(scores,sd_table_output_directory)
 	    scores[,i] <- scores[,i] / target_sd[i]
 	  }
   
-	#sanity check
 	#calculate standard-deviation of each screen after scaling and write the scaling values to file
 	post_scaling_sd <- apply(scores, 2, stats::sd, na.rm=TRUE)
 	sd_table <- data.frame(cbind(pre_scaling_sd, post_scaling_sd))
 	colnames(sd_table) <- c("pre_scaling_sd", "post_scaling_sd")
 	sd_fname <- file.path(sd_table_output_directory,"sd_scale_table.tsv")
 	write.table(sd_table, sd_fname, sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
-
 
 	return(scores)
 }
@@ -72,7 +76,10 @@ apply_SD_scaling<- function(scores,sd_table_output_directory)
 #' @return  differential log fold change scores data-frame (library-genes X screens) after removing principal components
 #' 
 #' @export
-remove_principal_component_signal<- function(scores,pc=1)
+remove_principal_component_signal<- function(
+	scores,
+	pc=1
+)
 {	
 	scores <- data.matrix(scores) #convert to matrix format
 	scores <- scores[complete.cases(scores), ] #only keep rows with no 'NA' values
@@ -98,7 +105,10 @@ remove_principal_component_signal<- function(scores,pc=1)
 #' @return  differential log fold change scores data-frame (library-genes X screens) after removing principal components
 #' 
 #' @export
-remove_control_dlfc_signal<- function(scores,control_dlfc_filepath)
+remove_control_dlfc_signal<- function(
+	scores,
+	control_dlfc_filepath
+)
 {	
   	#load dLFC score file from control_dlfc_filepath
   	#file format- tab delimited .tsv file with screens as columns and genes as rows. 
@@ -138,7 +148,10 @@ remove_control_dlfc_signal<- function(scores,control_dlfc_filepath)
 #'  @return differential log fold change scores data-frame (library-genes X screens) after batch correction by LDA
 #'  
 #'  @export
-screen_batch_correction_with_lda<- function(scores, output_directory)
+screen_batch_correction_with_lda<- function(
+	scores, 
+	output_directory
+)
 {	
   	#load screen level batch correction LDA python script 
 	source_python(system.file("python","screen_batch_correction_LDA.py", package = "orobas"))
@@ -163,7 +176,12 @@ screen_batch_correction_with_lda<- function(scores, output_directory)
 #' @return  data-frame with one wbc score for each 4x4 screens
 #' 
 #' @export
-score_wbc <- function(data, drug_list_4x4, null_drug_list) {
+score_wbc <- function(
+	data, 
+	drug_list_4x4, 
+	null_drug_list
+) 
+{
  
   #generate pearson correlation matrix across all screens
   sim_net <- cor(data, use = "complete.obs",method="pearson")
@@ -210,13 +228,13 @@ score_wbc <- function(data, drug_list_4x4, null_drug_list) {
 #'  
 #'  @export
 apply_dlfc_correction<- function(
-scores,
-output_folder,
-control_dlfc_filepath,
-remove_screen_list=c(),
-drug_list_4x4=c(),
-null_drug_list=c(),
-save_intermediate=FALSE
+	scores,
+	output_folder,
+	control_dlfc_filepath,
+	remove_screen_list=c(),
+	drug_list_4x4=c(),
+	null_drug_list=c(),
+	save_intermediate=FALSE
 )
 {
   flag_wbc = TRUE
@@ -227,23 +245,37 @@ save_intermediate=FALSE
   
   if(flag_wbc)
   {
-    wbc_4x4 = score_wbc(scores, drug_list_4x4, null_drug_list)
+    wbc_4x4 = score_wbc(
+	    scores, 
+	    drug_list_4x4, 
+	    null_drug_list
+    )
     colnames(wbc_4x4) = c('screens','no_correction')
   }
   
   #### remove listed screens from differencial LFC scores
   if(!is_empty(remove_screen_list))
   {
-    scores <- remove_screens(scores, remove_screen_list)
+    scores <- remove_screens(
+	    scores, 
+	    remove_screen_list
+    )
     if(flag_wbc)
     {
-      wbc_4x4_temp = score_wbc(scores, drug_list_4x4, null_drug_list)
+      wbc_4x4_temp = score_wbc(
+	      scores, 
+	      drug_list_4x4, 
+	      null_drug_list
+      )
       wbc_4x4$bad_screens_removed = wbc_4x4_temp$wbc
     }
   }
   
   ####Apply SD scaling to differenctial LFC scores
-  scores <- apply_SD_scaling(scores, output_folder)
+  scores <- apply_SD_scaling(
+	  scores, 
+	  output_folder
+  )
   if(save_intermediate)
   {
     score_fname <- file.path(output_folder, "dLFC_scores_sd_scaled.tsv")
@@ -251,12 +283,19 @@ save_intermediate=FALSE
   }
   if(flag_wbc)
   {
-    wbc_4x4_temp = score_wbc(scores, drug_list_4x4, null_drug_list)
+    wbc_4x4_temp = score_wbc(
+	    scores, 
+	    drug_list_4x4, 
+	    null_drug_list
+    )
     wbc_4x4$sd_scaled = wbc_4x4_temp$wbc
   }
   
   ####remove first principal component from the differential LFC scores
-  scores <- remove_principal_component_signal(scores,pc=1)
+  scores <- remove_principal_component_signal(
+	  scores,
+	  pc=1
+  )
   if(save_intermediate)
   {
     score_fname <- file.path(output_folder, "dLFC_scores_sd_scaled_pc_removed.tsv")
@@ -264,14 +303,21 @@ save_intermediate=FALSE
   }
   if(flag_wbc)
   {
-    wbc_4x4_temp = score_wbc(scores, drug_list_4x4, null_drug_list)
-    wbc_4x4$pc_removed = wbc_4x4_temp$wbc
+    wbc_4x4_temp = score_wbc(
+	    scores, 
+	    drug_list_4x4, 
+	    null_drug_list
+    )
+    wbc_4x4$pc_1_signal_removed = wbc_4x4_temp$wbc
   }
   
   ####remove DMSO signal from the differential LFC scores
   if(file.exists(control_dlfc_filepath))
   {	
-    scores <- remove_control_dlfc_signal(scores,control_dlfc_filepath)
+    scores <- remove_control_dlfc_signal(
+	    scores,
+	    control_dlfc_filepath
+    )
     if(save_intermediate)
     {
       score_fname <- file.path(output_folder, "dLFC_scores_sd_scaled_pc_removed_control_removed.tsv")
@@ -279,21 +325,32 @@ save_intermediate=FALSE
     }
     if(flag_wbc)
     {
-      wbc_4x4_temp = score_wbc(scores, drug_list_4x4, null_drug_list)
-      wbc_4x4$control_dlfc_removed = wbc_4x4_temp$wbc
+      wbc_4x4_temp = score_wbc(
+	      scores, 
+	      drug_list_4x4, 
+	      null_drug_list
+      )
+      wbc_4x4$control_dlfc_signal_removed = wbc_4x4_temp$wbc
     }
   }
   
   ####batch correction using lda
   lda_output_folder <- file.path(output_folder,'LDA_evaluation_plots')
   if (!dir.exists(lda_output_folder)) { dir.create(lda_output_folder) }
-  scores <- screen_batch_correction_with_lda(scores, lda_output_folder)
+  scores <- screen_batch_correction_with_lda(
+	  scores, 
+	  lda_output_folder
+  )
   score_fname <- file.path(output_folder, "global_normalized_dLFC_scores.tsv")
   write.table(scores, score_fname, sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
   
   if(flag_wbc)
   {
-    wbc_4x4_temp = score_wbc(scores, drug_list_4x4, null_drug_list)
+    wbc_4x4_temp = score_wbc(
+	    scores, 
+	    drug_list_4x4, 
+	    null_drug_list
+    )
     wbc_4x4$lda_batch_corrected = wbc_4x4_temp$wbc
     write.csv(wbc_4x4, file.path(output_folder,'wbc_scores.csv'), quote = FALSE,row.names = FALSE)
   }
@@ -335,25 +392,25 @@ save_intermediate=FALSE
 #'  
 #'  @export
 generate_control_dlfc_scores <- function(
-condition_control_map_file,
-screen_replicate_map_file, 
-raw_read_count_file,
-output_folder, 
-filter_names_postfix = 'T0', 
-cf1 = 1e6, 
-cf2 = 1, 
-min_reads = 30, 
-max_reads = 10000, 
-nonessential_norm = TRUE,
-replace_NA = TRUE,
-min_guides = 3,
-loess = TRUE, 
-ma_transform = TRUE,
-control_genes = c("None", ""),  
-qc_control_pcc=0.30,
-verbose = FALSE, 
-black_list=c('bad_screen_name', ""),
-screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
+	condition_control_map_file,
+	screen_replicate_map_file, 
+	raw_read_count_file,
+	output_folder, 
+	filter_names_postfix = 'T0', 
+	cf1 = 1e6, 
+	cf2 = 1, 
+	min_reads = 30, 
+	max_reads = 10000, 
+	nonessential_norm = TRUE,
+	replace_NA = TRUE,
+	min_guides = 3,
+	loess = TRUE, 
+	ma_transform = TRUE,
+	control_genes = c("None", ""),  
+	qc_control_pcc=0.30,
+	verbose = FALSE, 
+	black_list=c('bad_screen_name', ""),
+	screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 )
 {
 	output_folder <- file.path(output_folder, 'control')
@@ -370,14 +427,11 @@ screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 
 	control_table = data.frame('Screen' =unique(batch_table$Control), 'Control' =unique(batch_table$Control), 'Group' = 'control', 'Type' = 'control')
 	
-	write.table(control_table, file = file.path(output_folder,"control_control_map_table.tsv")
-            , sep='\t', row.names = F, quote = F)
-	write.table(control_sample_table, file = file.path(output_folder,"control_replicates_map_table.tsv")
-            , sep='\t', row.names = F, quote = F)		
+	write.table(control_table, file = file.path(output_folder,"control_control_map_table.tsv"), sep='\t', row.names = F, quote = F)
+	write.table(control_sample_table, file = file.path(output_folder,"control_replicates_map_table.tsv"), sep='\t', row.names = F, quote = F)		
 	
 	#read raw-read count file
-	raw_reads <- read.csv(raw_read_count_file, header = TRUE, stringsAsFactors = FALSE, 
-               sep = "\t", check.names = FALSE, encoding = "UTF-8")
+	raw_reads <- read.csv(raw_read_count_file, header = TRUE, stringsAsFactors = FALSE, sep = "\t", check.names = FALSE, encoding = "UTF-8")
 			   
 	# Fix screen names
 	colnames(raw_reads) <- format_replicate_names(colnames(raw_reads))
@@ -397,30 +451,33 @@ screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 	
 	# normalize raw read-counts to earlier time-point 
 	t0_screens <- names(screens)[grepl(paste('_',filter_names_postfix,'$',sep=''), names(screens))] #filter T0 screens while normalizing
-	raw_reads <- normalize_screens(raw_reads, 
-	screens, 
-	filter_names = t0_screens,
-	cf1 = cf1, 
-	cf2 = cf2, 
-    min_reads = min_reads, 
-	max_reads = max_reads, 
-	nonessential_norm = nonessential_norm,
-    replace_NA = replace_NA
+	raw_reads <- normalize_screens(
+		raw_reads, 
+		screens, 
+		filter_names = t0_screens,
+		cf1 = cf1, 
+		cf2 = cf2, 
+		min_reads = min_reads, 
+		max_reads = max_reads, 
+		nonessential_norm = nonessential_norm,
+		replace_NA = replace_NA
 	)
 	
-	# Score dataset
-	score_controls_batch(df = raw_reads, 
-				screens = screens, 
-				batch_file = file.path(output_folder,"control_control_map_table.tsv"), 
-				output_folder = output_folder,
-                control_genes = control_genes,
-                min_guides = min_guides, 
-				loess = loess, 
-				ma_transform = ma_transform, 
-                verbose = verbose, 
-                qc_control_pcc = qc_control_pcc, 
-                black_list = black_list,
-                screen_control_keyword=screen_control_keyword)
+	# Score control screens to generate dLFC scores
+	score_controls_batch(
+		df = raw_reads, 
+		screens = screens, 
+		batch_file = file.path(output_folder,"control_control_map_table.tsv"), 
+		output_folder = output_folder,
+		control_genes = control_genes,
+		min_guides = min_guides, 
+		loess = loess, 
+		ma_transform = ma_transform, 
+		verbose = verbose, 
+		qc_control_pcc = qc_control_pcc, 
+		black_list = black_list,
+		screen_control_keyword=screen_control_keyword
+	)
 	
 }
 
@@ -481,7 +538,7 @@ screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 #'  
 #'  @export
 run_global_normalization <- function(
-    input_folder, 
+	input_folder, 
 	condition_control_map_file, 
 	output_folder, 
 	screen_replicate_map_file, 
@@ -501,98 +558,98 @@ run_global_normalization <- function(
 	verbose = FALSE, 
 	black_list=c('bad_screen_name', ""),
 	screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control",
-    remove_screen_list=c(),
+	remove_screen_list=c(),
 	drug_list_4x4=c(),
 	null_drug_list=c(),
 	save_intermediate=FALSE,
-    neg_type = "Negative", 
+	neg_type = "Negative", 
 	pos_type = "Positive",
-    fdr_threshold_positive  = 0.1, 
+	fdr_threshold_positive  = 0.1, 
 	fdr_threshold_negative = 0.1,
-    differential_threshold_positive = 0, 
+	differential_threshold_positive = 0, 
 	differential_threshold_negative = 0,
-    plot_type = "png", 
+	plot_type = "png", 
 	label_fdr_threshold = NULL    
-    )
+)
 {
-  # check if condition-control-map table exists
-  if (!file.exists(condition_control_map_file))
-  {	
-    stop(paste("ERROR: Could not find file ", condition_control_map_file))
-  }
-  
-  # check if screen-replicates-map table exists
-  if (!file.exists(screen_replicate_map_file))
-  {	
-    stop(paste("ERROR: Could not find file ", screen_replicate_map_file))
-  }
-  
-  # check if raw read-count file exists
-  if (!file.exists(raw_read_count_file))
-  {	
-    stop(paste("ERROR: Could not find file ", raw_read_count_file))
-  }
-
-#create a sub-directory 'global_normalization' to store all the outputs from global normalization mode
-  output_folder <- file.path(output_folder,'global_normalization')
-  if (!dir.exists(output_folder)) { dir.create(output_folder, recursive = TRUE) }
+	# check if condition-control-map table exists
+	if (!file.exists(condition_control_map_file))
+	{	
+	stop(paste("ERROR: Could not find file ", condition_control_map_file))
+	}
 	
-  # read condition-control-map table file
-  batch <- utils::read.csv(condition_control_map_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
-  
-  #gather scores from various screens from different files generated during the single-screen scoring 
-  flag = 0 # flag to keep track if data from the first file is being read
-  for (i in 1:nrow(batch)) {
-    condition <- batch[i,1] # get current condition screen name
-    control <- batch[i,2] # get associated control screen name
-    screen_name = strsplit(condition,"_")[[1]][1] # extract screen-group name from condition screen name
-    input_file <- file.path(input_folder, screen_name,"condition_gene_calls.tsv") # get file path for screen-group single-screen-score file for current condition screen("condition_gene_calls.tsv")
-    
-    if (file.exists(input_file) ) { # if the screen-group single-screen-score file exists
-      curr_screen_score <- read.csv(file.path(input_file),header = TRUE, sep = "\t", stringsAsFactors = FALSE) # read screen-group single-screen-score file
-      # select specific columns from score file - mean LFCs columns for current condition and control screens; differential LFC, FDR, significance flag, and effect-type columns for condition screen
-    	col_list <- c('gene',
-                    paste0('mean_',control,sep=''),
-                    paste0('mean_',condition,sep=''),
-                    paste0('differential_',condition,'_vs_',control,sep=''),
-                    paste0('fdr_',condition,'_vs_',control,sep=''),
-                    paste0('significant_',condition,'_vs_',control,sep=''),
-                    paste0('effect_type_',condition,sep=''))
-      
-      # Check if column exists in the read-in score file
-      if (paste0('mean_',condition,sep='') %in% colnames(curr_screen_score) ) { 
-        
-        curr_screen_score = curr_screen_score[,col_list] # extract the selected columns in a dataframe
-        if(flag==0){ #if reading the first file, copy the whole dataframe 
-          all_score <- curr_screen_score
-          flag = 1 #update flag
-        }else{ #if not reading the first file, append the dataframe
-          genes <- intersect(all_score$gene, curr_screen_score$gene)
-          all_score <- all_score[all_score$gene %in% genes,]
-          curr_screen_score <- curr_screen_score[curr_screen_score$gene %in% genes,]
-          all_score <- cbind(all_score, curr_screen_score[,2:ncol(curr_screen_score)])
-        }
-      }else{
-        print(paste('Missing screen data: ',condition))
-      }
-    }else{
-      print(paste('Missing screen file: ',screen_name))
-    }
-  }
-
+	# check if screen-replicates-map table exists
+	if (!file.exists(screen_replicate_map_file))
+	{	
+	stop(paste("ERROR: Could not find file ", screen_replicate_map_file))
+	}
+	
+	# check if raw read-count file exists
+	if (!file.exists(raw_read_count_file))
+	{	
+	stop(paste("ERROR: Could not find file ", raw_read_count_file))
+	}
+	
+	#create a sub-directory 'global_normalization' to store all the outputs from global normalization mode
+	output_folder <- file.path(output_folder,'global_normalization')
+	if (!dir.exists(output_folder)) { dir.create(output_folder, recursive = TRUE) }
+	
+	# read condition-control-map table file
+	batch <- utils::read.csv(condition_control_map_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
+	
+	#gather scores from various screens from different files generated during the single-screen scoring 
+	flag = 0 # flag to keep track if data from the first file is being read
+	for (i in 1:nrow(batch)) {
+	condition <- batch[i,1] # get current condition screen name
+	control <- batch[i,2] # get associated control screen name
+	screen_name = strsplit(condition,"_")[[1]][1] # extract screen-group name from condition screen name
+	input_file <- file.path(input_folder, screen_name,"condition_gene_calls.tsv") # get file path for screen-group single-screen-score file for current condition screen("condition_gene_calls.tsv")
+	
+	if (file.exists(input_file) ) { # if the screen-group single-screen-score file exists
+	curr_screen_score <- read.csv(file.path(input_file),header = TRUE, sep = "\t", stringsAsFactors = FALSE) # read screen-group single-screen-score file
+	# select specific columns from score file - mean LFCs columns for current condition and control screens; differential LFC, FDR, significance flag, and effect-type columns for condition screen
+	col_list <- c('gene',
+	paste0('mean_',control,sep=''),
+	paste0('mean_',condition,sep=''),
+	paste0('differential_',condition,'_vs_',control,sep=''),
+	paste0('fdr_',condition,'_vs_',control,sep=''),
+	paste0('significant_',condition,'_vs_',control,sep=''),
+	paste0('effect_type_',condition,sep=''))
+	
+	# Check if column exists in the read-in score file
+	if (paste0('mean_',condition,sep='') %in% colnames(curr_screen_score) ) { 
+	
+	curr_screen_score = curr_screen_score[,col_list] # extract the selected columns in a dataframe
+	if(flag==0){ #if reading the first file, copy the whole dataframe 
+	all_score <- curr_screen_score
+	flag = 1 #update flag
+	}else{ #if not reading the first file, append the dataframe
+	genes <- intersect(all_score$gene, curr_screen_score$gene)
+	all_score <- all_score[all_score$gene %in% genes,]
+	curr_screen_score <- curr_screen_score[curr_screen_score$gene %in% genes,]
+	all_score <- cbind(all_score, curr_screen_score[,2:ncol(curr_screen_score)])
+	}
+	}else{
+	print(paste('Missing screen data: ',condition))
+	}
+	}else{
+	print(paste('Missing screen file: ',screen_name))
+	}
+	}
+	
 	# abort if not enough data available for batch correction; at least data from 3 screens.
-  if(length(colnames(all_score))<36){ 
-    stop(paste("Not enough data retrieved from screen files. Should be more than 3 screens!"))
-  }
-  
-  #get differential LFC scores
-  scores <- all_score[,grepl("gene|differential", colnames(all_score))]
-  scores <- abbreviate_names(scores, "differential_", 2:ncol(scores))
-  rownames(scores) <- scores$gene #set matrix rownames to gene names ('gene' column (first column) contains gene names at this point)
-  scores <- scores[,-1] #remove first column ('gene' column)
-  
-  #generate control dlfc_score
-  generate_control_dlfc_scores(
+	if(length(colnames(all_score))<36){ 
+	stop(paste("Not enough data retrieved from screen files. Should be more than 3 screens!"))
+	}
+	
+	#get differential LFC scores
+	scores <- all_score[,grepl("gene|differential", colnames(all_score))]
+	scores <- abbreviate_names(scores, "differential_", 2:ncol(scores))
+	rownames(scores) <- scores$gene #set matrix rownames to gene names ('gene' column (first column) contains gene names at this point)
+	scores <- scores[,-1] #remove first column ('gene' column)
+	
+	#generate control dlfc_score
+	generate_control_dlfc_scores(
 	condition_control_map_file = condition_control_map_file,
 	screen_replicate_map_file = screen_replicate_map_file, 
 	raw_read_count_file = raw_read_count_file,
@@ -613,89 +670,89 @@ run_global_normalization <- function(
 	black_list = black_list,
 	screen_control_keyword = screen_control_keyword
 	)
-  #file path to control_effect_scores.tsv generated by  generate_control_dlfc_scores() in the previous step
-  control_dlfc_filepath = file.path(output_folder,'control','control',"control_effect_scores.tsv")
-  
-  # apply batch correction to dLFC scores 
-  dlfc_score <- apply_dlfc_correction(
-    scores = scores,
-    output_folder = output_folder,
-    control_dlfc_filepath = control_dlfc_filepath,
-    remove_screen_list = remove_screen_list,
-    drug_list_4x4 = drug_list_4x4,
-    null_drug_list = null_drug_list,
-    save_intermediate=save_intermediate
-    )
-  
-  dlfc_score$gene <- rownames(dlfc_score)
-  genes <- intersect(all_score$gene, dlfc_score$gene)
-  all_score <- all_score[all_score$gene %in% genes,]
-  dlfc_score <- dlfc_score[dlfc_score$gene %in% genes,]
-  
-  # Update the dLFC, significance, and effect type columns from all screens based on the corrected dLFC scores
-  # Generate LFC scatter plots based on the corrected dLFC scores 
-  plots_folder = file.path(output_folder, "plots")
-  if (!dir.exists(plots_folder)) { dir.create(plots_folder) }
-  
-  for (i in 1:nrow(batch)) {
-    condition <- batch[i,1] # get current condition screen name
-    control <- batch[i,2] # get associated control screen name
-    
-    if(( paste0("differential_", condition, "_vs_", control) %in% colnames(all_score) ) & (condition %in% colnames(dlfc_score)) )
-    {
-      col_list <- c('gene',
-                    paste0('mean_',control,sep=''),
-                    paste0('mean_',condition,sep=''),
-                    paste0('differential_',condition,'_vs_',control,sep=''),
-                    paste0('fdr_',condition,'_vs_',control,sep=''),
-                    paste0('significant_',condition,'_vs_',control,sep=''),
-                    paste0('effect_type_',condition,sep=''))
-      curr_screen_score = all_score[,col_list]
-      curr_screen_score[[paste0("differential_", condition, "_vs_", control)]] <- dlfc_score[[condition]]
-      
-      # call call_drug_hits() to add information to significant and effect-type columns indicating significant positive and negative interactions that meet the provided cut-offs
-      curr_screen_score <- call_drug_hits(scores = curr_screen_score,
-                                          control_screen_name = control, 
-                                          condition_screen_names = condition,
-                                          neg_type = neg_type, 
-                                          pos_type = pos_type,
-                                          fdr_threshold_positive  = fdr_threshold_positive, 
-                                          fdr_threshold_negative = fdr_threshold_negative,
-                                          differential_threshold_positive = differential_threshold_positive, 
-                                          differential_threshold_negative = differential_threshold_negative
-                                          
-      )
-      
-      # plot drug responses 
-      plot_drug_response(curr_screen_score, 
-                         control_name = control, 
-                         condition_name = condition, 
-                         output_folder = plots_folder,
-                         neg_type = neg_type, 
-                         pos_type = pos_type,
-                         plot_type = plot_type, 
-                         label_fdr_threshold = label_fdr_threshold)
-      
-      col_list <- c(
-        paste0('differential_',condition,'_vs_',control,sep=''),
-        paste0('significant_',condition,'_vs_',control,sep=''),
-        paste0('effect_type_',condition,sep=''))
-      all_score[,col_list] <- curr_screen_score[,col_list]
-      
-    }
-  }   
+	#file path to control_effect_scores.tsv generated by  generate_control_dlfc_scores() in the previous step
+	control_dlfc_filepath = file.path(output_folder,'control','control',"control_effect_scores.tsv")
+	
+	# apply batch correction to dLFC scores 
+	dlfc_score <- apply_dlfc_correction(
+	scores = scores,
+	output_folder = output_folder,
+	control_dlfc_filepath = control_dlfc_filepath,
+	remove_screen_list = remove_screen_list,
+	drug_list_4x4 = drug_list_4x4,
+	null_drug_list = null_drug_list,
+	save_intermediate=save_intermediate
+	)
+	
+	dlfc_score$gene <- rownames(dlfc_score)
+	genes <- intersect(all_score$gene, dlfc_score$gene)
+	all_score <- all_score[all_score$gene %in% genes,]
+	dlfc_score <- dlfc_score[dlfc_score$gene %in% genes,]
+	
+	# Update the dLFC, significance, and effect type columns from all screens based on the corrected dLFC scores
+	# Generate LFC scatter plots based on the corrected dLFC scores 
+	plots_folder = file.path(output_folder, "plots")
+	if (!dir.exists(plots_folder)) { dir.create(plots_folder) }
+	
+	for (i in 1:nrow(batch)) {
+	condition <- batch[i,1] # get current condition screen name
+	control <- batch[i,2] # get associated control screen name
+	
+	if(( paste0("differential_", condition, "_vs_", control) %in% colnames(all_score) ) & (condition %in% colnames(dlfc_score)) )
+	{
+	col_list <- c('gene',
+	paste0('mean_',control,sep=''),
+	paste0('mean_',condition,sep=''),
+	paste0('differential_',condition,'_vs_',control,sep=''),
+	paste0('fdr_',condition,'_vs_',control,sep=''),
+	paste0('significant_',condition,'_vs_',control,sep=''),
+	paste0('effect_type_',condition,sep=''))
+	curr_screen_score = all_score[,col_list]
+	curr_screen_score[[paste0("differential_", condition, "_vs_", control)]] <- dlfc_score[[condition]]
+	
+	# call call_drug_hits() to add information to significant and effect-type columns indicating significant positive and negative interactions that meet the provided cut-offs
+	curr_screen_score <- call_drug_hits(scores = curr_screen_score,
+	control_screen_name = control, 
+	condition_screen_names = condition,
+	neg_type = neg_type, 
+	pos_type = pos_type,
+	fdr_threshold_positive  = fdr_threshold_positive, 
+	fdr_threshold_negative = fdr_threshold_negative,
+	differential_threshold_positive = differential_threshold_positive, 
+	differential_threshold_negative = differential_threshold_negative
+	
+	)
+	
+	# plot drug responses 
+	plot_drug_response(curr_screen_score, 
+	control_name = control, 
+	condition_name = condition, 
+	output_folder = plots_folder,
+	neg_type = neg_type, 
+	pos_type = pos_type,
+	plot_type = plot_type, 
+	label_fdr_threshold = label_fdr_threshold)
+	
+	col_list <- c(
+	paste0('differential_',condition,'_vs_',control,sep=''),
+	paste0('significant_',condition,'_vs_',control,sep=''),
+	paste0('effect_type_',condition,sep=''))
+	all_score[,col_list] <- curr_screen_score[,col_list]
+	
+	}
+	}   
+	
+	# save scores from all screens
+	scores_fname <- file.path(output_folder, "scores_all.csv")
+	write.table(all_score, scores_fname, sep = ",", row.names = F, col.names = TRUE, quote = FALSE)
+	
+	#create dataframe with only the FDR columns from all screens
+	fdr_scores <- all_score[,grepl("gene|fdr", colnames(all_score))] # get column 'gene' and any columns with name containing string 'fdr'
+	fdr_scores <- abbreviate_names(fdr_scores, "fdr_", 2:ncol(scores)) # reformat 'fdr' column names
+	rownames(fdr_scores) <- fdr_scores$gene # set matrix rownames to gene names ('gene' column (first column) contains gene names at this point)
+	fdr_scores <- fdr_scores[,-1] # remove first column ('gene' column)
+	# save FDR score dataframe to file
+	scores_fdr_fname <- file.path(output_folder, "fdr_scores_all.tsv")
+	write.table(fdr_scores, scores_fdr_fname, sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
 
-  # save scores from all screens
-  scores_fname <- file.path(output_folder, "scores_all.csv")
-  write.table(all_score, scores_fname, sep = ",", row.names = F, col.names = TRUE, quote = FALSE)
-  
-  #create dataframe with only the FDR columns from all screens
-  fdr_scores <- all_score[,grepl("gene|fdr", colnames(all_score))] # get column 'gene' and any columns with name containing string 'fdr'
-  fdr_scores <- abbreviate_names(fdr_scores, "fdr_", 2:ncol(scores)) # reformat 'fdr' column names
-  rownames(fdr_scores) <- fdr_scores$gene # set matrix rownames to gene names ('gene' column (first column) contains gene names at this point)
-  fdr_scores <- fdr_scores[,-1] # remove first column ('gene' column)
-  # save FDR score dataframe to file
-  scores_fdr_fname <- file.path(output_folder, "fdr_scores_all.tsv")
-  write.table(fdr_scores, scores_fdr_fname, sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
-  
 }
