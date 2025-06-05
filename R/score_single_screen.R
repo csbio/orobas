@@ -489,7 +489,7 @@ score_single_screen <- function(df, screens, batch, output_folder,
 #' @param raw_read_count_file path to raw read-count file.
 #' @param screen_replicate_map_file Path to .tsv file mapping screens to their repicates and earlier time point screen,
 #' with three columns 'Screen','Replicates', and 'NormalizeTo'
-#' @param batch_file Path to .tsv file mapping screens to their controls for scoring, with two 
+#' @param condition_control_map_file Path to .tsv file mapping screens to their controls for scoring, with two 
 #'   columns for "Screen" and "Control." 
 #' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
 #' @param display_numbers Whether or not to include PCC values in heatmap (default TRUE).
@@ -539,7 +539,7 @@ run_single_screen_scoring<- function(
 	parent_folder,
 	raw_read_count_file,
 	screen_replicate_map_file,
-	batch_file,
+	condition_control_map_file,
 	plot_type = 'png', 
 	display_numbers = TRUE, 
 	show_colnames = TRUE, 
@@ -577,16 +577,16 @@ run_single_screen_scoring<- function(
 	}
 		
 	# Check format and existance of batch file 
-	first_file <- utils::read.table(file = batch_file, header = F, nrows = 1, sep = "\t", encoding = "UTF-8")
+	first_file <- utils::read.table(file = condition_control_map_file, header = F, nrows = 1, sep = "\t", encoding = "UTF-8")
 	batch <- NULL
 	if (ncol(first_file) == 2) {
-		check_batch_file(batch_file, all_screens)  
+		check_condition_control_map_file(condition_control_map_file, all_screens)  
 	} else {
-		stop(paste("file", batch_file, "must contain exactly 2 columns"))
+		stop(paste("file", condition_control_map_file, "must contain exactly 2 columns"))
 	}
 
 	# read batch file
-	batch_all <- utils::read.csv(batch_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")  
+	batch_all <- utils::read.csv(condition_control_map_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")  
 	
 	
 	#read raw read-count file if exists
