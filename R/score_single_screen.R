@@ -619,7 +619,8 @@ run_single_screen_scoring<- function(
 	#read screen_replicate_map table file
 	sample_table = utils::read.table(screen_replicate_map_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
 
-	flag = 0 # flag to keep track if the first screen has been processed
+	scores = NULL
+	scores_fdr = NULL
 	# iterate over the screen batches listed in the condition_control_map and generate data in separate sub-directories
 	for( screen in screen_batch)
 	{	
@@ -711,27 +712,30 @@ run_single_screen_scoring<- function(
 			save_guide_dlfc = save_guide_dlfc
 		)
 		
-		
 		# merge and generate combined dLFC and FDR files	 
 		all_score <- read.csv(file.path(output_folder,"condition_gene_calls.tsv"),header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-		
-		if(flag==0){
-			scores <- all_score[,grepl("gene|differential", colnames(all_score))]						
-			scores_fdr <- all_score[,grepl("gene|fdr", colnames(all_score))]
-			flag = 1			
+
+		#get and store columns with differential LFC scores
+		if(is.null(scores)){
+			scores <- all_score[,grepl("gene|differential", colnames(all_score))]									
 		}else{
 			cur_scores <- all_score[,grepl("gene|differential", colnames(all_score))]	
 			genes <- intersect(scores$gene, cur_scores$gene)
 			scores <- scores[scores$gene %in% genes,]
 			cur_scores <- cur_scores[cur_scores$gene %in% genes,]
 			scores <- cbind(scores, cur_scores[,2:ncol(cur_scores)])
-			
+		}
+
+		#get and store columns with FDR scores
+		if(is.null(scores_fdr)){					
+			scores_fdr <- all_score[,grepl("gene|fdr", colnames(all_score))]			
+		}else{			
 			cur_scores_fdr <- all_score[,grepl("gene|fdr", colnames(all_score))]
 			genes <- intersect(scores_fdr$gene, cur_scores_fdr$gene)
 			scores_fdr <- scores_fdr[scores_fdr$gene %in% genes,]
 			cur_scores_fdr <- cur_scores_fdr[cur_scores_fdr$gene %in% genes,]
 			scores_fdr <- cbind(scores_fdr, cur_scores_fdr[,2:ncol(cur_scores_fdr)])
-		}
+		}		
 	}
 
 	#save combined differential LFC scores from all sreen baches
