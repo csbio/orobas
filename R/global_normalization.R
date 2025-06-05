@@ -471,7 +471,7 @@ screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 #' Output: generates corrected dLFC score file and other files 
 #'  
 #'  @export
-correct_dlfc_scores_in_batch <- function(
+run_global_normalization <- function(
     input_path, 
 	batch_table_file_path, 
 	output_folder, 
