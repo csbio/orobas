@@ -392,76 +392,91 @@ call_drug_hits <- function(scores, control_screen_name, condition_screen_names,
 #'   (default FALSE).
 #' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
 #' @export
-score_single_screen <- function(df, screens, batch, output_folder, 
-                              min_guides = 3, 
-                              loess = TRUE, ma_transform = TRUE,
-                              control_genes = c("None", ""), 
-                              fdr_method = "BY", 
-			      fdr_threshold_positive  = 0.1, fdr_threshold_negative = 0.1,
-			      differential_threshold_positive = 0, differential_threshold_negative = 0,
-			      neg_type = "Negative", 
-                              pos_type = "Positive", 
-			      label_fdr_threshold = NULL,
-                              save_guide_dlfc = FALSE, 
-                              plot_type = "png") {
-  
-
-	# Score each condition screen separately
+score_single_screen <- function(
+	df, 
+	screens, 
+	batch, 
+	output_folder, 
+	min_guides = 3, 
+	loess = TRUE, 
+	ma_transform = TRUE,
+	control_genes = c("None", ""), 
+	fdr_method = "BY", 
+	fdr_threshold_positive  = 0.1, 
+	fdr_threshold_negative = 0.1,
+	differential_threshold_positive = 0, 
+	differential_threshold_negative = 0,
+	neg_type = "Negative", 
+	pos_type = "Positive", 
+	label_fdr_threshold = NULL,
+	save_guide_dlfc = FALSE, 
+	plot_type = "png"
+)
+{
+	# Score each condition screen in the screen batch separately
 	all_scores <- NULL
-	for (i in 1:nrow(batch)) { # iterate over the condition screens listed in the batch file
-	
+	for (i in 1:nrow(batch)) { # iterate over the condition screens listed in the batch file	
 		condition <- batch[i,1] # get current condition screen name
 		control <- batch[i,2] # get associated control screen name
+		
 		# call score_condition_vs_control() to produce data frame of various scores (score condition screen against the control screen)
-		temp <- score_condition_vs_control(df, screens, control, condition, 
-					     min_guides = min_guides, 
-					     loess = loess, 
-					     ma_transform = ma_transform, 
-					     control_genes = control_genes, 
-					     fdr_method = fdr_method, 
-					       return_residuals = save_guide_dlfc
-					     )
-		scores <- temp[["scored_data"]] # scored data returned by score_condition_vs_control()
-		#guide_dlfc_post_jk <- temp[["guide_dlfc_post_jk"]] 
-		guide_dlfc_pre_jk <- temp[["guide_dlfc_pre_jk"]]  
+		temp <- score_condition_vs_control(
+			df = df, 
+			screens = screens, 
+			control_screen_name = control, 
+			condition_screen_names = condition, 
+			min_guides = min_guides, 
+			loess = loess, 
+			ma_transform = ma_transform, 
+			control_genes = control_genes, 
+			fdr_method = fdr_method, 
+			return_residuals = save_guide_dlfc
+		)
+		scores <- temp[["scored_data"]] # scored data returned by score_condition_vs_control() 
+		guide_dlfc_pre_jk <- temp[["guide_dlfc_pre_jk"]]  #guide level dLFCs (prior to applying jackknife outlier removal) returned by score_condition_vs_control()
 		
 		# call call_drug_hits() to add information to significant and effect-type columns indicating significant positive and negative interactions that meet the provided cut-offs
-		scores <- call_drug_hits(scores, control, condition,
-				       neg_type = neg_type, pos_type = pos_type,
-				       fdr_threshold_positive = fdr_threshold_positive, 
-					 fdr_threshold_negative = fdr_threshold_negative, 
-				       differential_threshold_positive = differential_threshold_positive,
-					 differential_threshold_negative = differential_threshold_negative
-					)
+		scores <- call_drug_hits(
+			scores = scores, 
+			control_screen_name = control, 
+			condition_screen_names = condition,
+			neg_type = neg_type, 
+			pos_type = pos_type,
+			fdr_threshold_positive = fdr_threshold_positive, 
+			fdr_threshold_negative = fdr_threshold_negative, 
+			differential_threshold_positive = differential_threshold_positive,
+			differential_threshold_negative = differential_threshold_negative
+		)
 		
 		# Make plot folder if nonexistent
 		plot_folder <- file.path(output_folder, "plots")
 		if (!dir.exists(plot_folder)) { dir.create(plot_folder) }
 		# plot drug responses 
-		plot_drug_response(scores, 
-				 control_name = control, 
-				 condition_name = condition, 
-				 output_folder = plot_folder,
-				 neg_type = neg_type, 
-				 pos_type = pos_type,
-				 plot_type = plot_type, 
-				 label_fdr_threshold = label_fdr_threshold)
-		
+		plot_drug_response(
+			scores = scores, 
+			control_name = control, 
+			condition_name = condition, 
+			output_folder = plot_folder,
+			neg_type = neg_type, 
+			pos_type = pos_type,
+			plot_type = plot_type, 
+			label_fdr_threshold = label_fdr_threshold
+		)
+
+		# write guide level dLFCs to file if generated (parameter save_guide_dlfc=TRUE)
 		if (save_guide_dlfc) {
-			if (!is.null(guide_dlfc_pre_jk)) {
+			if (!is.null(guide_dlfc_pre_jk)) { # if guide level dLFCs are generated (parameter save_guide_dlfc=TRUE)
 				# Make lfc if nonexistent
-				lfc_folder <- file.path(output_folder, "lfc")
-				if (!dir.exists(lfc_folder)) { dir.create(lfc_folder) }
-							 
+				lfc_folder <- file.path(output_folder, "guide_dlfc")
+				if (!dir.exists(lfc_folder)) { dir.create(lfc_folder) }			 
 				residuals_file <- paste0(condition, "_vs_", control, "_guide_dlfc_pre_jk.tsv")
-				utils::write.table(guide_dlfc_pre_jk, file.path(lfc_folder, residuals_file), sep = "\t",
-						     row.names = FALSE, col.names = TRUE, quote = FALSE) 
+				utils::write.table(guide_dlfc_pre_jk, file.path(lfc_folder, residuals_file), sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE) 
 			} else {
 				cat("WARNING: Guide dLFCs can not be written to file in the current setting, skipping writing guide dLFCs to file\n")
 			}
 		}
-
-		# Merge scores from all condition screens listed in the batch file
+		
+		# Merge scores from all condition screens in the currrent screen batch 
 		if (is.null(all_scores)) {
 			all_scores <- scores
 		} else {
@@ -469,13 +484,12 @@ score_single_screen <- function(df, screens, batch, output_folder,
 			all_scores <- cbind(all_scores, scores[,2:ncol(scores)]) 
 		}
 	}
-	
+
 	# write final scores to file named "condition_gene_calls.tsv"
 	if (!is.null(all_scores)) {
-	utils::write.table(all_scores, file.path(output_folder, "condition_gene_calls.tsv"), sep = "\t",
-			 row.names = FALSE, col.names = TRUE, quote = FALSE) 
+		utils::write.table(all_scores, file.path(output_folder, "condition_gene_calls.tsv"), sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE) 
 	} 
-	
+
 }
 
 #' Wrapper function to score screens and generate various plots. 
