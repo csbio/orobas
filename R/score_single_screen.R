@@ -392,7 +392,7 @@ call_drug_hits <- function(scores, control_screen_name, condition_screen_names,
 #'   (default FALSE).
 #' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
 #' @export
-score_drugs_batch <- function(df, screens, batch, output_folder, 
+score_single_screen <- function(df, screens, batch, output_folder, 
                               min_guides = 3, 
                               loess = TRUE, ma_transform = TRUE,
                               control_genes = c("None", ""), 
@@ -669,7 +669,7 @@ run_single_screen_scoring<- function(
 			plot_type = plot_type, display_numbers = display_numbers, show_colnames = show_colnames, show_rownames = show_rownames)
 
 
-		score_drugs_batch(raw_reads, screens, batch, output_folder,
+		score_single_screen(raw_reads, screens, batch, output_folder,
 						min_guides = min_guides, loess = loess, ma_transform = ma_transform,control_genes = control_genes,
 						fdr_method = fdr_method,fdr_threshold_positive  = fdr_threshold_positive, fdr_threshold_negative = fdr_threshold_negative,
 						differential_threshold_positive = differential_threshold_positive, differential_threshold_negative = differential_threshold_negative,
