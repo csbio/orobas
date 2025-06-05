@@ -420,7 +420,7 @@ screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 
 #' wrapper function to generate differential log fold change from control screens
 #'
-#'  @param input_path 
+#'  @param input_folder 
 #'  @param condition_control_map_file 
 #'  @param screen_replicate_map_file 
 #'  @param raw_read_count_file 
@@ -472,7 +472,7 @@ screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 #'  
 #'  @export
 run_global_normalization <- function(
-    input_path, 
+    input_folder, 
 	condition_control_map_file, 
 	output_folder, 
 	screen_replicate_map_file, 
@@ -536,7 +536,7 @@ run_global_normalization <- function(
     condition <- batch[i,1] # get current condition screen name
     control <- batch[i,2] # get associated control screen name
     screen_name = strsplit(condition,"_")[[1]][1] # extract screen-group name from condition screen name
-    input_file <- file.path(input_path, screen_name,"condition_gene_calls.tsv") # get file path for screen-group single-screen-score file for current condition screen("condition_gene_calls.tsv")
+    input_file <- file.path(input_folder, screen_name,"condition_gene_calls.tsv") # get file path for screen-group single-screen-score file for current condition screen("condition_gene_calls.tsv")
     
     if (file.exists(input_file) ) { # if the screen-group single-screen-score file exists
       curr_screen_score <- read.csv(file.path(input_file),header = TRUE, sep = "\t", stringsAsFactors = FALSE) # read screen-group single-screen-score file
