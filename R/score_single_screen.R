@@ -25,7 +25,10 @@ get_screen_batch_name<-function(x)
 #' @param cond_res	dataframe of condition residuals (differential scores); rows: genes, column: replicate-guide pair 
 #' @param threshold	jack-knife threshold to decide if a guide is an outlier (default value 2)
 #' @return	dataframe of updated condition residuals (differential scores); rows: genes, column: replicate-guide pair 
-jackknife_outliers<-function(cond_res, threshold=2)
+jackknife_outliers<-function(
+	cond_res, 
+	threshold=2
+)
 {  
 	#Find and remove (set to NA) outlier for each gene
 	for(i in c(1:nrow(cond_res))){
@@ -48,7 +51,7 @@ jackknife_outliers<-function(cond_res, threshold=2)
 
 
 #' Scores conditions against a single control.
-#' Revised one-off score function with individual replicate-level loess fitting (loess smoothing Drug A vs DMSO A, B vs B, C vs C per guide)
+#' single screen score function with individual replicate-level loess fitting (loess smoothing Drug A vs DMSO A, B vs B, C vs C per guide)
 #' 
 #' Scores guides for any number of drug screens against a control screen
 #' (e.g. for directly comparing drug response to DMSO response). After running 
@@ -73,12 +76,20 @@ jackknife_outliers<-function(cond_res, threshold=2)
 #'   i) "scored_data": a dataframe containing scored data with separate columns given by the specified control and condition names.
 #'   ii) "guide_dlfc_pre_jk": a dataframe containing guide-level and replicate-level differential LFCs scored for condition screen against control screen, before applying jk-outlier removal.
 #' @export
-score_condition_vs_control <- function(df, screens, control_screen_name, condition_screen_names, 
-                                   control_genes = c("None", ""), min_guides = 3, 
-                                   loess = TRUE, ma_transform = TRUE, fdr_method = "BY",
-                                   return_residuals = FALSE) {
-  
-	cat(paste("Preparing to score...\n"))
+score_condition_vs_control <- function(
+	df, 
+	screens, 
+	control_screen_name, 
+	condition_screen_names, 
+        control_genes = c("None", ""), 
+	min_guides = 3, 
+        loess = TRUE, 
+	ma_transform = TRUE, 
+	fdr_method = "BY",
+        return_residuals = FALSE
+) 
+{  
+	cat(paste("Preparing to score... ", condition_screen_names, "\n"))
 	
 	# Get name of control screen and get control screen replicate names (data originally from sample table tsv file)
 	control_name <- control_screen_name 
@@ -119,20 +130,19 @@ score_condition_vs_control <- function(df, screens, control_screen_name, conditi
   
 	# Make a dataframe for each condition screen to store differential LFC scores later (if the significance test is moderated-t)
 	max_guides <- -1
-	
-	
-	  # Gets maximum number of guides per gene (Gene names in LFC dataframe appear equal to the number of guides for that gene, so taking the frequency per gene will count guide per gene)
-	  max_guides <- max(table(df$gene))
-	  # Makes residual dataframes with column number equal to the max number of guides
+
+	# Gets maximum number of guides per gene (Gene names in LFC dataframe appear equal to the number of guides for that gene, so taking the frequency per gene will count guide per gene)
+	max_guides <- max(table(df$gene))
+	# Makes residual dataframes with column number equal to the max number of guides
 	  
-	  # Extract condition screen replicate names 
-	  condition_reps=condition_cols
-	  # create a dataframe with total rows equal to # of genes and total column equal to (maximum # of guides * # of replicates)
-	  residual_df <- data.frame(matrix(nrow = n_genes, ncol = max_guides*length(condition_reps))) # ncol = max_guides*total_replicate
-	  # Set column names. "guide_residual_guide#_replicate-name". 
-	  # colname distribution example for max_guide 4 and total replicate # 3: 1 1 1 2 2 2 3 3 3 4 4 4. biological replicates (guides) are gathered together
-	  colnames(residual_df) <- paste0("guide_residual_", rep(1:max_guides,each=length(condition_reps)),'_', condition_reps)
-	  condition_residuals <- residual_df
+	# Extract condition screen replicate names 
+	condition_reps=condition_cols
+	# create a dataframe with total rows equal to # of genes and total column equal to (maximum # of guides * # of replicates)
+	residual_df <- data.frame(matrix(nrow = n_genes, ncol = max_guides*length(condition_reps))) # ncol = max_guides*total_replicate
+	# Set column names. "guide_residual_guide#_replicate-name". 
+	# colname distribution example for max_guide 4 and total replicate # 3: 1 1 1 2 2 2 3 3 3 4 4 4. biological replicates (guides) are gathered together
+	colnames(residual_df) <- paste0("guide_residual_", rep(1:max_guides,each=length(condition_reps)),'_', condition_reps)
+	condition_residuals <- residual_df
 		  
 	# Pairwise LOESS smoothing - pair-wise control-condition replicates
 	# Compute loess-normalized differential LFC scores if specified and store them in a dataframe (loess_residuals)
@@ -259,17 +269,14 @@ score_condition_vs_control <- function(df, screens, control_screen_name, conditi
 	# Explicitly returns scored data
 	output <- list()
 	output[["scored_data"]] <- scores
-	if (return_residuals & loess) {
-		
+	if (return_residuals & loess) {		
 		residuals_df <- data.frame(gene = scores$gene)
 		residuals_df <- cbind(residuals_df, condition_residuals_pre_jk)
 		output[["guide_dlfc_pre_jk"]] <- residuals_df #loess_residuals
 	} else if (return_residuals) {
-		cat("WARNING: returning residuals is currently only supported with loess-normalization enabled\n")
-		
+		cat("WARNING: returning residuals is currently only supported with loess-normalization enabled\n")		
 		output[["guide_dlfc_pre_jk"]] <- NULL
-	} else {
-		
+	} else {		
 		output[["guide_dlfc_pre_jk"]] <- NULL
 	}
 	return(output)
