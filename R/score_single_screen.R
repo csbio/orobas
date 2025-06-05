@@ -736,14 +736,14 @@ run_single_screen_scoring<- function(
 		}		
 	}
 
-	#save combined differential LFC scores from all sreen baches
+	#save combined differential LFC scores from all sreen batches
 	scores <- abbreviate_names(scores, "differential_", 2:ncol(scores))
 	rownames(scores) <- scores$gene #set matrix rownames to gene names ('gene' column (first column) contains gene names at this point)
 	scores <- scores[,-1] #remove first column ('gene' column)
 	score_fname <- file.path(parent_folder, "differential_LFC_scores.tsv")
 	write.table(scores, score_fname, sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
 
-	#save combined FDR scores from all sreen baches
+	#save combined FDR scores from all sreen batches
 	scores_fdr <- abbreviate_names(scores_fdr, "fdr_", 2:ncol(scores_fdr))
 	rownames(scores_fdr) <- scores_fdr$gene #set matrix rownames to gene names ('gene' column (first column) contains gene names at this point)
 	scores_fdr <- scores_fdr[,-1] #remove first column ('gene' column)
