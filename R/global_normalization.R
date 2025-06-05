@@ -305,7 +305,7 @@ save_intermediate=FALSE
 #' 
 #'  @param batch_table_file_path 
 #'  @param sample_table_file_path 
-#'  @param raw_read_count_data_file_path 
+#'  @param raw_read_count_file 
 #'  @param output_folder 
 #' @param filter_names_postfix Postfix to identify list of screen names to filter based on read counts by. 
 #' @param cf1 parameter for \code{normalize_screens}. Scaling factor (default 1e6).
@@ -334,7 +334,7 @@ save_intermediate=FALSE
 generate_control_dlfc_scores <- function(
 batch_table_file_path,
 sample_table_file_path, 
-raw_read_count_data_file_path,
+raw_read_count_file,
 output_folder, 
 filter_names_postfix = 'T0', 
 cf1 = 1e6, 
@@ -370,7 +370,7 @@ screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
             , sep='\t', row.names = F, quote = F)		
 	
 	#read raw-read count file
-	raw_reads <- read.csv(raw_read_count_data_file_path, header = TRUE, stringsAsFactors = FALSE, 
+	raw_reads <- read.csv(raw_read_count_file, header = TRUE, stringsAsFactors = FALSE, 
                sep = "\t", check.names = FALSE, encoding = "UTF-8")
 			   
 	# Fix screen names
@@ -423,7 +423,7 @@ screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 #'  @param input_path 
 #'  @param batch_table_file_path 
 #'  @param sample_table_file_path 
-#'  @param raw_read_count_data_file_path 
+#'  @param raw_read_count_file 
 #'  @param output_folder 
 #' @param filter_names_postfix parameter for \code{generate_control_dlfc_scores}.
 #' @param cf1 parameter for \code{generate_control_dlfc_scores}.  Scaling factor (default 1e6).
@@ -476,7 +476,7 @@ run_global_normalization <- function(
 	batch_table_file_path, 
 	output_folder, 
 	sample_table_file_path, 
-	raw_read_count_data_file_path,
+	raw_read_count_file,
 	filter_names_postfix = 'T0', 
 	cf1 = 1e6, 
 	cf2 = 1, 
@@ -519,9 +519,9 @@ run_global_normalization <- function(
   }
   
   # check if raw read-count file exists
-  if (!file.exists(raw_read_count_data_file_path))
+  if (!file.exists(raw_read_count_file))
   {	
-    stop(paste("ERROR: Could not find file ", raw_read_count_data_file_path))
+    stop(paste("ERROR: Could not find file ", raw_read_count_file))
   }
 
   output_folder <- file.path(output_folder,'global_normalization')
@@ -585,7 +585,7 @@ run_global_normalization <- function(
   generate_control_dlfc_scores(
 	batch_table_file_path = batch_table_file_path,
 	sample_table_file_path = sample_table_file_path, 
-	raw_read_count_data_file_path = raw_read_count_data_file_path,
+	raw_read_count_file = raw_read_count_file,
 	output_folder = output_folder,	
 	filter_names_postfix = filter_names_postfix, 
 	cf1 = cf1, 
