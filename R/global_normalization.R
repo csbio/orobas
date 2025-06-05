@@ -304,7 +304,7 @@ save_intermediate=FALSE
 #' wrapper function to generate differential log fold change from control screens
 #' 
 #'  @param batch_table_file_path 
-#'  @param sample_table_file_path 
+#'  @param screen_replicate_map_file 
 #'  @param raw_read_count_file 
 #'  @param output_folder 
 #' @param filter_names_postfix Postfix to identify list of screen names to filter based on read counts by. 
@@ -333,7 +333,7 @@ save_intermediate=FALSE
 #'  @export
 generate_control_dlfc_scores <- function(
 batch_table_file_path,
-sample_table_file_path, 
+screen_replicate_map_file, 
 raw_read_count_file,
 output_folder, 
 filter_names_postfix = 'T0', 
@@ -355,7 +355,7 @@ screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 {	
 	# create control-control-map table and control-replicate-map table files from condition-control-map table and screen-replicates-map table		   
 	batch_table = read.table(batch_table_file_path, sep='\t',  header = T, stringsAsFactors = F)
-	sample_table = read.table(sample_table_file_path,sep='\t', header = T, stringsAsFactors = F)
+	sample_table = read.table(screen_replicate_map_file,sep='\t', header = T, stringsAsFactors = F)
 
 	control_sample_table = sample_table[which(sample_table$Screen %in% unique(batch_table$Control)),]
 	sampla_table_NormalizeTo = unique(sample_table$NormalizeTo)
@@ -422,7 +422,7 @@ screen_control_keyword="DMSO|MOCK|Mock|WT|NGLY1|BMI1|Control"
 #'
 #'  @param input_path 
 #'  @param batch_table_file_path 
-#'  @param sample_table_file_path 
+#'  @param screen_replicate_map_file 
 #'  @param raw_read_count_file 
 #'  @param output_folder 
 #' @param filter_names_postfix parameter for \code{generate_control_dlfc_scores}.
@@ -475,7 +475,7 @@ run_global_normalization <- function(
     input_path, 
 	batch_table_file_path, 
 	output_folder, 
-	sample_table_file_path, 
+	screen_replicate_map_file, 
 	raw_read_count_file,
 	filter_names_postfix = 'T0', 
 	cf1 = 1e6, 
@@ -513,9 +513,9 @@ run_global_normalization <- function(
   }
   
   # check if screen-replicates-map table exists
-  if (!file.exists(sample_table_file_path))
+  if (!file.exists(screen_replicate_map_file))
   {	
-    stop(paste("ERROR: Could not find file ", sample_table_file_path))
+    stop(paste("ERROR: Could not find file ", screen_replicate_map_file))
   }
   
   # check if raw read-count file exists
@@ -584,7 +584,7 @@ run_global_normalization <- function(
   #generate control dlfc_score
   generate_control_dlfc_scores(
 	batch_table_file_path = batch_table_file_path,
-	sample_table_file_path = sample_table_file_path, 
+	screen_replicate_map_file = screen_replicate_map_file, 
 	raw_read_count_file = raw_read_count_file,
 	output_folder = output_folder,	
 	filter_names_postfix = filter_names_postfix, 
