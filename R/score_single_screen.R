@@ -482,15 +482,15 @@ score_single_screen <- function(df, screens, batch, output_folder,
 	
 }
 
-#' Wrapper function to normalize and score screens and generate various plots. 
+#' Wrapper function to score screens and generate various plots. 
 #' 
 #' 
-#' @param input_file path to raw read-count file.
+#' @param parent_folder Folder to output scored data and plots. 
+#' @param raw_read_count_file path to raw read-count file.
 #' @param sample_file Path to .tsv file mapping screens to their repicates and earlier time point screen,
 #' with three columns 'Screen','Replicates', and 'NormalizeTo'
 #' @param batch_file Path to .tsv file mapping screens to their controls for scoring, with two 
 #'   columns for "Screen" and "Control." 
-#' @param output_folder Folder to output scored data and plots to. 
 #' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
 #' @param display_numbers Whether or not to include PCC values in heatmap (default TRUE).
 #' @param show_rownames Whether or not to show row names on the plot (default TRUE).
@@ -537,7 +537,7 @@ score_single_screen <- function(df, screens, batch, output_folder,
 
 run_single_screen_scoring<- function(
 	parent_folder,
-	input_file,
+	raw_read_count_file,
 	sample_file,
 	batch_file,
 	plot_type = 'png', 
@@ -590,9 +590,9 @@ run_single_screen_scoring<- function(
 	
 	
 	#read raw read-count file if exists
-	if (file.exists(input_file))
+	if (file.exists(raw_read_count_file))
 	{
-		raw_reads_all <- read.csv(input_file, 
+		raw_reads_all <- read.csv(raw_read_count_file, 
 						  header = TRUE, stringsAsFactors = FALSE, sep = "\t", check.names = FALSE,
 						  encoding = "UTF-8")
 						  
@@ -600,7 +600,7 @@ run_single_screen_scoring<- function(
 		# format column names of raw read-count data to remove "-_", "_-", "-", ",", "\\+", " "
 		colnames(raw_reads_all) <- format_replicate_names(colnames(raw_reads_all))					  
 						  } else {
-		stop(paste("ERROR: Could not find raw read-count file ", input_file))
+		stop(paste("ERROR: Could not find raw read-count file ", raw_read_count_file))
 	}
 	
 	
