@@ -487,7 +487,7 @@ score_single_screen <- function(df, screens, batch, output_folder,
 #' 
 #' @param parent_folder Folder to output scored data and plots. 
 #' @param raw_read_count_file path to raw read-count file.
-#' @param sample_file Path to .tsv file mapping screens to their repicates and earlier time point screen,
+#' @param screen_replicate_map_file Path to .tsv file mapping screens to their repicates and earlier time point screen,
 #' with three columns 'Screen','Replicates', and 'NormalizeTo'
 #' @param batch_file Path to .tsv file mapping screens to their controls for scoring, with two 
 #'   columns for "Screen" and "Control." 
@@ -538,7 +538,7 @@ score_single_screen <- function(df, screens, batch, output_folder,
 run_single_screen_scoring<- function(
 	parent_folder,
 	raw_read_count_file,
-	sample_file,
+	screen_replicate_map_file,
 	batch_file,
 	plot_type = 'png', 
 	display_numbers = TRUE, 
@@ -568,12 +568,12 @@ run_single_screen_scoring<- function(
 {
 	
 	# read sample table file if exists
-	if (file.exists(sample_file))
+	if (file.exists(screen_replicate_map_file))
 	{
 		#Add screen list and mapped replicate list from sample_table meta file
-		all_screens <- add_screens_from_table(sample_file)
+		all_screens <- add_screens_from_table(screen_replicate_map_file)
 		} else {
-		stop(paste("ERROR: Could not find sample table file ", sample_file))
+		stop(paste("ERROR: Could not find sample table file ", screen_replicate_map_file))
 	}
 		
 	# Check format and existance of batch file 
@@ -616,7 +616,7 @@ run_single_screen_scoring<- function(
 	}
 	
 	screen_batch = unique(unlist(lapply(as.character(batch_all$Screen),get_screen_batch_name) ))
-	sample_table = utils::read.table(sample_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
+	sample_table = utils::read.table(screen_replicate_map_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, encoding = "UTF-8")
 	
 	flag = 0
 	for( screen in screen_batch)
