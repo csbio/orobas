@@ -223,7 +223,7 @@ check_screen_params <- function(df, screens) {
 #'   combn scoring mode must have their respective control labeled as "combn." 
 #' @return TRUE.
 #' @keywords internal
-check_batch_file <- function(batch_file, screens) {
+check_condition_control_map_file <- function(batch_file, screens) {
   
   # Checks if file exists and is a .tsv file
   ext <- tools::file_ext(batch_file)
