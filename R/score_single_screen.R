@@ -542,7 +542,6 @@ score_single_screen <- function(
 #' @param save_guide_dlfc If true, saves guide-level dLFC scores for each condition screen to the output folder
 #'   (default FALSE).
 #' @export
-
 run_single_screen_scoring<- function(
 	parent_folder,
 	raw_read_count_file,
