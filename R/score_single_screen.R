@@ -720,7 +720,7 @@ run_single_screen_scoring<- function(
 			genes <- intersect(scores$gene, cur_scores$gene)
 			scores <- scores[scores$gene %in% genes,]
 			cur_scores <- cur_scores[cur_scores$gene %in% genes,]
-			scores <- cbind(scores, cur_scores[,2:ncol(cur_scores)])
+			scores <- cbind(scores, cur_scores[,2:ncol(cur_scores),drop=F])
 		}
 
 		#get and store columns with FDR scores
@@ -731,7 +731,7 @@ run_single_screen_scoring<- function(
 			genes <- intersect(scores_fdr$gene, cur_scores_fdr$gene)
 			scores_fdr <- scores_fdr[scores_fdr$gene %in% genes,]
 			cur_scores_fdr <- cur_scores_fdr[cur_scores_fdr$gene %in% genes,]
-			scores_fdr <- cbind(scores_fdr, cur_scores_fdr[,2:ncol(cur_scores_fdr)])
+			scores_fdr <- cbind(scores_fdr, cur_scores_fdr[,2:ncol(cur_scores_fdr),drop=F])
 		}		
 	}
 
