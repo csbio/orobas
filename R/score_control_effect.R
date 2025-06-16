@@ -238,7 +238,7 @@ score_controls_vs_controls <- function(df, screens, control_screen_names,
   control_effect_scores <- residual_df %>%
     dplyr::group_by(gene) %>%
     stats::na.omit() %>%
-    dplyr::summarise(across(everything(), \(x) mean(x, na.rm = TRUE)))
+    dplyr::summarise(across(everything(), function(x) mean(x, na.rm = TRUE)))
   
   return(control_effect_scores)
 }
