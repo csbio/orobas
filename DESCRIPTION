@@ -18,7 +18,7 @@ Imports:
 	dplyr,
 	forcats,
 	magrittr
-RoxygenNote: 7.1.2
+RoxygenNote: 7.3.2
 Suggests: 
     knitr,
     rmarkdown,

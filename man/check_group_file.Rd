@@ -4,14 +4,15 @@
 \alias{check_group_file}
 \title{Checks a group file}
 \usage{
-check_group_file(group_file, screens)
+check_group_file(group_file, screens, control_only = FALSE)
 }
 \arguments{
 \item{group_file}{Path to .tsv file mapping screens to their controls for scoring, with four 
 columns for "Screen", "Control", "Group" and "Type." The "Group" column can contain any 
 meaningful label for each group, whereas the "Type" column must be labeled either "control" 
 or "condition." For each unique group label, all conditions in that group are scored
-against all controls.}
+against all controls.
+@param control_only If true, only check for control effect scoring (default FALSE).}
 }
 \value{
 TRUE.

@@ -20,7 +20,7 @@ plot_drug_response(
 \item{scores}{Dataframe of scores returned from \code{call_drug_hits}.}
 
 \item{control_name}{Name of control passed to \code{call_drug_hits}, or 
-NULL for data scored by \code{score_drugs_vs_controls} (default NULL).}
+NULL for data scored by \code{score_condition_vs_controls} (default NULL).}
 
 \item{condition_name}{Name of condition passed to \code{call_drug_hits}.}
 
@@ -43,6 +43,6 @@ hits, or NULL to plot without labels (default NULL).}
 \description{
 Pretty-plots response for chemogenomic (e.g. for directly comparing drug 
 response to DMSO response). Assumes that data was scored by 
-\code{score_drugs_vs_control} and significant effects were called by 
+\code{score_condition_vs_control} and significant effects were called by 
 \code{call_drug_hits}.
 }
