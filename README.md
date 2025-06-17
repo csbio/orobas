@@ -58,3 +58,35 @@ Output directory and files from single-screen scoring:
     │   ├── fdr_scores.tsv
     
 
+    .
+     ├── ONION-git
+     │   ├── src                     
+     │   │   ├── ...                                                    # provided R scripts
+     │   ├── data
+     │   │   ├── 20Q2_GLS_fdr.npy                                       
+     │   │   ├── 20Q2_GLS_sign.npy
+     │   │   ├── Achilles_gene_effect.csv
+     │   │   ├── depmap_q2_2020_nona_mean.tsv
+     │   │   ├── depmap_q2_2020_nona_mean_rst_clp_mms.tsv
+     │   │   ├── all_genes_20q2.txt
+     │   │   ├── Mitochondial_genelist_1_26_2021_genes.tsv
+     │   │   ├── olfactory_receptors.csv
+     │   │   ├── ae_tanh_e1_depmap_20q2
+     │   │   │   ├── 20q2_epochs_1_latent_1_normalized_ae.tsv
+     │   │   │   ├── 20q2_epochs_1_latent_2_normalized_ae.tsv
+     │   │   │   ├── 20q2_epochs_1_latent_3_normalized_ae.tsv
+     │   │   │   ├── 20q2_epochs_1_latent_4_normalized_ae.tsv
+     │   │   │   ├── 20q2_epochs_1_latent_5_normalized_ae.tsv
+     │   │   │   ├── 20q2_epochs_1_latent_10_normalized_ae.tsv
+     │   ├── output
+     │   │   ├── ae
+     │   │   │   ├── ...                                              # outputs are created after running R scripts
+     │   │   ├── pca
+     │   │   │   ├── ...                                              # outputs are created after running R scripts
+     │   │   ├── rpca
+     │   │   │   ├── ...                                              # outputs are created after running R scripts
+     │   │   ├── onion
+     │   │   │   ├── ...                                              # outputs are created after running R scripts
+     ├── FLEX
+     │   ├── ...                                                      # Directories from FLEX package
+ 
