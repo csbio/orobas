@@ -59,34 +59,37 @@ Output directory and files from single-screen scoring:
     
 
     .
-     ├── ONION-git
-     │   ├── src                     
-     │   │   ├── ...                                                    # provided R scripts
-     │   ├── data
-     │   │   ├── 20Q2_GLS_fdr.npy                                       
-     │   │   ├── 20Q2_GLS_sign.npy
-     │   │   ├── Achilles_gene_effect.csv
-     │   │   ├── depmap_q2_2020_nona_mean.tsv
-     │   │   ├── depmap_q2_2020_nona_mean_rst_clp_mms.tsv
-     │   │   ├── all_genes_20q2.txt
-     │   │   ├── Mitochondial_genelist_1_26_2021_genes.tsv
-     │   │   ├── olfactory_receptors.csv
-     │   │   ├── ae_tanh_e1_depmap_20q2
-     │   │   │   ├── 20q2_epochs_1_latent_1_normalized_ae.tsv
-     │   │   │   ├── 20q2_epochs_1_latent_2_normalized_ae.tsv
-     │   │   │   ├── 20q2_epochs_1_latent_3_normalized_ae.tsv
-     │   │   │   ├── 20q2_epochs_1_latent_4_normalized_ae.tsv
-     │   │   │   ├── 20q2_epochs_1_latent_5_normalized_ae.tsv
-     │   │   │   ├── 20q2_epochs_1_latent_10_normalized_ae.tsv
-     │   ├── output
-     │   │   ├── ae
-     │   │   │   ├── ...                                              # outputs are created after running R scripts
-     │   │   ├── pca
-     │   │   │   ├── ...                                              # outputs are created after running R scripts
-     │   │   ├── rpca
-     │   │   │   ├── ...                                              # outputs are created after running R scripts
-     │   │   ├── onion
-     │   │   │   ├── ...                                              # outputs are created after running R scripts
-     ├── FLEX
-     │   ├── ...                                                      # Directories from FLEX package
- 
+     ├── <output>
+     │   ├── <screen-batch-1>                    
+    │   │   ├── ... 
+    │   ├── <screen-batch-2>
+    │   │   ├── qc                                       
+    │   │   │   ├── essential_PR_QC.tsv
+    │   │   │   ├── lfc_heatmap.png
+    │   │   │   ├── replicate_cor.tsv
+    │   │   │   ├── <screen-batch-2>_<condition-screen-1-replicate-A>_vs_<screen-batch-2>_<condition-screen-1-replicate-B>_replicate_comparison.png
+    │   │   │   ├── ...
+    │   │   │   ├── <screen-batch-2>_<control-screen-1-replicate-A>_vs_<screen-batch-2>_<control-screen-1-replicate-B>_replicate_comparison.png
+    │   │   │   ├── ...
+    │   │   │   ├── reads
+    │   │   │   │   ├── total_reads.png
+    │   │   │   │   ├── reads_heatmap.png
+    │   │   │   │   ├── <screen-T0-1>_raw_reads_histogram.png
+    │   │   │   │   ├── ...
+    │   │   │   │   ├── <screen-batch-2>_<control-screen-1-replicate-A>_raw_reads_histogram.png
+    │   │   │   │   ├── ...
+    │   │   │   │   ├── <screen-batch-2>_<condition-screen-1-replicate-A>_raw_reads_histogram.png
+    │   │   │   │   ├── ...
+    │   │   ├── guide_dlfc
+    │   │   │   ├── <screen-batch-2>_<condition-screen-1>_vs_<control-screen-1>_guide_dlfc_pre_jk.tsv
+    │   │   │   ├── ...
+    │   │   ├── plots
+    │   │   │   ├── <screen-batch-2>_<condition-screen-1>_vs_<control-screen-1>_scatter.png
+    │   │   │   ├── ...
+    │   │   ├── condition_gene_calls.tsv
+    │   │   ├── t0_normalized_screens_guide_level.tsv
+    │   ├──  <screen-batch-3>
+    │   │   ├── ... 
+    │   ├── ... 
+    │   ├── differential_LFC_scores.tsv      # outputs are created after running R scripts
+    │   ├── fdr_scores.tsv
