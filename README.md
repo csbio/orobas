@@ -19,6 +19,8 @@ Questions, comments or concerns can be directed to henry.neil.ward@gmail.com. Fe
 ## Expected Outputs
 
 Output directory and files from single-screen scoring:
+
+
    .
     ├── <output>
     │   ├── <screen-batch-1>                    
@@ -55,3 +57,4 @@ Output directory and files from single-screen scoring:
     │   ├── differential_LFC_scores.tsv      # outputs are created after running R scripts
     │   ├── fdr_scores.tsv
     
+
