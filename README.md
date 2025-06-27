@@ -17,36 +17,36 @@ Output directory and files from single-screen scoring:
     │   ├── <screen-batch-1>                    
     │   │   ├── ... 
     │   ├── <screen-batch-2>
-    │   │   ├── qc                                       
-    │   │   │   ├── essential_PR_QC.tsv
-    │   │   │   ├── lfc_heatmap.png
-    │   │   │   ├── replicate_cor.tsv
+    │   │   ├── qc    # screen replicate LFC scatter plots and other quality control files                                       
+    │   │   │   ├── essential_PR_QC.tsv    # precision-recall AUC of essential-targeting guides from screen replicates
+    │   │   │   ├── lfc_heatmap.png    # heatmap of Pearson Correlation among screen replicate LFCs
+    │   │   │   ├── replicate_cor.tsv    # Pearson Correlation among screen replicate LFCs
     │   │   │   ├── <screen-batch-2>_<condition-screen-1-replicate-A>_vs_<screen-batch-2>_<condition-screen-1-replicate-B>_replicate_comparison.png
     │   │   │   ├── ...
     │   │   │   ├── <screen-batch-2>_<control-screen-1-replicate-A>_vs_<screen-batch-2>_<control-screen-1-replicate-B>_replicate_comparison.png
     │   │   │   ├── ...
-    │   │   │   ├── reads
-    │   │   │   │   ├── total_reads.png
-    │   │   │   │   ├── reads_heatmap.png
-    │   │   │   │   ├── <screen-T0-1>_raw_reads_histogram.png
+    │   │   │   ├── reads    # raw read count histograms of screen replicates and other quality control files
+    │   │   │   │   ├── total_reads.png    # bar-plot of raw read counts from all screen replicates   
+    │   │   │   │   ├── reads_heatmap.png    # heatmap of Pearson Correlation among screen replicate raw read counts
+    │   │   │   │   ├── <screen-batch-2_T0>_raw_reads_histogram.png
     │   │   │   │   ├── ...
     │   │   │   │   ├── <screen-batch-2>_<control-screen-1-replicate-A>_raw_reads_histogram.png
     │   │   │   │   ├── ...
     │   │   │   │   ├── <screen-batch-2>_<condition-screen-1-replicate-A>_raw_reads_histogram.png
     │   │   │   │   ├── ...
-    │   │   ├── guide_dlfc
+    │   │   ├── guide_dlfc    # guide-level replicate-level dLFC score file
     │   │   │   ├── <screen-batch-2>_<condition-screen-1>_vs_<screen-batch-2>_<control-screen-1>_guide_dlfc_pre_jk.tsv
     │   │   │   ├── ...
-    │   │   ├── plots
+    │   │   ├── plots    # scatter plots of gene-level condition LFCs vs control LFCs with negative and positive interactions
     │   │   │   ├── <screen-batch-2>_<condition-screen-1>_vs_<screen-batch-2>_<control-screen-1>_scatter.png
     │   │   │   ├── ...
-    │   │   ├── condition_gene_calls.tsv
-    │   │   ├── t0_normalized_screens_guide_level.tsv
+    │   │   ├── condition_gene_calls.tsv    # score file containing gene-level screen-level LFC, dLFC, FDR, significant hits and other values
+    │   │   ├── t0_normalized_screens_guide_level.tsv    # guide-level replicate-level LFC score file 
     │   ├──  <screen-batch-3>
     │   │   ├── ... 
     │   ├── ... 
-    │   ├── differential_LFC_scores.tsv
-    │   ├── fdr_scores.tsv
+    │   ├── differential_LFC_scores.tsv    # gene-level dLFC scores from all screens from all screen-batches 
+    │   ├── fdr_scores.tsv    # gene-level FDR scores from all screens from all screen-batches
 
 Output directory organization and files from global-normalization:
 
