@@ -45,7 +45,7 @@ Output directory and files from single-screen scoring:
     │   ├──  <screen-batch-3>
     │   │   ├── ... 
     │   ├── ... 
-    │   ├── differential_LFC_scores.tsv      # outputs are created after running R scripts
+    │   ├── differential_LFC_scores.tsv
     │   ├── fdr_scores.tsv
 
 Output directory organization and files from global-normalization:
