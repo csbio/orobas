@@ -1,0 +1,23 @@
+name: orobas_env
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.9
+  - r-essentials
+  - r-png
+  - r-reticulate
+  - r-devtools
+  - r-ggthemes
+  - r-optparse
+  - r-rappdirs
+  - r-sjmisc
+  - r-ggrepel
+  - r-pheatmap
+  - r-prroc
+  - bioconductor-limma
+  # Python packages
+  - pandas
+  - numpy
+  - matplotlib
+  - scikit-learn
