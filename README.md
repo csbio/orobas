@@ -4,9 +4,80 @@ Orobas is an R package for scoring chemogenomic CRISPR screening data.
 
 ## Overview
 
+Orobas provides a set of tools and workflows for analyzing chemogenomic CRISPR screen datasets. It streamlines the scoring of drug-gene interactions by combining essential R and Python modules in a reproducible environment.
+
+This package is designed for researchers studying synthetic lethality, chemical-genetic interactions, and functional genomics.
+
+For details of the methodology and benchmark results, please refer to the accompanying publication (coming soon).
+
 ## Installation
 
+### 1. Install a Virtual Environment Manager
+
+We recommend installing [Anaconda](https://www.anaconda.com/products/distribution) or any other virtual environment manager of your choice.
+
+---
+
+### 2. Clone the Repository
+
+Download the Orobas source code:
+
+```bash
+git clone https://github.com/csbio/orobas.git
+cd orobas
+```
+
+---
+
+### 3. Create the Environment
+
+Create a virtual environment using the provided YAML configuration:
+
+```bash
+conda env create -f orobas_environment.yml
+```
+
+By default, this will create an environment named:
+
+```
+orobas_env
+```
+
+You can change the environment name by editing the `name:` field in `orobas_environment.yml`.
+
+---
+
+### 4. Activate the Environment
+
+Activate the environment before running Orobas modules:
+
+```bash
+conda activate orobas_env
+```
+
+---
+
+**Note:**
+- Recommended versions:
+  - Python >= 3.9
+  - R >= 3.6
+- The code in this protocol was executed using:
+  - Python 3.9
+  - R 4.4.3
+
+---
+
 ## How to run
+
+After activating the environment, you can run Orobas scripts and workflows as described in the [example code](example_scripts/) and the protocol.
+
+Typical usage includes:
+
+- Preprocessing screen count data
+- Scoring gene-drug interactions
+- Generating summary statistics and plots
+
+---
 
 ## Expected Outputs
 
@@ -73,3 +144,15 @@ Output directory organization and files from global-normalization:
     │   │   ├── <screen-batch-1>_<condition-screen-2>_vs_<screen-batch-1>_<control-screen-2>_scatter.png
     │   │   ├── <screen-batch-2>_<condition-screen-1>_vs_<screen-batch-2>_<control-screen-1>_scatter.png
     │   │   ├── ...
+
+## Citation
+
+If you use Orobas in your work, please cite:
+
+**[Publication placeholder — coming soon]**
+
+---
+
+## License
+
+This project is distributed under the MIT License.
