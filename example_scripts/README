@@ -1,1 +1,6 @@
+This folder contains example scripts for scoring Olivier et al. raw read count data.
+Download the input data and meta files from the Zenodo repository.
 
+To score a set of single screens independently, run score_single_screens_wrapper_olivier.R
+
+To normalize dLFC scores from multiple screens combinedly run global_normalization_wrapper_olivier.R 
