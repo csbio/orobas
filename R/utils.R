@@ -303,7 +303,7 @@ check_group_file <- function(group_file, screens, control_only=FALSE) {
   return(TRUE)
 }
 
-# Replaces column names with drug names for the specified indices and regex pattern
+# Simplify column names based on a pattern
 abbreviate_names <- function(df, pattern, indices) {
   abbrev_cols <- str_split(colnames(df)[indices], "_vs_", simplify = TRUE)
   abbrev_cols <- str_split(abbrev_cols[,1], pattern, simplify = TRUE)[,2]
@@ -311,7 +311,8 @@ abbreviate_names <- function(df, pattern, indices) {
   return(df)
 }
 
-# Fixes replicate names
+# Fixes screen names
+# Removes special characters from screen names
 format_replicate_names <- function(rep_names) {
   rep_names <- as.character(trimws(rep_names, which = "right"))
   fixes <- c("-_" = "", "_-" = "", "-" = "", "," = "", "\\+" = "", " " = "")
