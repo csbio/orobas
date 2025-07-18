@@ -2,8 +2,8 @@
 # qGI UTILITY FUNCTIONS
 ######
 
-### All utility functions directly ported from the qGI scoring pipeline,
-### written by Maximilian Billmann and Henry Ward, are located here.
+### All utility functions are ported from the qGI scoring pipeline.
+### Billmann, Maximilian, et al. "Quantitative analysis of genetic interactions in human cells from genome-wide CRISPR-Cas9 screens." bioRxiv (2025): 2025-06.
 
 
 # Fits a loess curve to predict y given x
