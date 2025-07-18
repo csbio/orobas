@@ -167,7 +167,7 @@ screen_batch_correction_with_lda<- function(
 #'          within_correlation = pearson correlation of screen with other chosen replicates
 #'          between_correlation = pearson_correlation of screen with all non-replicate screens
 #'          sig_b = sqrt(sum( square(between_correlation - average(between_correlation)) ))/(number of non-replicate screens - 1))
-#' <cite paper>         
+#' Reproducibility metrics for context-specific CRISPR screens, Billmann, Maximilian et al., Cell Systems, Volume 14, Issue 5, 418 - 422.e2         
 #' @param data  differential log fold change scores data-frame (library-genes X screens, each screen column contain dLFC scores)
 #' @param drug_list_4x4 A named nested list of 4x4 screens; used in the 'within correlation' calculation in wbc score
 #' example of one entry: "CHEM015_BORTEZOMIB_T14"=list("CHEM015_BORTEZOMIB_T14","CHEM050_BORTEZOMIB_T14","CHEM051_BORTEZOMIB_T14","CHEM052_BORTEZOMIB_T13") 
