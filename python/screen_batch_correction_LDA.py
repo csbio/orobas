@@ -86,9 +86,9 @@ def create_binary_standard(screen_labels, batch_dictionary, set_na = True):
 Function:
     create_pcc_scores()
 Args:
-    screen_data : gene profiles across compounds (gene x screen)(required)
-    batch_dictionary : Batch-screen and batch-label mapping (required)
-    set_na (type:binary): If True, same compunds in the same batch are set to NA - don't penalize them for being in the same screen-batch, because they should be in the same batch(default = True)
+    screen_data : gene profiles across compounds (gene x screen)(required). Pandas DataFrame.
+    batch_dictionary : Batch-screen and batch-label mapping (required). Dictionary. 
+    set_na (type:binary): If True, same compunds in the same batch are set to NA - don't penalize them for being in the same screen-batch, because they should be in the same batch(default = True). Boolean.
 Returns: 
     1D array with Pearson Correlation Co-efficient scores
 Description:
