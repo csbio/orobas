@@ -16,10 +16,10 @@ from os import path
 '''
 Function:
     filter_screen()
-Arguments:
-    screen_list : List of compound screen-labels (label format example: CHEM014_Bortezomib_T18 ) (required)
-    samples_in_batch: Minimum number of screens to form a batch (default = 2)
-Return: 
+Args:
+    screen_list : List of compound screen-labels (label format example: CHEM014_Bortezomib_T18 ) (required). List.
+    samples_in_batch: Minimum number of screens to form a batch (default = 2). Integer.
+Returns: 
     List of labels that meet the minimum criteria.
 Description:
     Objective: Extract/filter the screen-labels that meet the minimum batch size criteria
@@ -52,11 +52,11 @@ def filter_screen(screen_list,samples_in_batch = 2):
 '''
 Function:
     create_binary_standard()
-Arguments:
-    screen_labels : (required)
-    batch_dictionary : Batch-screen and batch-label mapping (required)
-    set_na (type:binary): If True, same compunds in the same batch are set to NA - don't penalize them for being in the same screen-batch, because they should be in the same batch(default = True)
-Return: 
+Args:
+    screen_labels : List of compound screen-labels (label format example: CHEM014_Bortezomib_T18 ) (required). List.
+    batch_dictionary : Batch-screen and batch-label mapping (required). Dictionary.
+    set_na (type:binary): If True, same compunds in the same batch are set to NA - don't penalize them for being in the same screen-batch, because they should be in the same batch(default = True). Boolean.
+Returns: 
     1D array with binary standard 
 Description:
     Objective: Create binary standard for screen-label pairs 
@@ -85,11 +85,11 @@ def create_binary_standard(screen_labels, batch_dictionary, set_na = True):
 '''
 Function:
     create_pcc_scores()
-Arguments:
+Args:
     screen_data : gene profiles across compounds (gene x screen)(required)
     batch_dictionary : Batch-screen and batch-label mapping (required)
     set_na (type:binary): If True, same compunds in the same batch are set to NA - don't penalize them for being in the same screen-batch, because they should be in the same batch(default = True)
-Return: 
+Returns: 
     1D array with Pearson Correlation Co-efficient scores
 Description:
     Objective: Generate PCC scores for screen-label pairs 
@@ -118,9 +118,9 @@ def create_pcc_scores(screen_data, batch_dictionary, set_na = True):
 '''
 Function:
     rpc_plot_generation()
-Arguments:
-    fpr: false positive rate calculated by roc_curve() function
-    tpr: true positive rate calculated by  roc_curve() function
+Args:
+    fpr: false positive rate calculated by roc_curve() function. Float.
+    tpr: true positive rate calculated by  roc_curve() function. Float.
     roc_auc_score_: rocauc score calculated by roc_auc_score()
     file_path : output plot file path
 Description:
@@ -150,12 +150,12 @@ def rpc_plot_generation(fpr,tpr,roc_auc_score_,file_path):
 '''
 Function:
     create_per_screen_binary_standard()
-Arguments:
-    screen_labels : list of screen labels (required)
-    batch_dictionary : Batch-screen and batch-label mapping (required)
-    curr_screen : label of screen being processed (required) format: screen_compound_time
-    set_na (type:binary): If True, same compunds in the same batch are set to NA - don't penalize them for being in the same screen-batch, because they should be in the same batch(default = True)
-Return: 
+Args:
+    screen_labels : list of screen labels (required). List.
+    batch_dictionary : Batch-screen and batch-label mapping (required). Dictionary.
+    curr_screen : label of screen being processed (required) format: screen_compound_time. String.
+    set_na (type:binary): If True, same compunds in the same batch are set to NA - don't penalize them for being in the same screen-batch, because they should be in the same batch(default = True). Boolean.
+Returns: 
     1D array with binary standard 
 Description:
     Objective: Create binary standard for screen-label list wrt curr_screen
@@ -183,13 +183,13 @@ def create_per_screen_binary_standard(screen_labels, batch_dictionary,curr_scree
 '''
 Function:
     create_per_screen_pcc_scores()
-Arguments:
-    correlation_profile : correlation profile of curr_screen across all screens (required)
-    screen_labels : list of screen labels (required)
-    batch_dictionary : Batch-screen and batch-label mapping (required)
-    curr_screen : label of screen being processed (required) format: screen_compound_time
-    set_na (type:binary): If True, same compunds in the same batch are set to NA - don't penalize them for being in the same screen-batch, because they should be in the same batch(default = True)
-Return: 
+Args:
+    correlation_profile : correlation profile of curr_screen across all screens (required). Matrix.
+    screen_labels : list of screen labels (required). List object.
+    batch_dictionary : Batch-screen and batch-label mapping (required). Dictionary object.
+    curr_screen : label of screen being processed (required) format: screen_compound_time. String.
+    set_na (type:binary): If True, same compunds in the same batch are set to NA - don't penalize them for being in the same screen-batch, because they should be in the same batch(default = True). Boolean.
+Returns: 
     1D array with Pearson Correlation Co-efficient scores across all screens
 Description:
     Objective: Remove PCC scores of screens that have the same compound as the curr_screen from the curr_screen PCC profile, if indicated
@@ -213,10 +213,10 @@ def create_per_screen_pcc_scores(correlation_profile, screen_labels, batch_dicti
 '''
 Function:
     generate_per_screen_roc()
-Arguments:
-    screen_data : gene profiles across compounds (gene x screen)(required)
-    batch_dictionary : Batch-screen and batch-label mapping (required)
-Return: 
+Args:
+    screen_data : gene profiles across compounds (gene x screen)(required). Pandas DataFrame.
+    batch_dictionary : Batch-screen and batch-label mapping (required). Dictionary.
+Returns: 
     median_roc : median of per-screen ROC scores
     roc_df : dataframe of all per-screen ('screen': list_of_screens, 'rocauc': roc_list)
 Description:
@@ -249,10 +249,10 @@ def generate_per_screen_roc(screen_data,batch_dictionary):
 '''
 Function:
     rpc_plot_generation()
-Arguments:
-    roc_list : List of per-screen ROC scores
-    median_roc : median of per-screen ROC scores
-    file_path : output plot file path
+Args:
+    roc_list : List of per-screen ROC scores. List.
+    median_roc : median of per-screen ROC scores. Float.
+    file_path : output plot file path. String.
 Description:
     Generate histogram of per-screen ROC scores
 '''
@@ -276,13 +276,13 @@ def roc_histogram_generation(roc_list,median_roc,file_path):
 '''
 Function:
     run_batch_correction()
-Arguments:
-    input_file_path: Path to file to apply LDA batch correction
-    output_file_directory: Directory to save roc plot files
-Return:
+Args:
+    input_file_path: Path to file to apply LDA batch correction. String.
+    output_file_directory: Directory to save roc plot files. String.
+Returns:
     Path of the output file
 Description:
-    Applies LDA batch correction to data and removes LD components until the ROCAUC score drops below .51
+    Applies LDA batch correction to data and removes LD components until the median per-screen ROCAUC score drops below .51
    
 '''
 def run_batch_correction(data, output_file_directory):
