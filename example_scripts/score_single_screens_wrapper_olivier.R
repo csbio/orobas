@@ -11,15 +11,14 @@ cat(paste("start time:", start_time, "\n"))
 # Loads Orobas scoring package
 devtools::load_all("orobas")
 
-# Makes sure that the input file exist
+# Sets path to raw read count file
 raw_read_count_file = "./data/Dataset_all_readcounts.txt" 
 
-# Sets path to sample and batch tables
-
+# Sets path to screen_replicate_map and condition_control_map tables
 screen_replicate_map_file = file.path("data","screen_replicate_map_table.tsv")
-
 condition_control_map_file = file.path("data","condition_control_map_table.tsv")
 
+# Sets path to output folder
 parent_folder = file.path(".","output","run_6_15_25")
 
 orobas:::run_single_screen_scoring(
