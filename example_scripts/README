@@ -1,6 +1,8 @@
-This folder contains example scripts for scoring Olivier et al. raw read count data.
+This folder contains example scripts for scoring raw reads data from chemical–genetic screens produced and published by Olivieri et al. (2020) [1].
 Download the input data and meta files from the Zenodo repository  https://zenodo.org/uploads/16935293.
 
 To score a set of single screens independently, run score_single_screens_wrapper_olivier.R.
 
 To normalize already scored dLFCs from multiple screens together, run global_normalization_wrapper_olivier.R. 
+
+[1] Olivieri, M., Cho, T., Álvarez-Quilón, A., Li, K., Schellenberg, M.J., Zimmermann, M., Hustedt, N., Rossi, S.E., Adam, S., Melo, H., et al. (2020). A Genetic Map of the Response to DNA Damage in Human Cells. Cell 182, 481-496.e21. https://doi.org/10.1016/j.cell.2020.05.040.
