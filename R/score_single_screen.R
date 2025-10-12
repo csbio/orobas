@@ -607,7 +607,8 @@ run_single_screen_scoring<- function(
 	# check if the raw read-count file contains all screen replicate columns
 	replicate_stat = check_replicates(raw_reads_all, all_screens)
 	if(length(replicate_stat[["missing_from_df"]])!=0){ 
-		stop(paste("ERROR: The raw read-count file does not contain all required columns listed in sample table meta file."))
+		stop(paste("ERROR: The raw read-count file does not contain all required columns listed in sample table meta file.",paste(replicate_stat[["missing_from_df"]],collapse = ';')))
+
 	}
 
 	#get the list of screen batches
