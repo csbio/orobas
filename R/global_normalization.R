@@ -756,7 +756,7 @@ run_global_normalization <- function(
 	
 	#create dataframe with only the FDR columns from all screens
 	fdr_scores <- all_score[,grepl("gene|fdr", colnames(all_score))] # get column 'gene' and any columns with name containing string 'fdr'
-	fdr_scores <- abbreviate_names(fdr_scores, "fdr_", 2:ncol(scores)) # reformat 'fdr' column names
+	fdr_scores <- abbreviate_names(fdr_scores, "fdr_", 2:ncol(fdr_scores)) # reformat 'fdr' column names
 	rownames(fdr_scores) <- fdr_scores$gene # set matrix rownames to gene names ('gene' column (first column) contains gene names at this point)
 	fdr_scores <- fdr_scores[,-1] # remove first column ('gene' column)
 	# save FDR score dataframe to file
