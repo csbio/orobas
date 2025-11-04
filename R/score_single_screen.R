@@ -626,7 +626,7 @@ run_single_screen_scoring<- function(
 		batch = batch_all[which(grepl(screen,batch_all$Screen)),]
 		
 		#get the current screen batch set from the screen_replicate_map table
-		cur_sample_table = sample_table[which(grepl(screen,sample_table$Screen)),]		
+		cur_sample_table = sample_table[which( (sample_table$Screen %in% batch$Screen) | (sample_table$Screen %in% batch$Control) ),] #sample_table[which(grepl(screen,sample_table$Screen)),]		
 		sampla_table_NormalizeTo = unique(cur_sample_table$NormalizeTo)
 		cur_sample_t0 = sample_table[which(sample_table$Screen %in% sampla_table_NormalizeTo),]
 		cur_sample_table = unique(rbind(cur_sample_t0,cur_sample_table))
