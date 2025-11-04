@@ -9,7 +9,7 @@ start_time = Sys.time()
 cat(paste("start time:", start_time, "\n"))
 
 # Loads Orobas scoring package
-devtools::load_all("orobas")
+devtools::load_all("orobas-main")
 
 # Sets path to raw read count file
 raw_read_count_file = file.path("data","Dataset_all_readcounts.txt") 
