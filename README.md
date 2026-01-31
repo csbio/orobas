@@ -71,11 +71,6 @@ conda activate orobas_env
 
 After activating the environment, you can run Orobas scripts and workflows as described in the [example code](example_scripts/) and the protocol.
 
-Typical usage includes:
-
-- Preprocessing screen count data
-- Scoring gene-drug interactions
-- Generating summary statistics and plots
 
 ---
 
