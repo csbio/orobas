@@ -1,16 +1,19 @@
 # Example scripts for scoring chemical–genetic screens
 
-This folder contains example scripts for scoring raw reads data from chemical–genetic screens produced and published by Olivieri et al. (2020) [1].
+This directory contains example scripts for scoring raw reads data from chemical–genetic screens produced and published by Olivieri et al. (2020) [1].
 
 ## Input Data
 Download the input data and metadata files from the [Zenodo repository](https://doi.org/10.5281/zenodo.16935293).
 
-## Run instruction
-Copy and paste the example scripts outside of the orobas-main directory. 
+## Example run instructions
+1. Create a directory called 'run_orobas'. 
+2. Place the inut data in a directory (name it'data') inside the 'run_orobas' directory. 
+3. Download the orobas software from the Github repo. The dowloaded package should be in a directory called 'orobas-main'. Put the 'orobas-main' directoryy inside the 'run_orobas' directory.
+4. Download and put the example scripts in the 'run_orobas' directory. 
 
-The following directory tree structure is required to run the example files if you want to run them without modifying the file/directory paths.
+The following directory tree structure is required to run the example files if you want to run them without modifying the file or directory paths.
 ```bash
-    .
+    run_orobas
     ├── score_single_screens_wrapper_olivier.R
     ├── global_normalization_wrapper_olivier.R
     ├── data # (Directory)
