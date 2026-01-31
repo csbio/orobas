@@ -7,8 +7,8 @@ Download the input data and metadata files from the [Zenodo repository](https://
 
 ## Example run instructions
 1. Create a directory called 'run_orobas'. 
-2. Place the inut data in a directory (name it'data') inside the 'run_orobas' directory. 
-3. Download the orobas software from the Github repo. The dowloaded package should be in a directory called 'orobas-main'. Put the 'orobas-main' directoryy inside the 'run_orobas' directory.
+2. Put the input data in a directory (name it 'data') inside the 'run_orobas' directory. 
+3. Download the orobas software from the Github repo. The dowloaded package should be in a directory called 'orobas-main'. Put the 'orobas-main' directory inside the 'run_orobas' directory.
 4. Download and put the example scripts (score_single_screens_wrapper_olivier.R, global_normalization_wrapper_olivier.R) in the 'run_orobas' directory. 
 
 The figure below summarizes the directory tree structure required to run the example files if you want to run them without modifying the file or directory paths.
