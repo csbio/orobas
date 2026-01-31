@@ -69,7 +69,7 @@ conda activate orobas_env
 
 ## How to run
 
-After activating the environment, you can run Orobas scripts and workflows as described in the [example code](example_scripts/) and the protocol.
+After activating the environment, you can run Orobas as described in the [example code](example_scripts/) and the protocol.
 
 
 ---
