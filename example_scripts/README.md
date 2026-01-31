@@ -5,7 +5,25 @@ This folder contains example scripts for scoring raw reads data from chemical–
 ## Input Data
 Download the input data and metadata files from the [Zenodo repository](https://doi.org/10.5281/zenodo.16935293).
 
-## Usage
+## Run instruction
+Copy and paste the example scripts outside of the orobas-main directory. 
+
+The following directory tree structure is required to run the example files if you want to run them without modifying the file/directory paths.
+.
+    ├── score_single_screens_wrapper_olivier.R
+    ├── global_normalization_wrapper_olivier.R
+    ├── data # (Directory)
+    │   ├── Dataset_all_readcounts.txt  
+    │   ├── screen_replicate_map_table.tsv 
+    │   ├── condition_control_map_table.tsv 
+    ├── orobas-main # (Directory) contains all orobas software files
+    │   ├── python 
+    │   │   ├── ... # all python scripts 
+    │   ├── R
+    │   │   ├── ... # all R scripts
+    │   ├──  ... # other orobas files/directories 
+
+
 - **Score single screens independently**  
   Run:
   ```bash
