@@ -9,8 +9,9 @@ Download the input data and metadata files from the [Zenodo repository](https://
 Copy and paste the example scripts outside of the orobas-main directory. 
 
 The following directory tree structure is required to run the example files if you want to run them without modifying the file/directory paths.
+
 .
-    ├── score_single_screens_wrapper_olivier.R
+├── score_single_screens_wrapper_olivier.R
     ├── global_normalization_wrapper_olivier.R
     ├── data # (Directory)
     │   ├── Dataset_all_readcounts.txt  
@@ -21,7 +22,7 @@ The following directory tree structure is required to run the example files if y
     │   │   ├── ... # all python scripts 
     │   ├── R
     │   │   ├── ... # all R scripts
-    │   ├──  ... # other orobas files/directories 
+    │   ├──  ... # other orobas files/directories
 
 
 - **Score single screens independently**  
