@@ -145,19 +145,20 @@ remove_control_dlfc_signal<- function(
 #' 
 #'  @param scores differential log fold change scores data-frame from condition screens (library-genes X screens, each screen column contain dLFC scores)
 #'  @param output_directory path to directory to save output files (roc plot files)
+#'  @param auroc_cutoff auroc threshold to determine stopping criteria for batch-correction (default 0.51)
 #'  @return differential log fold change scores data-frame (library-genes X screens) after batch correction by LDA
 #'  
 #'  @export
 screen_batch_correction_with_lda<- function(
 	scores, 
 	output_directory,
-	auroc_cutoff=0.51 #updated
+	auroc_cutoff=0.51 
 )
 {	
   	#load screen level batch correction LDA python script 
 	source_python(system.file("python","screen_batch_correction_LDA.py", package = "orobas"))
 	#call function from python script that returns batch corrected dLFC score file
-	scores = run_batch_correction(scores, output_directory, auroc_cutoff)	#updated
+	scores = run_batch_correction(scores, output_directory, auroc_cutoff)	
 	return(scores)
 }
 
@@ -225,6 +226,10 @@ score_wbc <- function(
 #' @param null_drug_list  A named nested list of all screens that are replicates of the 4x4 screens; these should have no effect in the 'between correlation' calculation in wbc score.
 #' Example of one entry: "CHEM029_NGI1_T16"=list("CHEM031_NGI1_T13","CHEM050_NGI1_T11","CHEM029_NGI1_T16","CHEM050_NGI1_T14","CHEM051_NGI1_T14","CHEM057_NGI1_T13").
 #'  @param save_intermediate If TRUE, save dLFC score file after each intermediate correction step (default FALSE).
+#'  @param pc_remove number of principal components to be removed (default 1)
+#'  @param auroc_cutoff auroc threshold to determine stopping criteria for batch-correction (default 0.51)
+#'  @param batch_correct flag for batch-correction with LDA (default TRUE)
+#'  @param remove_control_dlfc flag for removing control dlfc signal (default TRUE)
 #'  @return differential log fold change scores data-frame (library-genes X screens) after all batch correction steps.
 #'  
 #'  @export
@@ -236,9 +241,9 @@ apply_dlfc_correction<- function(
 	drug_list_4x4=c(),
 	null_drug_list=c(),
 	save_intermediate=FALSE,
-	pc_remove = 1, #updated
-	auroc_cutoff = .51, #updated
-	batch_correct = TRUE, #updated
+	pc_remove = 1, 
+	auroc_cutoff = .51, 
+	batch_correct = TRUE, 
 	remove_control_dlfc = TRUE
 )
 {
@@ -298,13 +303,13 @@ apply_dlfc_correction<- function(
   }
   
   ####remove first principal component from the differential LFC scores
-  if(pc_remove>0) #updated
+  if(pc_remove>0) 
   {
 	  scores <- remove_principal_component_signal(
 		  scores,
-		  pc=pc_remove #updated
+		  pc=pc_remove 
 	  )
-	  cat(paste("Removed ", pc_remove , " principal components.\n")) #updated
+	  cat(paste("Removed ", pc_remove , " principal components.\n")) 
 	  if(save_intermediate)
 	  {
 		score_fname <- file.path(output_folder, "dLFC_scores_sd_scaled_pc_removed.tsv")
@@ -317,14 +322,14 @@ apply_dlfc_correction<- function(
 			drug_list_4x4, 
 			null_drug_list
 		)
-		wbc_4x4$pc_signal_removed = wbc_4x4_temp$wbc #updated
+		wbc_4x4$pc_signal_removed = wbc_4x4_temp$wbc 
 	  }
   }else{
-	cat(paste("Removed no principal components.\n")) #updated
+	cat(paste("Removed no principal components.\n")) 
   }
   
   ####remove DMSO signal from the differential LFC scores
-	if(remove_control_dlfc == TRUE) #updated
+	if(remove_control_dlfc == TRUE) 
 	{
 	  if(file.exists(control_dlfc_filepath))
 	  {	
@@ -332,7 +337,7 @@ apply_dlfc_correction<- function(
 			scores,
 			control_dlfc_filepath
 		)
-		cat(paste("Removed signal from dLFC scores from control screens.\n")) #updated
+		cat(paste("Removed control dLFC signal.\n")) 
 		if(save_intermediate)
 		{
 		  score_fname <- file.path(output_folder, "dLFC_scores_sd_scaled_pc_removed_control_removed.tsv")
@@ -351,17 +356,17 @@ apply_dlfc_correction<- function(
 	}
   
   ####batch correction using lda
-  if(batch_correct == TRUE) #updated
+  if(batch_correct == TRUE) 
   {
 	  lda_output_folder <- file.path(output_folder,'LDA_evaluation_plots')
 	  if (!dir.exists(lda_output_folder)) { dir.create(lda_output_folder) }
 	  scores <- screen_batch_correction_with_lda(
 		  scores, 
 		  lda_output_folder,
-		  auroc_cutoff #updated
+		  auroc_cutoff 
 	  )
 	  cat(paste("Applied LDA-based batch-correction.\n"))
-	  if(flag_wbc) #updated
+	  if(flag_wbc) 
 	  {
 		wbc_4x4_temp = score_wbc(
 			scores, 
@@ -377,7 +382,7 @@ apply_dlfc_correction<- function(
   score_fname <- file.path(output_folder, "global_normalized_dLFC_scores.tsv")
   write.table(scores, score_fname, sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
   
-  if(flag_wbc) #updated
+  if(flag_wbc) 
   {
     write.csv(wbc_4x4, file.path(output_folder,'wbc_scores.csv'), quote = FALSE,row.names = FALSE)
   }
@@ -398,7 +403,7 @@ apply_dlfc_correction<- function(
 #' @param cf2 parameter for \code{normalize_screens}. Pseudocount (default 1).
 #' @param min_reads parameter for \code{normalize_screens}. Minimum number of reads to keep (default 30, anything
 #'   below this value will be filtered out).
-#' @param max_reads parameter for \code{normalize_screens}. Maximum number of reads to keep (default 10000, anything
+#' @param max_reads parameter for \code{normalize_screens}. Maximum number of reads to keep (default -1, anything
 #'   above this value will be filtered out).
 #' @param nonessential_norm parameter for \code{normalize_screens}. Whether or not to normalize each screen against its
 #'   population of core non-essential genes, as defined by Traver et al. 2015 
@@ -427,7 +432,7 @@ generate_control_dlfc_scores <- function(
 	cf1 = 1e6, 
 	cf2 = 1, 
 	min_reads = 30, 
-	max_reads = 10000, 
+	max_reads = -1, 
 	nonessential_norm = TRUE,
 	replace_NA = TRUE,
 	min_guides = 3,
@@ -522,7 +527,7 @@ generate_control_dlfc_scores <- function(
 #' @param cf2 parameter for \code{generate_control_dlfc_scores}. Pseudocount (default 1).
 #' @param min_reads parameter for \code{generate_control_dlfc_scores}. Minimum number of reads to keep (default 30, anything
 #'   below this value will be filtered out).
-#' @param max_reads parameter for \code{generate_control_dlfc_scores}. Maximum number of reads to keep (default 10000, anything
+#' @param max_reads parameter for \code{generate_control_dlfc_scores}. Maximum number of reads to keep (default -1, anything
 #'   above this value will be filtered out).
 #' @param nonessential_norm parameter for \code{generate_control_dlfc_scores}. Whether or not to normalize each screen against its
 #'   population of core non-essential genes, as defined by Traver et al. 2015 
@@ -560,6 +565,10 @@ generate_control_dlfc_scores <- function(
 #' @param plot_type parameter for \code{plot_drug_response}. Type of plot to output, one of "png" or "pdf" (default "png").
 #' @param label_fdr_threshold parameter for \code{plot_drug_response}. The threshold below which to plot gene labels for significant
 #'   hits, or NULL to plot without labels (default NULL).
+#'  @param pc_remove number of principal components to be removed (default 1)
+#'  @param auroc_cutoff auroc threshold to determine stopping criteria for batch-correction (default 0.51)
+#'  @param batch_correct flag for batch-correction with LDA (default TRUE)
+#'  @param remove_control_dlfc flag for removing control dlfc signal (default TRUE)
 #'
 #' Output: generates corrected dLFC score file and other files 
 #'  
@@ -574,7 +583,7 @@ run_global_normalization <- function(
 	cf1 = 1e6, 
 	cf2 = 1, 
 	min_reads = 30, 
-	max_reads = 10000, 
+	max_reads = -1, 
 	nonessential_norm = TRUE,
 	replace_NA = TRUE,
 	min_guides = 3,
@@ -597,10 +606,10 @@ run_global_normalization <- function(
 	differential_threshold_negative = 0,
 	plot_type = "png", 
 	label_fdr_threshold = NULL,
-	pc_remove = 1, #updated
-	auroc_cutoff = .51, #updated
-	batch_correct = TRUE, #updated
-	remove_control_dlfc = TRUE #updated
+	pc_remove = 1, 
+	auroc_cutoff = .51, 
+	batch_correct = TRUE, 
+	remove_control_dlfc = TRUE 
 	
 )
 {
@@ -683,13 +692,13 @@ run_global_normalization <- function(
 	rownames(scores) <- scores$gene #set matrix rownames to gene names ('gene' column (first column) contains gene names at this point)
 	scores <- scores[,-1] #remove first column ('gene' column)
 	
-	#abort if # of principal components to be removed is more than half of total # of screens #updated
+	#abort if # of principal components to be removed is more than half of total # of screens 
 	if(pc_remove > floor(length(colnames(scores))/2))
 	{
 		stop(paste("ERROR: the pc_remove parameter was set to ", pc_remove, ".\n That is more than half of total no. of screens: ",floor(length(colnames(scores))/2),".\n Please select a lower value.\n" ))
 	}
 	
-	#warning for auroc cutoff for LDA-based batch correction #updated
+	#warning for auroc cutoff for LDA-based batch correction 
 	if(auroc_cutoff < 0.51)
 	{
 		auroc_cutoff = 0.51
@@ -732,10 +741,10 @@ run_global_normalization <- function(
 		drug_list_4x4 = drug_list_4x4,
 		null_drug_list = null_drug_list,
 		save_intermediate=save_intermediate,
-		pc_remove = pc_remove, #updated
-		auroc_cutoff = auroc_cutoff, #updated
-		batch_correct = batch_correct, #updated
-		remove_control_dlfc = remove_control_dlfc #updated
+		pc_remove = pc_remove, 
+		auroc_cutoff = auroc_cutoff, 
+		batch_correct = batch_correct, 
+		remove_control_dlfc = remove_control_dlfc 
 	)
 	
 	dlfc_score$gene <- rownames(dlfc_score)
