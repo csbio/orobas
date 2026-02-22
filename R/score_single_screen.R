@@ -376,6 +376,8 @@ call_drug_hits <- function(
 #' @param output_folder Folder to output scored data and plots to. 
 #' @param min_guides The minimum number of guides per gene pair required to score data 
 #'   (default 3).
+#' @param test Type of hypothesis testing to run. Must be one of "rank-sum" for Wilcoxon
+#'   rank-sum testing or "moderated-t" for moderated t-testing (default "moderated-t"). 
 #' @param loess If true, loess-normalizes residuals before running hypothesis testing.
 #'   Only works when test = "moderated-t" (default TRUE).
 #' @param ma_transform If true, M-A transforms data before running loess normalization. Only
@@ -531,6 +533,8 @@ score_single_screen <- function(
 #'   (default TRUE).
 #' @param min_guides The minimum number of guides per gene pair required to score data 
 #'   (default 3).
+#' @param test Type of hypothesis testing to run. Must be one of "rank-sum" for Wilcoxon
+#'   rank-sum testing or "moderated-t" for moderated t-testing (default "moderated-t"). 
 #' @param loess If true, loess-normalizes residuals before running hypothesis testing.
 #'   Only works when test = "moderated-t" (default TRUE).
 #' @param ma_transform If true, M-A transforms data before running loess normalization. Only
