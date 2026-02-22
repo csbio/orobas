@@ -403,8 +403,8 @@ apply_dlfc_correction<- function(
 #' @param cf2 parameter for \code{normalize_screens}. Pseudocount (default 1).
 #' @param min_reads parameter for \code{normalize_screens}. Minimum number of reads to keep (default 30, anything
 #'   below this value will be filtered out).
-#' @param max_reads parameter for \code{normalize_screens}. Maximum number of reads to keep (default -1, anything
-#'   above this value will be filtered out).
+#' @param max_reads parameter for \code{normalize_screens}. Maximum number of reads to keep (default -1, if user defines a value anything
+#'   above the value will be filtered out, otherwise anyything higher than median*20 will be filtered out).
 #' @param nonessential_norm parameter for \code{normalize_screens}. Whether or not to normalize each screen against its
 #'   population of core non-essential genes, as defined by Traver et al. 2015 
 #'   (default FALSE).
@@ -527,8 +527,8 @@ generate_control_dlfc_scores <- function(
 #' @param cf2 parameter for \code{generate_control_dlfc_scores}. Pseudocount (default 1).
 #' @param min_reads parameter for \code{generate_control_dlfc_scores}. Minimum number of reads to keep (default 30, anything
 #'   below this value will be filtered out).
-#' @param max_reads parameter for \code{generate_control_dlfc_scores}. Maximum number of reads to keep (default -1, anything
-#'   above this value will be filtered out).
+#' @param max_reads parameter for \code{generate_control_dlfc_scores}. Maximum number of reads to keep (default -1, if user defines a value anything
+#'   above the value will be filtered out, otherwise anyything higher than median*20 will be filtered out).
 #' @param nonessential_norm parameter for \code{generate_control_dlfc_scores}. Whether or not to normalize each screen against its
 #'   population of core non-essential genes, as defined by Traver et al. 2015 
 #'   (default FALSE).
