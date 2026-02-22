@@ -85,7 +85,7 @@ remove_principal_component_signal<- function(
 	scores <- scores[complete.cases(scores), ] #only keep rows with no 'NA' values
 
 	pca <- prcomp(scores, center = TRUE, scale. = T) #apply principal component analysis on the score matrix
-	rot <- pca$rotation[,pc] 
+	rot <- pca$rotation[,1:pc,drop=F] #updated
 	projected <- scores %*% rot %*% t(rot) #calculate projection of first #'pc' principal components to the score matrix
 	scores <- scores - projected #subtract the the projection matrix to remove signal from principal components
 	
@@ -150,13 +150,14 @@ remove_control_dlfc_signal<- function(
 #'  @export
 screen_batch_correction_with_lda<- function(
 	scores, 
-	output_directory
+	output_directory,
+	auroc_cutoff=0.51 #updated
 )
 {	
   	#load screen level batch correction LDA python script 
 	source_python(system.file("python","screen_batch_correction_LDA.py", package = "orobas"))
 	#call function from python script that returns batch corrected dLFC score file
-	scores = run_batch_correction(scores, output_directory)	
+	scores = run_batch_correction(scores, output_directory, auroc_cutoff)	#updated
 	return(scores)
 }
 
@@ -234,7 +235,11 @@ apply_dlfc_correction<- function(
 	remove_screen_list=c(),
 	drug_list_4x4=c(),
 	null_drug_list=c(),
-	save_intermediate=FALSE
+	save_intermediate=FALSE,
+	pc_remove = 1, #updated
+	auroc_cutoff = .51, #updated
+	batch_correct = TRUE, #updated
+	remove_control_dlfc = TRUE
 )
 {
   flag_wbc = TRUE
@@ -276,6 +281,7 @@ apply_dlfc_correction<- function(
 	  scores, 
 	  output_folder
   )
+  cat(paste("Applied SD scaling.\n")) #updated
   if(save_intermediate)
   {
     score_fname <- file.path(output_folder, "dLFC_scores_sd_scaled.tsv")
@@ -292,66 +298,87 @@ apply_dlfc_correction<- function(
   }
   
   ####remove first principal component from the differential LFC scores
-  scores <- remove_principal_component_signal(
-	  scores,
-	  pc=1
-  )
-  if(save_intermediate)
+  if(pc_remove>0) #updated
   {
-    score_fname <- file.path(output_folder, "dLFC_scores_sd_scaled_pc_removed.tsv")
-    write.table(scores, score_fname, sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
-  }
-  if(flag_wbc)
-  {
-    wbc_4x4_temp = score_wbc(
-	    scores, 
-	    drug_list_4x4, 
-	    null_drug_list
-    )
-    wbc_4x4$pc_1_signal_removed = wbc_4x4_temp$wbc
+	  scores <- remove_principal_component_signal(
+		  scores,
+		  pc=pc_remove #updated
+	  )
+	  cat(paste("Removed ", pc_remove , " principal components.\n")) #updated
+	  if(save_intermediate)
+	  {
+		score_fname <- file.path(output_folder, "dLFC_scores_sd_scaled_pc_removed.tsv")
+		write.table(scores, score_fname, sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
+	  }
+	  if(flag_wbc)
+	  {
+		wbc_4x4_temp = score_wbc(
+			scores, 
+			drug_list_4x4, 
+			null_drug_list
+		)
+		wbc_4x4$pc_signal_removed = wbc_4x4_temp$wbc #updated
+	  }
+  }else{
+	cat(paste("Removed no principal components.\n")) #updated
   }
   
   ####remove DMSO signal from the differential LFC scores
-  if(file.exists(control_dlfc_filepath))
-  {	
-    scores <- remove_control_dlfc_signal(
-	    scores,
-	    control_dlfc_filepath
-    )
-    if(save_intermediate)
-    {
-      score_fname <- file.path(output_folder, "dLFC_scores_sd_scaled_pc_removed_control_removed.tsv")
-      write.table(scores, score_fname, sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
-    }
-    if(flag_wbc)
-    {
-      wbc_4x4_temp = score_wbc(
-	      scores, 
-	      drug_list_4x4, 
-	      null_drug_list
-      )
-      wbc_4x4$control_dlfc_signal_removed = wbc_4x4_temp$wbc
-    }
-  }
+	if(remove_control_dlfc == TRUE) #updated
+	{
+	  if(file.exists(control_dlfc_filepath))
+	  {	
+		scores <- remove_control_dlfc_signal(
+			scores,
+			control_dlfc_filepath
+		)
+		cat(paste("Removed signal from dLFC scores from control screens.\n")) #updated
+		if(save_intermediate)
+		{
+		  score_fname <- file.path(output_folder, "dLFC_scores_sd_scaled_pc_removed_control_removed.tsv")
+		  write.table(scores, score_fname, sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
+		}
+		if(flag_wbc)
+		{
+		  wbc_4x4_temp = score_wbc(
+			  scores, 
+			  drug_list_4x4, 
+			  null_drug_list
+		  )
+		  wbc_4x4$control_dlfc_signal_removed = wbc_4x4_temp$wbc
+		}
+	  }
+	}
   
   ####batch correction using lda
-  lda_output_folder <- file.path(output_folder,'LDA_evaluation_plots')
-  if (!dir.exists(lda_output_folder)) { dir.create(lda_output_folder) }
-  scores <- screen_batch_correction_with_lda(
-	  scores, 
-	  lda_output_folder
-  )
+  if(batch_correct == TRUE) #updated
+  {
+	  lda_output_folder <- file.path(output_folder,'LDA_evaluation_plots')
+	  if (!dir.exists(lda_output_folder)) { dir.create(lda_output_folder) }
+	  scores <- screen_batch_correction_with_lda(
+		  scores, 
+		  lda_output_folder,
+		  auroc_cutoff #updated
+	  )
+	  cat(paste("Applied LDA-based batch-correction.\n"))
+	  if(flag_wbc) #updated
+	  {
+		wbc_4x4_temp = score_wbc(
+			scores, 
+			drug_list_4x4, 
+			null_drug_list
+		)
+		wbc_4x4$lda_batch_corrected = wbc_4x4_temp$wbc
+		write.csv(wbc_4x4, file.path(output_folder,'wbc_scores.csv'), quote = FALSE,row.names = FALSE)
+	  }
+  }
+  
+  #save final data to file
   score_fname <- file.path(output_folder, "global_normalized_dLFC_scores.tsv")
   write.table(scores, score_fname, sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
   
-  if(flag_wbc)
+  if(flag_wbc) #updated
   {
-    wbc_4x4_temp = score_wbc(
-	    scores, 
-	    drug_list_4x4, 
-	    null_drug_list
-    )
-    wbc_4x4$lda_batch_corrected = wbc_4x4_temp$wbc
     write.csv(wbc_4x4, file.path(output_folder,'wbc_scores.csv'), quote = FALSE,row.names = FALSE)
   }
   
@@ -569,7 +596,12 @@ run_global_normalization <- function(
 	differential_threshold_positive = 0, 
 	differential_threshold_negative = 0,
 	plot_type = "png", 
-	label_fdr_threshold = NULL    
+	label_fdr_threshold = NULL,
+	pc_remove = 1, #updated
+	auroc_cutoff = .51, #updated
+	batch_correct = TRUE, #updated
+	remove_control_dlfc = TRUE #updated
+	
 )
 {
 	# read screen_replicate_map table file if it exists
@@ -651,7 +683,20 @@ run_global_normalization <- function(
 	rownames(scores) <- scores$gene #set matrix rownames to gene names ('gene' column (first column) contains gene names at this point)
 	scores <- scores[,-1] #remove first column ('gene' column)
 	
-	#generate control dlfc score
+	#abort if # of principal components to be removed is more than half of total # of screens #updated
+	if(pc_remove > floor(length(colnames(scores))/2))
+	{
+		stop(paste("ERROR: the pc_remove parameter was set to ", pc_remove, ".\n That is more than half of total no. of screens: ",floor(length(colnames(scores))/2),".\n Please select a lower value.\n" ))
+	}
+	
+	#warning for auroc cutoff for LDA-based batch correction #updated
+	if(auroc_cutoff < 0.51)
+	{
+		auroc_cutoff = 0.51
+		cat(paste("Warning: auroc cutoff for LDA-based batch correction, auroc_cutoff, was set at ", auroc_cutoff,". That is below a reasonable cutoff of .51. auroc_cutoff is reset to .51 \n"))
+	}	
+	
+	#generate control dlfc score	
 	generate_control_dlfc_scores(
 		condition_control_map_file = condition_control_map_file,
 		screen_replicate_map_file = screen_replicate_map_file, 
@@ -674,6 +719,7 @@ run_global_normalization <- function(
 		screen_control_keyword = screen_control_keyword
 	)
 	
+	
 	#file path to control_effect_scores.tsv generated by  generate_control_dlfc_scores() in the previous step
 	control_dlfc_filepath = file.path(output_folder,'control','control',"control_effect_scores.tsv")
 	
@@ -685,7 +731,11 @@ run_global_normalization <- function(
 		remove_screen_list = remove_screen_list,
 		drug_list_4x4 = drug_list_4x4,
 		null_drug_list = null_drug_list,
-		save_intermediate=save_intermediate
+		save_intermediate=save_intermediate,
+		pc_remove = pc_remove, #updated
+		auroc_cutoff = auroc_cutoff, #updated
+		batch_correct = batch_correct, #updated
+		remove_control_dlfc = remove_control_dlfc #updated
 	)
 	
 	dlfc_score$gene <- rownames(dlfc_score)
