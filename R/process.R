@@ -31,7 +31,7 @@
 #' @return Normalized dataframe.
 #' @export 
 normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 = 1, 
-                              min_reads = 30, max_reads = 10000, nonessential_norm = TRUE,
+                              min_reads = 30, max_reads = -1, nonessential_norm = TRUE,
                               replace_NA = TRUE) {
   
   # Checks for input errors
@@ -66,6 +66,10 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
     }
     sum_low <- sum(to_remove, na.rm = TRUE)
     for (col in filter_cols) {
+      if(max_reads==-1){ # if max_reads is not defined by the user, set it to median*20
+          read_median = median(as.matrix(df[,col]), na.rm = TRUE)
+          max_reads = read_median * 20
+      }
       to_remove[df[,col] > max_reads] <- TRUE
     }
     sum_high <- sum(to_remove, na.rm = TRUE) - sum_low
@@ -154,13 +158,17 @@ normalize_screens <- function(df, screens, filter_names = NULL, cf1 = 1e6, cf2 =
 #' @param max_reads Maximum number of reads to keep (anything above
 #'   this value will be filtered out).
 #' @return Filtered dataframe.
-filter_reads <- function(df, cols, min_reads = 30, max_reads = 10000) {
+filter_reads <- function(df, cols, min_reads = 30, max_reads = -1) {
   to_remove <- rep(FALSE, nrow(df))
   for (col in cols) {
     to_remove[df[,col] < min_reads] <- TRUE
   }
   sum_low <- sum(to_remove)
   for (col in cols) {
+    if(max_reads==-1){ # if max_reads is not defined by the user, set it to median*20
+          read_median = median(as.matrix(df[,col]), na.rm = TRUE)
+          max_reads = read_median * 20
+    }
     to_remove[df[,col] > max_reads] <- TRUE
   }
   sum_high <- sum(to_remove) - sum_low
