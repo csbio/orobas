@@ -279,13 +279,14 @@ Function:
 Args:
     input_file_path: Path to file to apply LDA batch correction. String.
     output_file_directory: Directory to save roc plot files. String.
+    auroc_cutoff: auroc threshold to stop LDA component removal. Numeric.
 Returns:
     Path of the output file
 Description:
     Applies LDA batch correction to data and removes LD components until the median per-screen ROCAUC score drops below .51
    
 '''
-def run_batch_correction(data, output_file_directory):
+def run_batch_correction(data, output_file_directory, auroc_cutoff):
     print(str('Running batch correction'))
     
     if "gene" in data.index.values: 
@@ -371,10 +372,11 @@ def run_batch_correction(data, output_file_directory):
         roc_histogram_generation(roc_df_['rocauc'],roc_auc_score_screen_pcc_na,filepath)
         
         #if roc_auc score drops below .51 save data file and plot, stop batch correction        
-        if np.around(roc_auc_score_screen_pcc_na,decimals=2) < 0.51: #or components_reduced > 20: 
+        if np.around(roc_auc_score_screen_pcc_na,decimals=2) < auroc_cutoff:  
             print('LDA correction complete.')
             print('Removed components: ' + str(components_reduced))
             
             break
         components_reduced = components_reduced + 1
     return pc_removed_matrix_df
+
