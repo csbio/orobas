@@ -66,12 +66,15 @@ jackknife_outliers<-function(
 #' @param control_genes List of control genes to remove, e.g. "luciferase" (default c("None", "")).
 #' @param min_guides The minimum number of guides per gene pair required to score data 
 #'   (default 3).
-#' @param loess If true, loess-normalizes residuals before running hypothesis testing.
+#' @param loess If true, loess-normalizes residuals before running hypothesis testing. 
+#'   Only works when test = "moderated-t" (default TRUE).
 #' @param ma_transform If true, M-A transforms data before running loess normalization. Only
 #'   has an effect when loess = TRUE (default TRUE).
 #' @param fdr_method Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default "BY").
 #' @param return_residuals If FALSE, returns NA instead of residuals dataframe (default FALSE).
-#'   This is recommend if scoring large datasets and memory is a limitation.  
+#'   This is recommend if scoring large datasets and memory is a limitation. 
+#' @param test Type of hypothesis testing to run. Must be one of "rank-sum" for Wilcoxon
+#'   rank-sum testing or "moderated-t" for moderated t-testing (default "moderated-t"). 
 #' @return A named list containing 3 dataframes. 
 #'   i) "scored_data": a dataframe containing scored data with separate columns given by the specified control and condition names.
 #'   ii) "guide_dlfc_pre_jk": a dataframe containing guide-level and replicate-level differential LFCs scored for condition screen against control screen, before applying jk-outlier removal.
@@ -86,7 +89,8 @@ score_condition_vs_control <- function(
         loess = TRUE, 
 	ma_transform = TRUE, 
 	fdr_method = "BY",
-        return_residuals = FALSE
+        return_residuals = FALSE,
+		test = "moderated-t" #updated
 ) 
 {  
 	cat(paste("Preparing to score... ", condition_screen_names, "\n"))
@@ -127,28 +131,29 @@ score_condition_vs_control <- function(
 	))
 	
 	scores[new_cols] <- NA
-  
-	# Make a dataframe for each condition screen to store differential LFC scores later (if the significance test is moderated-t)
-	max_guides <- -1
-
-	# Gets maximum number of guides per gene (Gene names in LFC dataframe appear equal to the number of guides for that gene, so taking the frequency per gene will count guide per gene)
-	max_guides <- max(table(df$gene))
-	# Makes residual dataframes with column number equal to the max number of guides
-	  
-	# Extract condition screen replicate names 
-	condition_reps=condition_cols
-	# create a dataframe with total rows equal to # of genes and total column equal to (maximum # of guides * # of replicates)
-	residual_df <- data.frame(matrix(nrow = n_genes, ncol = max_guides*length(condition_reps))) # ncol = max_guides*total_replicate
-	# Set column names. "guide_residual_guide#_replicate-name". 
-	# colname distribution example for max_guide 4 and total replicate # 3: 1 1 1 2 2 2 3 3 3 4 4 4. biological replicates (guides) are gathered together
-	colnames(residual_df) <- paste0("guide_residual_", rep(1:max_guides,each=length(condition_reps)),'_', condition_reps)
-	condition_residuals <- residual_df
+  	
+	if (test == "moderated-t") { #updated
+		# Make a dataframe to store differential LFC scores later (if the significance test is moderated-t)
+		max_guides <- -1
+		# Gets maximum number of guides per gene (Gene names in LFC dataframe appear equal to the number of guides for that gene, so taking the frequency per gene will count guide per gene)
+		max_guides <- max(table(df$gene))
+		# Makes residual dataframes with column number equal to the max number of guides
 		  
+		# Extract condition screen replicate names 
+		condition_reps=condition_cols
+		# create a dataframe with total rows equal to # of genes and total column equal to (maximum # of guides * # of replicates)
+		residual_df <- data.frame(matrix(nrow = n_genes, ncol = max_guides*length(condition_reps))) # ncol = max_guides*total_replicate
+		# Set column names. "guide_residual_guide#_replicate-name". 
+		# colname distribution example for max_guide 4 and total replicate # 3: 1 1 1 2 2 2 3 3 3 4 4 4. biological replicates (guides) are gathered together
+		colnames(residual_df) <- paste0("guide_residual_", rep(1:max_guides,each=length(condition_reps)),'_', condition_reps)
+		condition_residuals <- residual_df
+	}	
+	
 	# Pairwise LOESS smoothing - pair-wise control-condition replicates
 	# Compute loess-normalized differential LFC scores if specified and store them in a dataframe (loess_residuals)
 	# These values will be later added to the output scores dataframe as differential LFC scores for condition screens
 	loess_residuals <- NULL
-	if (loess) { # if 'loess' parameter is TRUE  and "moderated-t" test is specified
+	if (loess & test == "moderated-t") { # if 'loess' parameter is TRUE  and "moderated-t" test is specified #updated
 		# Create dataframe to store loess normalized differential LFC scores
 		loess_residuals <- data.frame(gene = df$gene) # get gene names from LFC dataframe
 		  
@@ -194,7 +199,7 @@ score_condition_vs_control <- function(
 		rep_mean_condition <- rowMeans(data.frame(guide_vals[condition_cols]), na.rm = TRUE) 
 		rep_mean_condition <- rep_mean_condition[keep_ind] # only keep guides where 'control-replicate LFC means' are non-nan
 		rep_mean_condition[is.nan(rep_mean_condition)] <- NA # set NA if condition-replicate LFC mean is nan
-		# diff <- rep_mean_condition - rep_mean_control # Calculate guide-level differential LFC scores - one value per guide
+		diff <- rep_mean_condition - rep_mean_control # Calculate guide-level differential LFC scores - one value per guide #updated
 		
 		# Update output scores dataframe to gene-level values
 		scores[[paste0("n_", control_name)]][i] <- length(rep_mean_control) # Total number of control guides contributing to scores
@@ -203,63 +208,69 @@ score_condition_vs_control <- function(
 		scores[[paste0("mean_", name)]][i] <- mean(rep_mean_condition, na.rm = TRUE) # mean-collapse the guide-level condition LFC scores
 		scores[[paste0("variance_", control_name)]][i] <- stats::var(rep_mean_control, na.rm = TRUE) # calculate variance of guide-level control LFC scores
 		scores[[paste0("variance_", name)]][i] <- stats::var(rep_mean_condition, na.rm = TRUE)  # calculate variance of guide-level condition LFC scores
-		# scores[[paste0("differential_", name, "_vs_", control_name)]][i] <- mean(diff, na.rm = TRUE) # mean-collapse the guide-level differential LFC scores
+		scores[[paste0("differential_", name, "_vs_", control_name)]][i] <- mean(diff, na.rm = TRUE) # mean-collapse the guide-level differential LFC scores #updated
 		# differential LFC score column may be updated later based on different parameter settings
 		
 		# Perform the specified type of significance testing or store differential LFC scores for later testing
-		
-		#create temporary list to store loess-normalized differential LFC values of current condition screen replicates
-		#loess_residual_rep = c() 
-		condition_reps = condition_cols # get condition replicate names
-		for(rep_index in c(1:length(condition_reps))){ # iterate over condition replicates
-			
-			if (loess) { # if 'loess' parameter is TRUE use the loess-normalized differential LFC scores calculated previously
-				# Get the guide-level loess-normalized differential scores for the current gene and the current condition replicate - one score per-guide
-				resid <- loess_residuals[[paste0("loess_residual_", name, '_', condition_reps[rep_index])]][loess_residuals$gene == gene]
-				predicted <- loess_residuals[[paste0("loess_predicted_", name, '_', condition_reps[rep_index])]][loess_residuals$gene == gene]
+		if (test == "rank-sum") {
+			scores[[paste0("pval_", name, "_vs_", control_name)]][i] <- 
+			  suppressWarnings(stats::wilcox.test(rep_mean_condition, rep_mean_control))$p.value
+		} else if (test == "moderated-t") {
+			#create temporary list to store loess-normalized differential LFC values of current condition screen replicates
+			#loess_residual_rep = c() 
+			condition_reps = condition_cols # get condition replicate names
+			for(rep_index in c(1:length(condition_reps))){ # iterate over condition replicates
 				
-				# update the condition_residuals matrix (that was created previously to store differential LFC scores) with loess-normalized scores
-				if (length(resid) < max_guides) { # Pad temporary vector that stores guide-level dLFC with NAs to make size equal to max-guides
-					resid <- c(resid, rep(NA, max_guides - length(resid))) 
+				if (loess) { # if 'loess' parameter is TRUE use the loess-normalized differential LFC scores calculated previously
+					# Get the guide-level loess-normalized differential scores for the current gene and the current condition replicate - one score per-guide
+					resid <- loess_residuals[[paste0("loess_residual_", name, '_', condition_reps[rep_index])]][loess_residuals$gene == gene]
+					predicted <- loess_residuals[[paste0("loess_predicted_", name, '_', condition_reps[rep_index])]][loess_residuals$gene == gene]
+					
+					# update the condition_residuals matrix (that was created previously to store differential LFC scores) with loess-normalized scores
+					if (length(resid) < max_guides) { # Pad temporary vector that stores guide-level dLFC with NAs to make size equal to max-guides
+						resid <- c(resid, rep(NA, max_guides - length(resid))) 
+					}
+					condition_residuals[i, paste0("guide_residual_", 1:max_guides,'_', rep(condition_reps[rep_index], max_guides))] <- resid
+					
+					# update temporary list with mean of guide-level loess-normalized differential LFC values of current condition screen replicate 
+					#loess_residual_rep <- c(loess_residual_rep, mean(resid, na.rm = TRUE))
+				
+				}else{ # if 'loess' parameter is FALSE
+					# calculate differential LFC by directly subtracting control replicate LFC score from condition replicate LFC score - replicates matched by index
+					resid <- guide_vals[condition_reps[rep_index]] - guide_vals[control_cols[rep_index]]
+					resid <- resid[[condition_reps[rep_index]]] 
+					
+					# update the condition_residuals matrix (that was created previously to store differential LFC scores) with dLFC score
+					if (length(resid) < max_guides) { # Pad temporary vector that stores guide-level dLFC with NAs to make size equal to max-guides
+						resid <- c(resid, rep(NA, max_guides - length(resid))) 
+					} 
+					condition_residuals[i, paste0("guide_residual_", 1:max_guides,'_', rep(condition_reps[rep_index], max_guides))] <- resid 
 				}
-				condition_residuals[i, paste0("guide_residual_", 1:max_guides,'_', rep(condition_reps[rep_index], max_guides))] <- resid
-				
-				# update temporary list with mean of guide-level loess-normalized differential LFC values of current condition screen replicate 
-				#loess_residual_rep <- c(loess_residual_rep, mean(resid, na.rm = TRUE))
-			
-			}else{ # if 'loess' parameter is FALSE
-				# calculate differential LFC by directly subtracting control replicate LFC score from condition replicate LFC score - replicates matched by index
-				resid <- guide_vals[condition_reps[rep_index]] - guide_vals[control_cols[rep_index]]
-				resid <- resid[[condition_reps[rep_index]]] 
-				
-				# update the condition_residuals matrix (that was created previously to store differential LFC scores) with dLFC score
-				if (length(resid) < max_guides) { # Pad temporary vector that stores guide-level dLFC with NAs to make size equal to max-guides
-					resid <- c(resid, rep(NA, max_guides - length(resid))) 
-				} 
-				condition_residuals[i, paste0("guide_residual_", 1:max_guides,'_', rep(condition_reps[rep_index], max_guides))] <- resid 
 			}
-		}		
+		}	
 		
 	}
-  
-	#remove (set to NA) outlier guides per-gene using jack-knife method for each condition
-	
-	#store residuals before applying jack-knife outlier removal
-	condition_residuals_pre_jk = condition_residuals
-	
-	# remove outlier guides per-gene (set to NA) across replicates for a condition screen
-	condition_residuals = jackknife_outliers(condition_residuals)
-	# mean-collapse differential LFC scores across guides and replicates for each gene
-	# update dLFC column for the condition screen in scores dataframe
-	scores[[paste0("differential_", name, "_vs_", control_name)]] <- rowMeans(condition_residuals,na.rm = TRUE)
+		
+	if(test == "moderated-t"){
+		#remove (set to NA) outlier guides per-gene using jack-knife method for each condition
+		
+		#store residuals before applying jack-knife outlier removal
+		condition_residuals_pre_jk = condition_residuals
+		
+		# remove outlier guides per-gene (set to NA) across replicates for a condition screen
+		condition_residuals = jackknife_outliers(condition_residuals)
+		# mean-collapse differential LFC scores across guides and replicates for each gene
+		# update dLFC column for the condition screen in scores dataframe
+		scores[[paste0("differential_", name, "_vs_", control_name)]] <- rowMeans(condition_residuals,na.rm = TRUE)
 
-  	# calculate p-values indicating significance of differential LFC scores using moderated t-test 	
-	block <- rep(1:max_guides, each=length(condition_cols)) #group same guides together - all technical-replicates in each guide block
-	dupcor <- limma::duplicateCorrelation(condition_residuals, block=block) #Estimate the correlation between technical replicates from a series of arrays ( here calculating inter-biological replicate (guides) correlation)
-	ebayes_fit <- limma::eBayes(limma::lmFit(condition_residuals, design=NULL, block=block, correlation=dupcor$consensus)) # compute moderated t-statistics of dLFC by empirical Bayes moderation of the standard errors towards a common value
-	p_val <- ebayes_fit$p.value[,1]
-	scores[[paste0("pval_", name, "_vs_", control_name)]] <- p_val # update pval column for condition screen in scores dataframe
-	   
+		# calculate p-values indicating significance of differential LFC scores using moderated t-test 	
+		block <- rep(1:max_guides, each=length(condition_cols)) #group same guides together - all technical-replicates in each guide block
+		dupcor <- limma::duplicateCorrelation(condition_residuals, block=block) #Estimate the correlation between technical replicates from a series of arrays ( here calculating inter-biological replicate (guides) correlation)
+		ebayes_fit <- limma::eBayes(limma::lmFit(condition_residuals, design=NULL, block=block, correlation=dupcor$consensus)) # compute moderated t-statistics of dLFC by empirical Bayes moderation of the standard errors towards a common value
+		p_val <- ebayes_fit$p.value[,1]
+		scores[[paste0("pval_", name, "_vs_", control_name)]] <- p_val # update pval column for condition screen in scores dataframe
+	}
+	
 	# Correct p-values for multiple testing and add a new column with FDR values
 	# update FDR column for condition screen in scores dataframe
 	
@@ -269,12 +280,12 @@ score_condition_vs_control <- function(
 	# Explicitly returns scored data
 	output <- list()
 	output[["scored_data"]] <- scores
-	if (return_residuals & loess) {		
+	if (return_residuals & (loess & test == "moderated-t")) {		
 		residuals_df <- data.frame(gene = scores$gene)
 		residuals_df <- cbind(residuals_df, condition_residuals_pre_jk)
 		output[["guide_dlfc_pre_jk"]] <- residuals_df #loess_residuals
 	} else if (return_residuals) {
-		cat("WARNING: returning residuals is currently only supported with loess-normalization enabled\n")		
+		cat("WARNING: returning residuals is currently only supported with loess-normalization and moderated-t test enabled\n")		
 		output[["guide_dlfc_pre_jk"]] <- NULL
 	} else {		
 		output[["guide_dlfc_pre_jk"]] <- NULL
@@ -396,6 +407,7 @@ score_single_screen <- function(
 	batch, 
 	output_folder, 
 	min_guides = 3, 
+	test = "moderated-t", #updated
 	loess = TRUE, 
 	ma_transform = TRUE,
 	control_genes = c("None", ""), 
@@ -428,7 +440,8 @@ score_single_screen <- function(
 			ma_transform = ma_transform, 
 			control_genes = control_genes, 
 			fdr_method = fdr_method, 
-			return_residuals = save_guide_dlfc
+			return_residuals = save_guide_dlfc,
+			test = test #updated
 		)
 		scores <- temp[["scored_data"]] # scored data returned by score_condition_vs_control() 
 		guide_dlfc_pre_jk <- temp[["guide_dlfc_pre_jk"]]  #guide level dLFCs (prior to applying jackknife outlier removal) returned by score_condition_vs_control()
@@ -555,10 +568,11 @@ run_single_screen_scoring<- function(
 	cf1 = 1e6, 
 	cf2 = 1, 
 	min_reads = 30, 
-	max_reads = 10000, 
+	max_reads = -1, #updated
 	nonessential_norm = TRUE,
 	replace_NA = TRUE,
 	min_guides = 3, 
+	test = "moderated-t", #updated
 	loess = TRUE, 
 	ma_transform = TRUE,
 	control_genes = c("None", ""),
@@ -696,6 +710,7 @@ run_single_screen_scoring<- function(
 			batch = batch, 
 			output_folder = output_folder,
 			min_guides = min_guides, 
+			test = test, #updated
 			loess = loess, 
 			ma_transform = ma_transform,
 			control_genes = control_genes,
