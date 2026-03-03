@@ -588,7 +588,20 @@ run_single_screen_scoring<- function(
 	save_guide_dlfc = FALSE
 )
 {
-
+	# create parent folder if non-existant
+	if (!dir.exists(parent_folder)) { dir.create(parent_folder, recursive = TRUE) }
+	# create a data frame with the environment parameters - first column: parameter names, second column: parameter values
+	param_df = data.frame(names(as.list(environment())),as.character(as.list(environment())))
+	# write the parameter dataframe to a file named parameter_log.txt
+	write.table(
+		x = param_df,
+		file = file.path(parent_folder, 'parameter_log.txt'),
+		sep = "\t",
+		row.names = F,
+		col.names = F,
+		quote = F
+	)
+	
 	# read screen_replicate_map table file if it exists
 	if (file.exists(screen_replicate_map_file))
 	{
