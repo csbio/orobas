@@ -613,6 +613,23 @@ run_global_normalization <- function(
 	
 )
 {
+	# create a sub-directory 'global_normalization' to store all the outputs from global normalization mode	
+	if (!dir.exists(output_folder)) { dir.create(file.path(output_folder,'global_normalization'), recursive = TRUE) }
+
+	# create a dataframe with parameter list, first column: parameter names, second column: parameter value
+	param_df = data.frame(names(as.list(environment())),as.character(as.list(environment())))
+	# write parameter dataframe to file
+	write.table(
+		x = param_df,
+		file = file.path(output_folder,'global_normalization', 'parameter_log.txt'),
+		sep = "\t",
+		row.names = F,
+		col.names = F,
+		quote = F
+	)
+	
+	output_folder <- file.path(output_folder,'global_normalization')
+	
 	# read screen_replicate_map table file if it exists
 	if (file.exists(screen_replicate_map_file))
 	{
@@ -683,8 +700,8 @@ run_global_normalization <- function(
 	}
 
 	#create a sub-directory 'global_normalization' to store all the outputs from global normalization mode
-	output_folder <- file.path(output_folder,'global_normalization')
-	if (!dir.exists(output_folder)) { dir.create(output_folder, recursive = TRUE) }
+	#output_folder <- file.path(output_folder,'global_normalization')
+	#if (!dir.exists(output_folder)) { dir.create(output_folder, recursive = TRUE) }
 	
 	#get differential LFC scores from all screens listed in the condition_control_map file and has been scored by single-screen scoring mode
 	scores <- all_score[,grepl("gene|differential", colnames(all_score))]
