@@ -614,7 +614,7 @@ run_global_normalization <- function(
 )
 {
 	# create a sub-directory 'global_normalization' to store all the outputs from global normalization mode	
-	if (!dir.exists(output_folder)) { dir.create(file.path(output_folder,'global_normalization'), recursive = TRUE) }
+	if (!dir.exists(file.path(output_folder,'global_normalization'))) { dir.create(file.path(output_folder,'global_normalization'), recursive = TRUE) }
 
 	# create a dataframe with parameter list, first column: parameter names, second column: parameter value
 	param_df = data.frame(names(as.list(environment())),as.character(as.list(environment())))
