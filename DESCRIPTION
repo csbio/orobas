@@ -1,7 +1,10 @@
 Package: orobas
 Title: Scoring Chemogenomic CRISPR Screens
-Version: 0.5.0
-Authors@R: person("Henry", "Ward", email = "henry.neil.ward@gmail.com", role = c("aut", "cre"))
+Version: 1.0.0
+Authors@R: c(person("Henry", "Ward", email = "henry.neil.ward@gmail.com", role = c("aut", "cre")),
+person("Arshia", "Hassan", email = "arshia.zernab@gmail.com", role = c("aut")),
+person("Xiang", "Zhang", email = "zhan6668@umn.edu", role = c("aut"))
+)
 Description: Package for processing, scoring and analyzing chemogenomic CRISPR screens.
 Depends: R (>= 3.6)
 License: MIT + file LICENSE
