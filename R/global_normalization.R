@@ -694,9 +694,9 @@ run_global_normalization <- function(
 		}
 	}
 	
-	# abort if not enough data available for batch correction; at least data from 3 screens.
+	# abort if not enough data available for batch correction.
 	if(length(colnames(all_score))<36){ 
-		stop(paste("Not enough data retrieved from screen files. Should be more than 3 screens!"))
+		stop(paste("Not enough data retrieved from screen files. Should be more than 5 screens!"))
 	}
 
 	#create a sub-directory 'global_normalization' to store all the outputs from global normalization mode
