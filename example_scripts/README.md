@@ -3,7 +3,7 @@
 This directory contains example scripts for scoring raw reads data from chemical–genetic screens produced and published by Olivieri et al. (2020) [1].
 
 ## Input Data
-Download the input data and metadata files from the [Zenodo repository](https://zenodo.org/records/19261601).
+Download the input data and metadata files from the [Zenodo repository](https://zenodo.org/records/19488740).
 
 ## Example run instructions
 1. Create a directory called 'run_orobas'. 
