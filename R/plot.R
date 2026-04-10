@@ -372,7 +372,6 @@ plot_drug_response <- function(scores, control_name ,
   # Sets factors to plot significant effects last
   scores$sort_col <- abs(scores[[diff_col]])
   scores <- dplyr::arrange(scores, "sort_col")
-  #scores[[response_col]] <- forcats::fct_inorder(scores[[response_col]])
   scores[[response_col]] <- factor(scores[[response_col]], 
                                    levels = c("None", neg_type, pos_type))
   
@@ -490,7 +489,6 @@ plot_drug_response_global_normalization <- function(scores, control_name ,
   # Sets factors to plot significant effects last
   scores$sort_col <- abs(scores[[diff_col]])
   scores <- dplyr::arrange(scores, "sort_col")
-  #scores[[response_col]] <- forcats::fct_inorder(scores[[response_col]])
   scores[[response_col]] <- factor(scores[[response_col]], 
                                    levels = c("None", neg_type, pos_type))
   
