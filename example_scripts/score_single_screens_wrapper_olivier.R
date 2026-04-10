@@ -34,7 +34,7 @@ filter_names_postfix = 'T0',
 cf1 = 1e6, 
 cf2 = 1, 
 min_reads = 30, 
-max_reads = 10000, 
+max_reads = -1, 
 nonessential_norm = TRUE,
 replace_NA = TRUE,
 min_guides = 1, 
@@ -52,7 +52,7 @@ label_fdr_threshold = .01,
 save_guide_dlfc = TRUE
 )
 
-# Prints start time
+# Prints end time
 end_time = Sys.time()
 cat(paste("end time:", end_time, "\n"))
 total_time <- as.numeric(end_time - start_time, units = "mins") 
