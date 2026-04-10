@@ -4,11 +4,7 @@ Orobas is an R package (with Python modules) for scoring chemical-genetic CRISPR
 
 ## Overview
 
-Orobas provides a set of tools for analyzing chemogenomic CRISPR screen datasets. It streamlines the scoring of drug-gene interactions by combining essential R and Python modules in a reproducible environment.
-
-This package is designed for researchers studying synthetic lethality, chemical-genetic interactions, and functional genomics.
-
-For details of the methodology and benchmark results, please refer to the accompanying publication (coming soon).
+Orobas is a computational approach for transforming raw data from CRISPR-Cas9 chemical-genetic screens into quantitative interaction scores. Orobas computes differential interaction scores with accompanying statistical tests that account for multiple CRISPR guides per gene. The method includes approaches for post-processing differential log2 fold-change scores across multiple screens, incorporating normalization to reduce technical artifacts and correct batch effects. 
 
 ## Installation
 
