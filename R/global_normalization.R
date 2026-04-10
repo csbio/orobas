@@ -550,9 +550,9 @@ generate_control_dlfc_scores <- function(
 #' @param null_drug_list parameter for \code{apply_dlfc_correction}. A named nested list of all screens that are replicates of the 4x4 screens; these should have no effect in the 'between correlation' calculation in wbc score.
 #' Example of one entry: "CHEM029_NGI1_T16"=list("CHEM031_NGI1_T13","CHEM050_NGI1_T11","CHEM029_NGI1_T16","CHEM050_NGI1_T14","CHEM051_NGI1_T14","CHEM057_NGI1_T13").
 #' @param save_intermediate parameter for \code{apply_dlfc_correction}. If TRUE, save dLFC score file after each intermediate correction step (default FALSE).
-#' @param neg_type parameter for \code{plot_drug_response} and \code{call_drug_hits}. Label for significant effects with a negative differential effect
+#' @param neg_type parameter for \code{plot_drug_response_global_normalization} and \code{call_drug_hits}. Label for significant effects with a negative differential effect
 #'   passed to \code{call_drug_hits} (default "Negative").
-#' @param pos_type parameter for\code{plot_drug_response} and \code{call_drug_hits}. Label for significant effects with a positive differential effect
+#' @param pos_type parameter for\code{plot_drug_response_global_normalization} and \code{call_drug_hits}. Label for significant effects with a positive differential effect
 #'   passed to \code{call_drug_hits} (default "Positive").
 #' @param fdr_threshold_positive parameter for \code{call_drug_hits}. The threshold below which to call gene effects as significant positive hits
 #'   (default 0.1).
@@ -562,8 +562,8 @@ generate_control_dlfc_scores <- function(
 #'   over which to call gene effects as significant positive hits (default 0).
 #' @param differential_threshold_negative parameter for \code{call_drug_hits}. Threshold on differential effects, 
 #'   below which gene effects are called as significant negative hits (default 0).
-#' @param plot_type parameter for \code{plot_drug_response}. Type of plot to output, one of "png" or "pdf" (default "png").
-#' @param label_fdr_threshold parameter for \code{plot_drug_response}. The threshold below which to plot gene labels for significant
+#' @param plot_type parameter for \code{plot_drug_response_global_normalization}. Type of plot to output, one of "png" or "pdf" (default "png").
+#' @param label_fdr_threshold parameter for \code{plot_drug_response_global_normalization}. The threshold below which to plot gene labels for significant
 #'   hits, or NULL to plot without labels (default NULL).
 #'  @param pc_remove number of principal components to be removed (default 1)
 #'  @param auroc_cutoff auroc threshold to determine stopping criteria for batch-correction (default 0.51)
@@ -678,6 +678,7 @@ run_global_normalization <- function(
 			# Check if column exists in the read-in score file
 			if (paste0('mean_',condition,sep='') %in% colnames(curr_screen_score) ) { 			
 				curr_screen_score = curr_screen_score[,col_list] # extract the selected columns in a dataframe
+				curr_screen_score[[paste0('normalized_LFC_',condition,sep='')]] <- 0 # add a new column (with 0) to be populated later with normalized LFC scores (control LFC + normalized dLFC) 
 				if(is.null(all_score)){ #if reading the first file, copy the whole dataframe 
 					all_score <- curr_screen_score
 				}else{ #if not reading the first file, append the dataframe
@@ -787,11 +788,13 @@ run_global_normalization <- function(
 				paste0('differential_',condition,'_vs_',control,sep=''),
 				paste0('fdr_',condition,'_vs_',control,sep=''),
 				paste0('significant_',condition,'_vs_',control,sep=''),
-				paste0('effect_type_',condition,sep='')
+				paste0('effect_type_',condition,sep=''),
+				paste0('normalized_LFC_',condition,sep='')
 			)
 			curr_screen_score = all_score[,col_list]
-			curr_screen_score[[paste0("differential_", condition, "_vs_", control)]] <- dlfc_score[[condition]]
-			
+			curr_screen_score[[paste0("differential_", condition, "_vs_", control)]] <- dlfc_score[[condition]] #update with normalized dLFC
+			# calculate normalized LFC for condition: (control LFC + normlized dLFC)
+			curr_screen_score[[paste0('normalized_LFC_',condition,sep='')]] <- (curr_screen_score[[paste0('mean_',control,sep='')]] + curr_screen_score[[paste0("differential_", condition, "_vs_", control)]])
 			# call call_drug_hits() to add information to significant and effect-type columns indicating significant positive and negative interactions that meet the provided cut-offs
 			curr_screen_score <- call_drug_hits(
 				scores = curr_screen_score,
@@ -806,8 +809,8 @@ run_global_normalization <- function(
 			)
 			
 			# plot drug responses 
-			plot_drug_response(
-				curr_screen_score, 
+			plot_drug_response_global_normalization(
+				scores = curr_screen_score, 
 				control_name = control, 
 				condition_name = condition, 
 				output_folder = plots_folder,
@@ -820,7 +823,8 @@ run_global_normalization <- function(
 			col_list <- c(
 				paste0('differential_',condition,'_vs_',control,sep=''),
 				paste0('significant_',condition,'_vs_',control,sep=''),
-				paste0('effect_type_',condition,sep='')
+				paste0('effect_type_',condition,sep=''),
+				paste0('normalized_LFC_',condition,sep='')
 			)
 			all_score[,col_list] <- curr_screen_score[,col_list]		
 		}
