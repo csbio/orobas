@@ -337,8 +337,6 @@ plot_heatmap <- function(df, col_groups, filename, display_numbers = TRUE,
 #'   NULL for data scored by \code{score_condition_vs_controls} (default NULL).
 #' @param condition_name Name of condition passed to \code{call_drug_hits}.
 #' @param output_folder Folder to output plots to. 
-#' @param loess If true and data was loess-normalized, plots loess null model instead
-#'   (default TRUE).
 #' @param neg_type Label for significant effects with a negative differential effect
 #'   passed to \code{call_drug_hits} (default "Negative").
 #' @param pos_type Label for significant effects with a positive differential effect
@@ -347,9 +345,9 @@ plot_heatmap <- function(df, col_groups, filename, display_numbers = TRUE,
 #'   hits, or NULL to plot without labels (default NULL).
 #' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
 #' @export
-plot_drug_response <- function(scores, control_name = NULL, 
-                               condition_name = NULL, output_folder = NULL,
-                               loess = TRUE, neg_type = "Negative", 
+plot_drug_response <- function(scores, control_name , 
+                               condition_name , output_folder ,
+                               neg_type = "Negative", 
                                pos_type = "Positive", label_fdr_threshold = NULL,
                                plot_type = "png") {
   
@@ -361,13 +359,6 @@ plot_drug_response <- function(scores, control_name = NULL,
   diff_col <- paste0("differential_", condition_name, "_vs_", control_name) 
   fdr_col <- paste0("fdr_", condition_name, "_vs_", control_name) 
   control_label <- paste0(control_name, " LFC")
-  if (is.null(control_name)) {
-    plot_file <- paste0(condition_name, "_vs_controls_scatter.", plot_type)
-    control_mean_col <- paste0("mean_controls_", condition_name)
-    diff_col <- paste0("differential_", condition_name, "_vs_controls") 
-    fdr_col <- paste0("fdr_", condition_name, "_vs_controls")
-    control_label <- paste0("Weighted control LFC")
-  }
   
   # Adds backticks to column names if they contain special characters
   control_mean_col_aes <- paste0("`", control_mean_col, "`")
@@ -381,7 +372,9 @@ plot_drug_response <- function(scores, control_name = NULL,
   # Sets factors to plot significant effects last
   scores$sort_col <- abs(scores[[diff_col]])
   scores <- dplyr::arrange(scores, "sort_col")
-  scores[[response_col]] <- forcats::fct_inorder(scores[[response_col]])
+  #scores[[response_col]] <- forcats::fct_inorder(scores[[response_col]])
+  scores[[response_col]] <- factor(scores[[response_col]], 
+                                   levels = c("None", neg_type, pos_type))
   
   # Gets subset dataframe for plotting labels
   subset_scores <- NULL
@@ -403,13 +396,7 @@ plot_drug_response <- function(scores, control_name = NULL,
                                                    y = condition_mean_col_aes)) +
     ggplot2::geom_hline(yintercept = 0, linetype = 2, size = 1, alpha = 1, color = "Gray") +
     ggplot2::geom_vline(xintercept = 0, linetype = 2, size = 1, alpha = 1, color = "Gray")
-  
-  # Appends choice of null model to plot
-  if (loess) {
-  } else {
-    p <- p + 
-      ggplot2::geom_abline(slope = 1, intercept = 0, size = 1.5, alpha = 0.5, color = "Black")
-  }
+
   
   # Appends each layer to plot individually
   point_levels <- levels(scores[[response_col]])
@@ -439,8 +426,8 @@ plot_drug_response <- function(scores, control_name = NULL,
 
   # Finishes plot
   p <- p + 
-    ggplot2::scale_color_manual(values = colors) +
-    ggplot2::scale_fill_manual(values = fill) +
+    ggplot2::scale_color_manual(values = colors, drop = FALSE) +
+    ggplot2::scale_fill_manual(values = fill, drop = FALSE) +
     ggplot2::xlab(control_label) +
     ggplot2::ylab(paste0(condition_name, " LFC")) +
     ggplot2::labs(fill = "Significant response") +
@@ -454,6 +441,126 @@ plot_drug_response <- function(scores, control_name = NULL,
   suppressWarnings(ggplot2::ggsave(file.path(output_folder, plot_file), 
                                    width = 10, height = 7, dpi = 300))
 }
+
+
+#' Plots drug response for scored data after global normalization step.
+#' 
+#' Pretty-plots response for chemogenomic (e.g. for directly comparing drug 
+#' response to control response). 
+#' 
+#' @param scores Dataframe of scores returned from \code{call_drug_hits}.
+#' @param control_name Name of control passed to \code{call_drug_hits}, or 
+#'   NULL for data scored by \code{score_condition_vs_controls} (default NULL).
+#' @param condition_name Name of condition passed to \code{call_drug_hits}.
+#' @param output_folder Folder to output plots to. 
+#' @param neg_type Label for significant effects with a negative differential effect
+#'   passed to \code{call_drug_hits} (default "Negative").
+#' @param pos_type Label for significant effects with a positive differential effect
+#'   passed to \code{call_drug_hits} (default "Positive").
+#' @param label_fdr_threshold Threshold below which to plot gene labels for significant
+#'   hits, or NULL to plot without labels (default NULL).
+#' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
+#' @export
+plot_drug_response_global_normalization <- function(scores, control_name , 
+                               condition_name , output_folder ,
+                               neg_type = "Negative", 
+                               pos_type = "Positive", label_fdr_threshold = NULL,
+                               plot_type = "png") {
+  
+  # Gets variables depending on scoring type
+  plot_file <- paste0(condition_name, "_normalized_vs_", control_name, "_scatter.", plot_type)
+  control_mean_col <- paste0("mean_", control_name)
+  condition_mean_col <- paste0("mean_", condition_name)
+  response_col <- paste0("effect_type_", condition_name)
+  diff_col <- paste0("differential_", condition_name, "_vs_", control_name) 
+  fdr_col <- paste0("fdr_", condition_name, "_vs_", control_name) 
+  control_label <- paste0(control_name, " LFC")
+  normalized_LFC_col <- paste0('normalized_LFC_',condition_name,sep='')
+  
+  # Adds backticks to column names if they contain special characters
+  control_mean_col_aes <- paste0("`", control_mean_col, "`")
+  condition_mean_col_aes <- paste0("`", condition_mean_col, "`")
+  response_col_aes <- paste0("`", response_col, "`")
+  diff_col_aes <- paste0("`", diff_col, "`")
+  fdr_col_aes <- paste0("`", fdr_col, "`")
+  response_col_aes <- paste0("`", response_col, "`")
+  control_label_aes <- paste0("`", control_label, "`")
+  normalized_LFC_col_aes <- paste0("`", normalized_LFC_col, "`")
+  
+  # Sets factors to plot significant effects last
+  scores$sort_col <- abs(scores[[diff_col]])
+  scores <- dplyr::arrange(scores, "sort_col")
+  #scores[[response_col]] <- forcats::fct_inorder(scores[[response_col]])
+  scores[[response_col]] <- factor(scores[[response_col]], 
+                                   levels = c("None", neg_type, pos_type))
+  
+  # Gets subset dataframe for plotting labels
+  subset_scores <- NULL
+  if (!is.null(label_fdr_threshold)) {
+    subset_scores <- scores[scores[[fdr_col]] < label_fdr_threshold &
+                              scores[[response_col]] != "None",] 
+  }
+  
+  # Manually sets colors for plot
+  colors <- c("None" = "Gray", neg_type = "Black", pos_type = "Black")
+  names(colors)[2] <- neg_type
+  names(colors)[3] <- pos_type
+  fill <- c("None" = "Gray", neg_type = "Blue", pos_type = "Yellow")
+  names(fill)[2] <- neg_type
+  names(fill)[3] <- pos_type
+  
+  # Builds basic plot
+  p <- ggplot2::ggplot(scores, ggplot2::aes_string(x = control_mean_col_aes, 
+                                                   y = normalized_LFC_col_aes)) +
+    ggplot2::geom_hline(yintercept = 0, linetype = 2, size = 1, alpha = 1, color = "Gray") +
+    ggplot2::geom_vline(xintercept = 0, linetype = 2, size = 1, alpha = 1, color = "Gray")
+  
+  # Appends each layer to plot individually
+  point_levels <- levels(scores[[response_col]])
+  layer1 <- scores[scores[[response_col]] == point_levels[1],]
+  layer2 <- scores[scores[[response_col]] == point_levels[2],]
+  layer3 <- scores[scores[[response_col]] == point_levels[3],]
+  p <- p +
+    ggplot2::geom_point(data = layer1, 
+                        ggplot2::aes_string(color = response_col_aes, fill = response_col_aes), 
+                        shape = 21, alpha = 0.7) +
+    ggplot2::geom_point(data = layer2, 
+                        ggplot2::aes_string(color = response_col_aes, fill = response_col_aes), 
+                        shape = 21, alpha = 0.7) +
+    ggplot2::geom_point(data = layer3, 
+                        ggplot2::aes_string(color = response_col_aes, fill = response_col_aes), 
+                        shape = 21, alpha = 0.7)
+  
+  # Appends labels to plot
+  if (!is.null(label_fdr_threshold)) {
+    p <- p +
+      ggrepel::geom_text_repel(data = subset_scores,
+                               ggplot2::aes_string(x = control_mean_col_aes, 
+                                                   y = normalized_LFC_col_aes,
+                                                   label = "gene"),
+                               color = "black")
+  }
+  
+  # Finishes plot
+  p <- p + 
+    ggplot2::scale_color_manual(values = colors, drop = FALSE) +
+    ggplot2::scale_fill_manual(values = fill, drop = FALSE) +
+    ggplot2::xlab(control_label) +
+    ggplot2::ylab(paste0('Normalized ', condition_name, " LFC")) +
+    ggplot2::labs(fill = "Significant response") +
+    ggplot2::guides(color = "none", size = "none") +
+    ggthemes::theme_tufte(base_size = 20) +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(color = "Black", size = 16),
+                   axis.text.y = ggplot2::element_text(color = "Black", size = 16),
+                   legend.text = ggplot2::element_text(size = 16))
+  
+  # Saves to file
+  suppressWarnings(ggplot2::ggsave(file.path(output_folder, plot_file), 
+                                   width = 10, height = 7, dpi = 300))
+}
+
+
+
 
 #' Plot guide-level differential LFC scores for all hits
 #' 
