@@ -140,7 +140,8 @@ Output directory organization and files from global-normalization:
 
 If you use Orobas in your work, please cite:
 
-https://www.cell.com/star-protocols/fulltext/S2666-1667(26)00247-9
+[Orobas: A computational approach for scoring and analysis of quantitative chemical-genetic interactions from CRISPR-Cas9 screens](https://www.cell.com/star-protocols/fulltext/S2666-1667(26)00247-9)
+
 
 ---
 
