@@ -140,7 +140,7 @@ Output directory organization and files from global-normalization:
 
 If you use Orobas in your work, please cite:
 
-**[Publication placeholder — coming soon]**
+https://www.cell.com/star-protocols/fulltext/S2666-1667(26)00247-9
 
 ---
 
