@@ -717,11 +717,11 @@ run_global_normalization <- function(
 	}
 	
 	#warning for auroc cutoff for LDA-based batch correction 
-	if(auroc_cutoff < 0.51)
-	{
-		auroc_cutoff = 0.51
-		cat(paste("Warning: auroc cutoff for LDA-based batch correction, auroc_cutoff, was set at ", auroc_cutoff,". That is below a reasonable cutoff of .51. auroc_cutoff is reset to .51 \n"))
-	}	
+	#if(auroc_cutoff < 0.51)
+	#{
+		#auroc_cutoff = 0.51
+		#cat(paste("Warning: auroc cutoff for LDA-based batch correction, auroc_cutoff, was set at ", auroc_cutoff,". That is below a reasonable cutoff of .51. auroc_cutoff is reset to .51 \n"))
+	#}	
 	
 	#generate control dlfc score	
 	generate_control_dlfc_scores(
