@@ -13,6 +13,14 @@ from sklearn.metrics import roc_auc_score
 from sklearn.metrics import roc_curve
 from os import path
 
+def _parse_screen_label(label):
+    """Split a screen label (e.g. CHEM014_Bortezomib_T18) into (screen, chemical, time).
+    The chemical name may itself contain underscores (e.g. CHEM029_NGI_1_T16), so only
+    the first token is taken as the screen and the last as the time; everything in
+    between is rejoined as the chemical name."""
+    parts = label.split('_')
+    return parts[0], '_'.join(parts[1:-1]), parts[-1]
+
 '''
 Function:
     filter_screen()
@@ -32,7 +40,7 @@ def filter_screen(screen_list,samples_in_batch = 2):
     rowIndex = 0
     #for each screen label extract the sub-parts and store in screen dataframe
     for label in screen_list:        
-        temp_screen,temp_chemical,temp_time = label.split('_')  
+        temp_screen,temp_chemical,temp_time = _parse_screen_label(label)
         screen_info.loc[rowIndex, 'labels'] = str(label)
         screen_info.loc[rowIndex, 'screen'] = str(temp_screen)
         screen_info.loc[rowIndex, 'chemical'] = str(temp_chemical.upper())
@@ -69,10 +77,10 @@ def create_binary_standard(screen_labels, batch_dictionary, set_na = True):
     binary_matrix = np.zeros((screens_length, screens_length)) # Initiate pair-wise binary label matrix to 0
     for screen_index_1 in range(0,screens_length): # for 1st screen in screen-label-pair
         screen_1 = screen_labels[screen_index_1] # get screen label
-        screen_1_list = screen_1.split('_') # extract screen information 
+        screen_1_list = _parse_screen_label(screen_1) # extract screen information
         for screen_index_2 in range(0,screens_length): # for 2nd screen in screen-label-pair
             screen_2 = screen_labels[screen_index_2] # get screen label
-            screen_2_list = screen_2.split('_') # extract screen information 
+            screen_2_list = _parse_screen_label(screen_2) # extract screen information
             if(batch_dictionary[screen_1]==batch_dictionary[screen_2]) : # if both screens are from the same batch as depicted in batch_dictionary               
                 if set_na and (screen_1_list[1] == screen_2_list[1]): # if both screens are from the same compound
                     binary_matrix[screen_index_1][screen_index_2] = np.nan # set to NA (We don't want to penalize same compunds for batch effect)
@@ -104,10 +112,10 @@ def create_pcc_scores(screen_data, batch_dictionary, set_na = True):
     if set_na:
         for screen_index_1 in range(0,screens_length): # for 1st screen in screen-label-pair
             screen_1 = screen_labels[screen_index_1] # get screen label
-            screen_1_list = screen_1.split('_') # extract screen information
+            screen_1_list = _parse_screen_label(screen_1) # extract screen information
             for screen_index_2 in range(0,screens_length): # for 2nd screen in screen-label-pair
                 screen_2 = screen_labels[screen_index_2] # get screen label
-                screen_2_list = screen_2.split('_') # extract screen information
+                screen_2_list = _parse_screen_label(screen_2) # extract screen information
                 if(batch_dictionary[screen_1]==batch_dictionary[screen_2]) : # if both screens are from the same batch as depicted in batch_dictionary
                     if(screen_1_list[1] == screen_2_list[1]): # if both screens are from the same compound
                         corr_matrix[screen_index_1][screen_index_2] = np.nan  # set to NA (We don't want to penalize same compunds for batch effect)                  
@@ -167,10 +175,10 @@ def create_per_screen_binary_standard(screen_labels, batch_dictionary,curr_scree
     screens_length = len(screen_labels) # get total number of screen labels
     binary_matrix = np.zeros((screens_length)) # Initiate pair-wise binary label matrix to 0    
     screen_1 = curr_screen # current screen label
-    screen_1_list = screen_1.split('_') # extract screen information 
+    screen_1_list = _parse_screen_label(screen_1) # extract screen information
     for screen_index_2 in range(0,screens_length): # iterate over screen-label list
         screen_2 = screen_labels[screen_index_2] # get screen label
-        screen_2_list = screen_2.split('_') # extract screen information 
+        screen_2_list = _parse_screen_label(screen_2) # extract screen information
         if(batch_dictionary[screen_1]==batch_dictionary[screen_2]) : # if both screens are from the same batch as depicted in batch_dictionary               
             if set_na and (screen_1_list[1] == screen_2_list[1]): # if both screens are from the same compound
                 binary_matrix[screen_index_2] = np.nan # set to NA (We don't want to penalize same compunds for batch effect)
@@ -200,10 +208,10 @@ def create_per_screen_pcc_scores(correlation_profile, screen_labels, batch_dicti
     screens_length = len(screen_labels) # number of screen labels 
     if set_na:        
         screen_1 = curr_screen # get screen label
-        screen_1_list = screen_1.split('_') # extract screen information
+        screen_1_list = _parse_screen_label(screen_1) # extract screen information
         for screen_index_2 in range(0,screens_length): # iterate over screen-label list
             screen_2 = screen_labels[screen_index_2] # get screen label
-            screen_2_list = screen_2.split('_') # extract screen information
+            screen_2_list = _parse_screen_label(screen_2) # extract screen information
             if(batch_dictionary[screen_1]==batch_dictionary[screen_2]) : # if both screens are from the same batch as depicted in batch_dictionary
                 if(screen_1_list[1] == screen_2_list[1]): # if both screens are from the same compound
                     correlation_profile[screen_index_2] = np.nan  # set to NA (We don't want to penalize same compunds for batch effect)                  
@@ -302,7 +310,7 @@ def run_batch_correction(data, output_file_directory, auroc_cutoff):
     screen_batch_dictionary = {}
     orphan_dictionary = { }
     for label in screen_list:
-        temp_screen,temp_chem,temp_time = label.split('_')
+        temp_screen,temp_chem,temp_time = _parse_screen_label(label)
         if label in screen_labels_batch: #
             screen_batch_dictionary[label] =  temp_screen
         elif label in screen_orphan_batch:
