@@ -126,8 +126,12 @@ remove_control_dlfc_signal<- function(
 	pca_cg_dmso_t <- prcomp(as.matrix(t(cg_dmso)), center = TRUE, scale. = T)
 
 	#create projection of all principal components from control-dLFCs onto the main(condition) dLFC score matrix
+	#keep only components with non-zero variance. The control matrix is centered, so with n control
+	#screens it has rank n-1 and its last PC is a null direction (sdev ~1e-14) whose loading vector is
+	#arbitrary rounding noise that changes with BLAS build and thread count. Projecting onto it made
+	#the output machine-dependent.
 	cg_dmso_loadings_t <- pca_cg_dmso_t$rotation
-	dmso_v_t <- cg_dmso_loadings_t[,1:ncol(cg_dmso_loadings_t)]
+	dmso_v_t <- cg_dmso_loadings_t[, pca_cg_dmso_t$sdev > 1e-6, drop = FALSE]
 	projected_t <- t(scores_) %*% dmso_v_t %*% t(dmso_v_t) 
 	
 	#subtract the projection matrix from condition score matrix subset to remove dLFC signal of control screens 
