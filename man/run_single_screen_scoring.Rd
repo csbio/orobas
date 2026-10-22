@@ -32,7 +32,8 @@ run_single_screen_scoring(
   neg_type = "Negative",
   pos_type = "Positive",
   label_fdr_threshold = NULL,
-  save_guide_dlfc = FALSE
+  save_guide_dlfc = FALSE,
+  ebayes_legacy = NULL
 )
 }
 \arguments{
@@ -111,6 +112,12 @@ hits, or NULL to plot without labels (default NULL).}
 
 \item{save_guide_dlfc}{If true, saves guide-level dLFC scores for each condition screen to the output folder
 (default FALSE).}
+
+\item{ebayes_legacy}{Controls how limma::eBayes() estimates its empirical Bayes prior.
+NULL (default) uses limma's own default for the installed version. TRUE selects the
+estimator of limma <= 3.58.1 (moment estimation, \code{fitFDist}), which reproduces
+results published before limma 3.62. FALSE always uses \code{fitFDistUnequalDF1}.
+TRUE and FALSE need limma >= 3.61.8. Only works when test = "moderated-t".}
 }
 \description{
 Wrapper function to score screens and generate various plots.

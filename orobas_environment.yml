@@ -15,7 +15,9 @@ dependencies:
   - r-ggrepel
   - r-pheatmap
   - r-prroc
-  - bioconductor-limma
+  # >= 3.61.8 so eBayes() has the `legacy` argument behind the ebayes_legacy option;
+  # see score_condition_vs_control(). The default follows the installed limma.
+  - bioconductor-limma>=3.61.8
   # Python packages
   - pandas
   - numpy

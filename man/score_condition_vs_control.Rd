@@ -15,7 +15,8 @@ score_condition_vs_control(
   loess = TRUE,
   ma_transform = TRUE,
   fdr_method = "BY",
-  return_residuals = FALSE
+  return_residuals = FALSE,
+  ebayes_legacy = NULL
 )
 }
 \arguments{
@@ -42,6 +43,12 @@ has an effect when loess = TRUE (default TRUE).}
 
 \item{return_residuals}{If FALSE, returns NA instead of residuals dataframe (default FALSE).
 This is recommend if scoring large datasets and memory is a limitation.}
+
+\item{ebayes_legacy}{Controls how limma::eBayes() estimates its empirical Bayes prior.
+NULL (default) uses limma's own default for the installed version. TRUE selects the
+estimator of limma <= 3.58.1 (moment estimation, \code{fitFDist}), which reproduces
+results published before limma 3.62. FALSE always uses \code{fitFDistUnequalDF1}.
+TRUE and FALSE need limma >= 3.61.8. Only works when test = "moderated-t".}
 }
 \value{
 A named list containing 3 dataframes. 

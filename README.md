@@ -41,6 +41,12 @@ orobas_env
 
 You can change the environment name by editing the `name:` field in `orobas_environment.yml`.
 
+#### limma version and `ebayes_legacy`
+
+The environment installs the current limma (>= 3.61.8). limma 3.62.0 changed the estimator behind `eBayes()` (it now fits the prior with `fitFDistUnequalDF1` whenever residual degrees of freedom are unequal, which they are after jackknife outlier removal), so p-values and FDRs differ from those produced with limma <= 3.58.1. About 16% of hits at FDR < 0.1 change between the two.
+
+To reproduce results computed with the older estimator, pass `ebayes_legacy = TRUE` to `run_single_screen_scoring()` (or `score_single_screen()` / `score_condition_vs_control()`). The default, `NULL`, uses whatever the installed limma does. `FALSE` always uses the new estimator. `TRUE` and `FALSE` need limma >= 3.61.8; the option is recorded in `parameter_log.txt`.
+
 ---
 
 ### 4. Activate the Environment

@@ -74,6 +74,11 @@ jackknife_outliers<-function(
 #'   has an effect when loess = TRUE (default TRUE).
 #' @param fdr_method Type of FDR to compute. One of "BH", "BY" or "bonferroni" (default "BY").
 #' @param return_residuals If FALSE, returns NA instead of residuals dataframe (default FALSE).
+#' @param ebayes_legacy Controls how limma::eBayes() estimates its empirical Bayes prior.
+#'   NULL (default) uses limma's own default for the installed version. TRUE selects the
+#'   estimator of limma <= 3.58.1 (moment estimation, \code{fitFDist}), which reproduces
+#'   results published before limma 3.62. FALSE always uses \code{fitFDistUnequalDF1}.
+#'   TRUE and FALSE need limma >= 3.61.8. Only works when test = "moderated-t".
 #' @return A named list containing 3 dataframes. 
 #'   i) "scored_data": a dataframe containing scored data with separate columns given by the specified control and condition names.
 #'   ii) "guide_dlfc_pre_jk": a dataframe containing guide-level and replicate-level differential LFCs scored for condition screen against control screen, before applying jk-outlier removal.
@@ -89,7 +94,8 @@ score_condition_vs_control <- function(
     loess = TRUE, 
 	ma_transform = TRUE, 
 	fdr_method = "BY",
-    return_residuals = FALSE	
+    return_residuals = FALSE,
+	ebayes_legacy = NULL
 ) 
 {  
 	cat(paste("Preparing to score... ", condition_screen_names, "\n"))
@@ -262,7 +268,7 @@ score_condition_vs_control <- function(
 		# calculate p-values indicating significance of differential LFC scores using moderated t-test 	
 		block <- rep(1:max_guides, each=length(condition_cols)) #group same guides together - all technical-replicates in each guide block
 		dupcor <- limma::duplicateCorrelation(condition_residuals, block=block) #Estimate the correlation between technical replicates from a series of arrays ( here calculating inter-biological replicate (guides) correlation)
-		ebayes_fit <- limma::eBayes(limma::lmFit(condition_residuals, design=NULL, block=block, correlation=dupcor$consensus)) # compute moderated t-statistics of dLFC by empirical Bayes moderation of the standard errors towards a common value
+		ebayes_fit <- run_ebayes(limma::lmFit(condition_residuals, design=NULL, block=block, correlation=dupcor$consensus), legacy = ebayes_legacy) # compute moderated t-statistics of dLFC by empirical Bayes moderation of the standard errors towards a common value
 		p_val <- ebayes_fit$p.value[,1]
 		scores[[paste0("pval_", name, "_vs_", control_name)]] <- p_val # update pval column for condition screen in scores dataframe
 	}
@@ -398,6 +404,11 @@ call_drug_hits <- function(
 #' @param save_guide_dlfc If true, saves guide-level dLFC scores for each condition screen to the output folder
 #'   (default FALSE).
 #' @param plot_type Type of plot to output, one of "png" or "pdf" (default "png").
+#' @param ebayes_legacy Controls how limma::eBayes() estimates its empirical Bayes prior.
+#'   NULL (default) uses limma's own default for the installed version. TRUE selects the
+#'   estimator of limma <= 3.58.1 (moment estimation, \code{fitFDist}), which reproduces
+#'   results published before limma 3.62. FALSE always uses \code{fitFDistUnequalDF1}.
+#'   TRUE and FALSE need limma >= 3.61.8. Only works when test = "moderated-t".
 #' @export
 score_single_screen <- function(
 	df, 
@@ -418,7 +429,8 @@ score_single_screen <- function(
 	pos_type = "Positive", 
 	label_fdr_threshold = NULL,
 	save_guide_dlfc = FALSE, 
-	plot_type = "png"
+	plot_type = "png",
+	ebayes_legacy = NULL
 )
 {
 	# Score each condition screen in the screen batch separately
@@ -439,7 +451,8 @@ score_single_screen <- function(
 			ma_transform = ma_transform, 
 			control_genes = control_genes, 
 			fdr_method = fdr_method, 
-			return_residuals = save_guide_dlfc
+			return_residuals = save_guide_dlfc,
+			ebayes_legacy = ebayes_legacy
 
 		)
 		scores <- temp[["scored_data"]] # scored data returned by score_condition_vs_control() 
@@ -555,6 +568,11 @@ score_single_screen <- function(
 #'   hits, or NULL to plot without labels (default NULL).
 #' @param save_guide_dlfc If true, saves guide-level dLFC scores for each condition screen to the output folder
 #'   (default FALSE).
+#' @param ebayes_legacy Controls how limma::eBayes() estimates its empirical Bayes prior.
+#'   NULL (default) uses limma's own default for the installed version. TRUE selects the
+#'   estimator of limma <= 3.58.1 (moment estimation, \code{fitFDist}), which reproduces
+#'   results published before limma 3.62. FALSE always uses \code{fitFDistUnequalDF1}.
+#'   TRUE and FALSE need limma >= 3.61.8. Only works when test = "moderated-t".
 #' @export
 run_single_screen_scoring<- function(
 	parent_folder,
@@ -585,7 +603,8 @@ run_single_screen_scoring<- function(
 	neg_type = "Negative",
 	pos_type = "Positive", 
 	label_fdr_threshold = NULL, 
-	save_guide_dlfc = FALSE
+	save_guide_dlfc = FALSE,
+	ebayes_legacy = NULL
 )
 {
 	# create parent folder if non-existant
@@ -736,7 +755,8 @@ run_single_screen_scoring<- function(
 			neg_type = neg_type,
 			pos_type = pos_type, 
 			label_fdr_threshold = label_fdr_threshold, 
-			save_guide_dlfc = save_guide_dlfc
+			save_guide_dlfc = save_guide_dlfc,
+			ebayes_legacy = ebayes_legacy
 		)
 		
 		# merge and generate combined dLFC and FDR files	 
@@ -779,4 +799,30 @@ run_single_screen_scoring<- function(
 	scores_fdr_fname <- file.path(parent_folder, "fdr_scores.tsv")
 	write.table(scores_fdr, scores_fdr_fname, sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
 
+}
+
+#' Fit empirical Bayes moderation, optionally pinning limma's hyperparameter estimator
+#'
+#' limma 3.62.0 changed the default estimator behind \code{eBayes()} to
+#' \code{fitFDistUnequalDF1} whenever residual degrees of freedom are unequal, which they
+#' are after jackknife outlier removal. \code{legacy = TRUE} selects the older estimator
+#' (limma <= 3.58.1) so that earlier published scores can be reproduced.
+#'
+#' @param fit An MArrayLM object from \code{limma::lmFit}.
+#' @param legacy NULL to use limma's default, or TRUE/FALSE passed to \code{eBayes(legacy=)}
+#'   (needs limma >= 3.61.8).
+#' @return The fit returned by \code{limma::eBayes}.
+#' @noRd
+run_ebayes <- function(fit, legacy = NULL) {
+	if (is.null(legacy)) {
+		return(limma::eBayes(fit))
+	}
+	if (!(is.logical(legacy) && length(legacy) == 1 && !is.na(legacy))) {
+		stop("ebayes_legacy must be NULL, TRUE or FALSE")
+	}
+	if (!("legacy" %in% names(formals(limma::eBayes)))) {
+		stop("ebayes_legacy needs limma >= 3.61.8; installed limma is ",
+			as.character(utils::packageVersion("limma")))
+	}
+	limma::eBayes(fit, legacy = legacy)
 }
