@@ -22,7 +22,8 @@ score_single_screen(
   pos_type = "Positive",
   label_fdr_threshold = NULL,
   save_guide_dlfc = FALSE,
-  plot_type = "png"
+  plot_type = "png",
+  ebayes_legacy = NULL
 )
 }
 \arguments{
@@ -74,6 +75,12 @@ hits, or NULL to plot without labels (default NULL).}
 (default FALSE).}
 
 \item{plot_type}{Type of plot to output, one of "png" or "pdf" (default "png").}
+
+\item{ebayes_legacy}{Controls how limma::eBayes() estimates its empirical Bayes prior.
+NULL (default) uses limma's own default for the installed version. TRUE selects the
+estimator of limma <= 3.58.1 (moment estimation, \code{fitFDist}), which reproduces
+results published before limma 3.62. FALSE always uses \code{fitFDistUnequalDF1}.
+TRUE and FALSE need limma >= 3.61.8. Only works when test = "moderated-t".}
 }
 \description{
 Takes in an input .tsv file with two columns for "Screen" and "Control" and scores
